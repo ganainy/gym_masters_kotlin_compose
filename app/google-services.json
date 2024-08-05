@@ -1,0 +1,77 @@
+{
+  "project_info": {
+    "project_number": "524903909347",
+    "firebase_url": "https://gym-masters.firebaseio.com",
+    "project_id": "gym-masters",
+    "storage_bucket": "gym-masters.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:524903909347:android:71e6a3a587c689780f42d6",
+        "android_client_info": {
+          "package_name": "com.ganainy.gymmasterscompose"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "524903909347-98831vri61mo39k9ukmer42qebl2u0nm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChw031FiuUgyjgL0O95cuxwfD_c2aI9Cg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "524903909347-98831vri61mo39k9ukmer42qebl2u0nm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:524903909347:android:d733c049ede8aa9f0f42d6",
+        "android_client_info": {
+          "package_name": "ganainy.dev.gymmasters"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "524903909347-tmsn1lpv565o65kf2eanmtt1qrjo7bqp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ganainy.dev.gymmasters",
+            "certificate_hash": "5e2b53b373823b35c5f91a8940b40a3e4e1873fd"
+          }
+        },
+        {
+          "client_id": "524903909347-98831vri61mo39k9ukmer42qebl2u0nm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChw031FiuUgyjgL0O95cuxwfD_c2aI9Cg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "524903909347-98831vri61mo39k9ukmer42qebl2u0nm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

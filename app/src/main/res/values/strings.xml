@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Gym masters compose</string>
+    <string name="authentication_failed">Authentication failed.</string>
+    <string name="create_account_failed">Error while creating user account.</string>
+    <string name="empty_field">Please make sure that no input field is empty.</string>
+    <string name="welcome_to_gym_masters_where_you_can_create_and_share_custom_exercises_and_workouts_and_see_other_users_unique_creations">Welcome to Gym masters where you can create and share custom exercises and workouts and see other users unique creations</string>
+    <string name="create_account">Create Account</string>
+    <string name="already_using_gym_masters">Already using Gym masters?</string>
+    <string name="sign_in_here">Sign In Here.</string>
+    <string name="user_name">User name</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="username_cannot_be_empty">Username must be at least four characters</string>
+    <string name="password_must_be_atleast_six_characters_long">Password must be at least six characters long</string>
+    <string name="email_invalid_format">Email has invalid format\n</string>
+    <string name="welcome_back_to_gym_masters">Welcome back to gym masters!</string>
+    <string name="sign_in">Sign In</string>
+    <string name="want_to_create_account">Want to create account instead?</string>
+    <string name="sign_up_here">Sign Up Here.</string>
+    <string name="hide_password">Hide password</string>
+    <string name="show_password">Show password</string>
+    <string name="invalid_username">Please enter valid username of at least 4 characters</string>
+    <string name="invalid_email">Please enter a valid Email address</string>
+    <string name="invalid_password">Please enter password of at least 6 numbers/characters</string>
+    <string name="error_logging_out">Error logging out</string>
+</resources>
