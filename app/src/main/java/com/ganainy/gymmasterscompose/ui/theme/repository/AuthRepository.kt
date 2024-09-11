@@ -10,27 +10,35 @@ import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
 
 
-interface IAppRepository {
+interface IAuthRepository {
     suspend fun createUser(email: String, password: String): Result<String>
     suspend fun saveUserInfo(user: User): Result<Unit>
     fun getCurrentUser(): FirebaseUser?
     suspend fun signInUser(email: String, password: String): Result<FirebaseUser>
     suspend fun signOut(): Result<Unit>
+    suspend fun getDatabase(): FirebaseDatabase
 }
 
 
-class AppRepository(
+class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
     private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
-) : IAppRepository {
+) : IAuthRepository {
 
     override suspend fun createUser(email: String, password: String): Result<String> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            Result.success(result.user?.uid ?: throw Exception("User ID is null"))
+            Result.success(
+                result.user?.uid
+                    ?: throw Exception("com.ganainy.gymmasterscompose.ui.theme.models.User ID is null")
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    override suspend fun getDatabase(): FirebaseDatabase {
+        return database
     }
 
     override suspend fun saveUserInfo(user: User): Result<Unit> {
@@ -55,7 +63,7 @@ class AppRepository(
             } ?: Result.failure(Exception("Sign in successful but user is null"))
         } catch (e: Exception) {
             when (e) {
-                is FirebaseAuthInvalidUserException -> Result.failure(Exception("User not found"))
+                is FirebaseAuthInvalidUserException -> Result.failure(Exception("com.ganainy.gymmasterscompose.ui.theme.models.User not found"))
                 is FirebaseAuthInvalidCredentialsException -> Result.failure(Exception("Invalid credentials"))
                 else -> Result.failure(e)
             }

@@ -8,7 +8,7 @@ import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils
 import com.ganainy.gymmasterscompose.ui.theme.models.User
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAppRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,7 +35,7 @@ sealed class SignUpUiState {
 }
 
 
-class SignUpViewModel(private val repository: IAppRepository) : ViewModel() {
+class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignUpUiState>(SignUpUiState.Initial)
     val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
@@ -47,7 +47,7 @@ class SignUpViewModel(private val repository: IAppRepository) : ViewModel() {
         // Check if user is signed in (non-null)
         val currentUser = repository.getCurrentUser()
         if (currentUser != null) {
-            // User is signed already in, redirect to feed screen
+            // com.ganainy.gymmasterscompose.ui.theme.models.User is signed already in, redirect to feed screen
             _uiState.value = SignUpUiState.Success
         }
     }
@@ -78,7 +78,7 @@ class SignUpViewModel(private val repository: IAppRepository) : ViewModel() {
         ).onSuccess {
             // createUser success, save user data in db and update ui
             val userId: String = repository.getCurrentUser()?.uid
-                ?: throw Exception("authenticateWithFirebase: User ID is null")
+                ?: throw Exception("authenticateWithFirebase: com.ganainy.gymmasterscompose.ui.theme.models.User ID is null")
 
             _signUpFormData.update {
                 it.copy(
@@ -143,7 +143,7 @@ class SignUpViewModel(private val repository: IAppRepository) : ViewModel() {
 }
 
 
-class SignUpViewModelFactory(private val repository: IAppRepository) : ViewModelProvider.Factory {
+class SignUpViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SignUpViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

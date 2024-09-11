@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAppRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +23,7 @@ sealed class FeedUiState {
 }
 
 
-class FeedViewModel(private val repository: IAppRepository) : ViewModel() {
+class FeedViewModel(private val repository: IAuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Initial)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
@@ -46,7 +46,7 @@ class FeedViewModel(private val repository: IAppRepository) : ViewModel() {
 }
 
 
-class FeedViewModelFactory(private val repository: IAppRepository) : ViewModelProvider.Factory {
+class FeedViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(FeedViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAppRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +28,7 @@ sealed class SignInUiState {
     object Success : SignInUiState()
 }
 
-class SignInViewModel(private val repository: IAppRepository) : ViewModel() {
+class SignInViewModel(private val repository: IAuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignInUiState>(SignInUiState.Initial)
     val uiState: StateFlow<SignInUiState> = _uiState.asStateFlow()
@@ -82,7 +82,7 @@ class SignInViewModel(private val repository: IAppRepository) : ViewModel() {
 }
 
 
-class SignInViewModelFactory(private val repository: IAppRepository) : ViewModelProvider.Factory {
+class SignInViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SignInViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")

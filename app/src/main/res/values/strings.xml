@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Gym masters compose</string>
+    <string name="app_name">Gym masters</string>
     <string name="authentication_failed">Authentication failed.</string>
     <string name="create_account_failed">Error while creating user account.</string>
     <string name="empty_field">Please make sure that no input field is empty.</string>
@@ -23,4 +23,13 @@
     <string name="invalid_email">Please enter a valid Email address</string>
     <string name="invalid_password">Please enter password of at least 6 numbers/characters</string>
     <string name="error_logging_out">Error logging out</string>
+    <string name="followers">%1$s Followers</string>
+    <string name="workouts">%1$s Workouts</string>
+    <string name="exercises">%1$s Exercises</string>
+    <string name="rating">%1$s /5 Rating</string>
+    <string name="error_loading_data">Error loading data</string>
+    <string name="sign_out">Sign out</string>
+    <string name="discover">Discover</string>
+    <string name="error_loading_exercises_count">Error loading exercises count</string>
+    <string name="error_loading_workouts_count">Error loading workouts count</string>
 </resources>

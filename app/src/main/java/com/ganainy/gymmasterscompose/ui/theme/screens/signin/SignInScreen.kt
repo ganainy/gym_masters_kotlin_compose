@@ -37,11 +37,11 @@ import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
-import com.ganainy.gymmasterscompose.ui.theme.repository.AppRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 
 @Composable
 fun SignInScreen(
-    appRepository: AppRepository,
+    appRepository: AuthRepository,
     navigateToSignUp: () -> Unit,
     navigateToFeed: () -> Unit,
     navigateBack: () -> Unit
