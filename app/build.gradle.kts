@@ -64,6 +64,8 @@ dependencies {
     implementation(libs.firebase.messaging)
     //Material Icons
     implementation(libs.androidx.material.icons.extended)
+    //Coil
+    implementation(libs.coil.compose)
     //Default
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

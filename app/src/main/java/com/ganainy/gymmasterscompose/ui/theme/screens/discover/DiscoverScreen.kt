@@ -1,5 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
+import CustomSearchBar
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,7 +18,6 @@ import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.DiscoverProfile
 import com.ganainy.gymmasterscompose.ui.theme.repository.DataRepository
-import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInUiState
 
 @Composable
 fun DiscoverScreen(dataRepository: DataRepository) {
@@ -24,31 +26,43 @@ fun DiscoverScreen(dataRepository: DataRepository) {
     val uiState by viewModel.uiState.collectAsState()
     val discoverData by viewModel.discoverData.collectAsState()
 
-    when (uiState) {
+    //Collecting states from ViewModel
 
-        is DiscoverUiState.Loading -> {
-            // Show loading indicator
-            CustomProgressIndicator()
-        }
 
-        is DiscoverUiState.Error -> {
-            // Show error message
-            CustomSnackBar(message = stringResource((uiState as SignInUiState.Error).messageStringResource)) {
-            }
-        }
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
 
-        is DiscoverUiState.Success -> {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                items(discoverData.users) { item ->
-                    DiscoverProfile(item)
+        CustomSearchBar(
+            onQueryChange = { query -> viewModel.onQueryChange(query) },
+            searchQuery = discoverData.searchQuery
+        )
+
+        Box(modifier = Modifier.padding(8.dp)) {
+            when (uiState) {
+                is DiscoverUiState.Loading -> {
+                    CustomProgressIndicator()
+                }
+
+                is DiscoverUiState.Error -> {
+                    CustomSnackBar(
+                        message = stringResource((uiState as DiscoverUiState.Error).messageStringResource)
+                    ) {
+                        // Add any action for the SnackBar if needed
+                    }
+                }
+
+                is DiscoverUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(discoverData.users) { item ->
+                            DiscoverProfile(item)
+                        }
+                    }
                 }
             }
         }
 
     }
-
 }
