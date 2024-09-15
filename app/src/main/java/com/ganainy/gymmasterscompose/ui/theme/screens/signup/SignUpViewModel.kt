@@ -45,7 +45,7 @@ class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
 
     init {
         // Check if user is signed in (non-null)
-        val currentUser = repository.getCurrentUser()
+        val currentUser = repository.getCurrentUserId()
         if (currentUser != null) {
             // com.ganainy.gymmasterscompose.ui.theme.models.User is signed already in, redirect to feed screen
             _uiState.value = SignUpUiState.Success
@@ -77,7 +77,7 @@ class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
             _signUpFormData.value.password
         ).onSuccess {
             // createUser success, save user data in db and update ui
-            val userId: String = repository.getCurrentUser()?.uid
+            val userId: String = repository.getCurrentUserId()
                 ?: throw Exception("authenticateWithFirebase: com.ganainy.gymmasterscompose.ui.theme.models.User ID is null")
 
             _signUpFormData.update {

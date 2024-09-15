@@ -25,7 +25,7 @@ sealed class Screen(val route: String) {
 @Composable
 fun AppNavGraph(navController: NavHostController) {
     val authRepository = AuthRepository()
-    val dataRepository = DataRepository()
+    val dataRepository = DataRepository(authRepository)
     val actions = remember(navController) { NavigationActions(navController) }
     NavHost(navController = navController, startDestination = Screen.SignUp.route) {
         composable(route = Screen.SignUp.route) {

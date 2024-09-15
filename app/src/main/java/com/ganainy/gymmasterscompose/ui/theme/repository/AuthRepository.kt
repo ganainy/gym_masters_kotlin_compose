@@ -13,7 +13,7 @@ import kotlinx.coroutines.tasks.await
 interface IAuthRepository {
     suspend fun createUser(email: String, password: String): Result<String>
     suspend fun saveUserInfo(user: User): Result<Unit>
-    fun getCurrentUser(): FirebaseUser?
+    fun getCurrentUserId(): String?
     suspend fun signInUser(email: String, password: String): Result<FirebaseUser>
     suspend fun signOut(): Result<Unit>
     suspend fun getDatabase(): FirebaseDatabase
@@ -51,8 +51,8 @@ class AuthRepository(
         }
     }
 
-    override fun getCurrentUser(): FirebaseUser? {
-        return auth.currentUser
+    override fun getCurrentUserId(): String? {
+        return auth.currentUser?.uid
     }
 
     override suspend fun signInUser(email: String, password: String): Result<FirebaseUser> {

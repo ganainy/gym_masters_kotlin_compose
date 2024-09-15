@@ -2,6 +2,8 @@ package com.ganainy.gymmasterscompose.ui.theme.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,10 +31,14 @@ import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DiscoverProfile(user: User) {
+fun DiscoverProfile(user: User, onFollowClick: () -> Unit, isFollowedByLoggedUser: Boolean?) {
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+
+            ) {
 
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
@@ -50,7 +56,7 @@ fun DiscoverProfile(user: User) {
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 user.name?.let {
                     Text(
                         text = it,
@@ -92,7 +98,7 @@ fun DiscoverProfile(user: User) {
                     }
                 }
 
-                user.ratingsAverage?.let {
+                user.Ratings?.let {
                     textItems.add {
                         Text(
                             text = stringResource(R.string.rating, user.ratingsAverage!!),
@@ -104,7 +110,7 @@ fun DiscoverProfile(user: User) {
 
                 // Only display the row if there are text items
                 if (textItems.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         // Add bullet points between text items
                         textItems.forEachIndexed { index, textItem ->
                             textItem()
@@ -120,6 +126,11 @@ fun DiscoverProfile(user: User) {
                     }
                 }
             }
+
+            FollowButton(
+                onFollowClick = onFollowClick,
+                isFollowedByLoggedUser = isFollowedByLoggedUser
+            )
 
 
         }
@@ -139,5 +150,15 @@ fun DiscoverProfile(user: User) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewDiscoverProfile() {
-    DiscoverProfile(User())
+    DiscoverProfile(
+        User(
+            name = "amr",
+            followersUID = mapOf("1" to "4", "1" to "4", "1" to "4"),
+            exercisesCount = 3,
+            workoutsCount = 2,
+            Ratings = mapOf("1" to 3, "1" to 5, "1" to 4)
+        ),
+        {},
+        true
+    )
 }

@@ -2,17 +2,22 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.repository.IDataRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 
 data class DiscoverData(
     val users: List<User> = listOf(),
     val searchQuery: String = "",
+    val user: User = User(),
 )
 
 sealed class DiscoverUiState {
@@ -36,7 +41,25 @@ class DiscoverViewModel(private val dataRepository: IDataRepository) : ViewModel
     init {
         // Load all users when the ViewModel is created
         loadAllUsers()
+        // listen to logged user updates
+        dataRepository.getLoggedUser { result ->
+            result.onSuccess { updatedUser ->
+                _discoverData.update {
+                    it.copy(
+                        user = updatedUser
+                    )
+                }
+            }.onFailure { exception ->
+                val cExeption = exception as CustomException
+                _uiState.value = DiscoverUiState.Error(cExeption.stringRes)
+            }
+        }
     }
+
+    fun isFollowedByLoggedUser(user: User): Boolean {
+        return discoverData.value.user.followingUID?.containsValue(user.id) ?: false
+    }
+
 
     // Load all users except logged-in user to show in discover screen
     private fun loadAllUsers() {
@@ -86,6 +109,21 @@ class DiscoverViewModel(private val dataRepository: IDataRepository) : ViewModel
             currentState.copy(searchQuery = query, users = filteredUsers)
         }
     }
+
+    fun followUnfollowUser(userToFollowUnfollow: User) {
+        // Launch a coroutine in the viewModelScope
+        viewModelScope.launch {
+            try {
+                // Call the suspend function
+                dataRepository.followUnfollowUser(userToFollowUnfollow, onSuccess = { users ->
+                    _discoverData.update { it.copy(users = users) }
+                })
+            } catch (e: Exception) {
+                _uiState.value = DiscoverUiState.Error(R.string.error_follow_unfollow)
+            }
+        }
+    }
+
 }
 
 

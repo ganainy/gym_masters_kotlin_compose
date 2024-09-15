@@ -26,8 +26,6 @@ fun DiscoverScreen(dataRepository: DataRepository) {
     val uiState by viewModel.uiState.collectAsState()
     val discoverData by viewModel.discoverData.collectAsState()
 
-    //Collecting states from ViewModel
-
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -57,7 +55,11 @@ fun DiscoverScreen(dataRepository: DataRepository) {
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(discoverData.users) { item ->
-                            DiscoverProfile(item)
+                            DiscoverProfile(
+                                item,
+                                { viewModel.followUnfollowUser(item) },
+                                viewModel.isFollowedByLoggedUser(item)
+                            )
                         }
                     }
                 }
