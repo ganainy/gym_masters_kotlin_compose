@@ -33,7 +33,7 @@
     <string name="error_loading_exercises_count">Error loading exercises count</string>
     <string name="error_loading_workouts_count">Error loading workouts count</string>
     <string name="search_for_a_user">Search for a user</string>
-    <string name="follow">Follow</string>
+    <string name="follow">follow</string>
     <string name="following">following</string>
     <string name="loading">Loading...</string>
     <string name="error_follow_unfollow">Error following / unfollowing</string>
@@ -42,4 +42,5 @@
     <string name="user_not_found">User not found</string>
     <string name="invalid_credentials">Invalid Credentials</string>
     <string name="error_signing_in">Error signing in</string>
+    <string name="error_loading_following_list">Error loading your following list</string>
 </resources>

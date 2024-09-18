@@ -1,7 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
+import User
 import com.ganainy.gymmasterscompose.AppConstants
-import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.AppConstants.FIREBASE_DATABASE_NAME
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -22,7 +23,7 @@ interface IAuthRepository {
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val database: FirebaseDatabase = FirebaseDatabase.getInstance()
+    private val database: FirebaseDatabase = FirebaseDatabase.getInstance(FIREBASE_DATABASE_NAME)
 ) : IAuthRepository {
 
     override suspend fun createUser(email: String, password: String): Result<String> {
@@ -43,7 +44,7 @@ class AuthRepository(
 
     override suspend fun saveUserInfo(user: User): Result<Unit> {
         return try {
-            val userRef = database.getReference(AppConstants.USERS).child(user.id!!)
+            val userRef = database.getReference(AppConstants.USERS).child(user.userId)
             userRef.setValue(user).await()
             Result.success(Unit)
         } catch (e: Exception) {

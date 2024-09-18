@@ -54,11 +54,11 @@ fun DiscoverScreen(dataRepository: DataRepository) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(discoverData.users) { item ->
+                        items(discoverData.users) { localUser ->
                             DiscoverProfile(
-                                item,
-                                { viewModel.followUnfollowUser(item) },
-                                viewModel.isFollowedByLoggedUser(item)
+                                localUser,
+                                { localUser.user?.let { viewModel.followUnfollowUser(it) } },
+                                localUser.user?.let { viewModel.isFollowedByLoggedUser(it) }
                             )
                         }
                     }

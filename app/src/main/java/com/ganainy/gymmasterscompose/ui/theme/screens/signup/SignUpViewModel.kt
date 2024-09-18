@@ -1,19 +1,21 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.signup
 
 
+import User
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils
-import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.AppUtils.generateRandomUsername
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Date
 
 
 data class SignUpFormData(
@@ -94,9 +96,10 @@ class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
 
     private suspend fun saveUserInfo() {
 
-        val newUser: User = User(
-            id = _signUpFormData.value.uid, name = _signUpFormData.value.username,
-            email = _signUpFormData.value.email
+        val newUser = User(
+            userId = _signUpFormData.value.uid, name = _signUpFormData.value.username,
+            email = _signUpFormData.value.email,
+            joinDate = Date().time, username = generateRandomUsername()
         )
 
         repository.saveUserInfo(newUser).onSuccess {
@@ -124,7 +127,7 @@ class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
                 username = username,
                 isUsernameValid = AppUtils.isValidFieldLength(
                     username,
-                    AppConstants.MINIMUM_USERNAME_LENGTH
+                    AppConstants.MINIMUM_NAME_LENGTH
                 )
             )
         }
