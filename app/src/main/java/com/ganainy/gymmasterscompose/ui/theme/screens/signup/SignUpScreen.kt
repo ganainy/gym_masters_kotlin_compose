@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
@@ -39,12 +40,11 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 
 @Composable
 fun SignUpScreen(
-    appRepository: AuthRepository,
     navigateToSignIn: () -> Unit,
     navigateToFeed: () -> Unit,
     navigateBack: () -> Unit
 ) {
-    val viewModel: SignUpViewModel = viewModel(factory = SignUpViewModelFactory(appRepository))
+    val viewModel: SignUpViewModel = hiltViewModel()
     val uiState = viewModel.uiState.collectAsState().value
     val signUpFormData = viewModel.signUpFormData.collectAsState().value
 

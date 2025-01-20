@@ -13,16 +13,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.DiscoverProfile
-import com.ganainy.gymmasterscompose.ui.theme.repository.DataRepository
 
 @Composable
-fun DiscoverScreen(dataRepository: DataRepository) {
+fun DiscoverScreen() {
 
-    val viewModel: DiscoverViewModel = viewModel(factory = DiscoverViewModelFactory(dataRepository))
+    val viewModel: DiscoverViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val discoverData by viewModel.discoverData.collectAsState()
 

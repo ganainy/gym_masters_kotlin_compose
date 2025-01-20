@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 
 data class FeedData(
@@ -22,8 +25,8 @@ sealed class FeedUiState {
     data class Error(val messageStringResource: Int) : FeedUiState()
 }
 
-
-class FeedViewModel(private val repository: IAuthRepository) : ViewModel() {
+@HiltViewModel
+class FeedViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Initial)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
@@ -43,15 +46,4 @@ class FeedViewModel(private val repository: IAuthRepository) : ViewModel() {
         }
     }
 
-}
-
-
-class FeedViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(FeedViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return FeedViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
 }

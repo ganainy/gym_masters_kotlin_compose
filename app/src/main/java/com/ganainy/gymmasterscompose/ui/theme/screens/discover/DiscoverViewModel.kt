@@ -6,12 +6,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.repository.DataRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IDataRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 
 data class DiscoverData(
@@ -27,8 +30,8 @@ sealed class DiscoverUiState {
     data class Error(val messageStringResource: Int) : DiscoverUiState()
 }
 
-
-class DiscoverViewModel(private val dataRepository: IDataRepository) : ViewModel() {
+@HiltViewModel
+class DiscoverViewModel @Inject constructor(private val dataRepository: DataRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DiscoverUiState>(DiscoverUiState.Loading)
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
@@ -121,16 +124,4 @@ class DiscoverViewModel(private val dataRepository: IDataRepository) : ViewModel
         }
     }
 
-}
-
-
-class DiscoverViewModelFactory(private val repository: IDataRepository) :
-    ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DiscoverViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return DiscoverViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
 }

@@ -11,7 +11,9 @@ import androidx.navigation.compose.rememberNavController
 import com.ganainy.gymmasterscompose.ui.theme.GymMastersComposeTheme
 import com.ganainy.gymmasterscompose.ui.theme.navigation.AppNavGraph
 import com.google.firebase.FirebaseApp
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

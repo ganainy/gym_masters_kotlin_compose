@@ -14,6 +14,7 @@ import com.ganainy.gymmasterscompose.AppConstants.USER_ID
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils.generateRandomUsername
 import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 
 interface IDataRepository {
@@ -48,9 +50,9 @@ interface IDataRepository {
     suspend fun listenForFollowersUpdates()
 }
 
-class DataRepository(
-    private val authRepo: AuthRepository,
-    private val database: FirebaseDatabase = FirebaseDatabase.getInstance(FIREBASE_DATABASE_NAME)
+class DataRepository @Inject constructor(
+    private val authRepo:AuthRepository,
+    private val database:FirebaseDatabase
 ) : IDataRepository {
 
     // firebase Id of current logged in user

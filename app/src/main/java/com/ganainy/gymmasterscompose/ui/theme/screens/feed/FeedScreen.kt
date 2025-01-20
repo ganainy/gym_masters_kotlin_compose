@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
@@ -24,17 +25,17 @@ import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.ToolbarWithMenu
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInUiState
+import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpViewModel
 import kotlinx.coroutines.launch
 
 
 @Composable
 fun FeedScreen(
-    appRepository: AuthRepository,
     navigateToSignIn: () -> Unit,
     navigateToDiscover: () -> Unit
 ) {
 
-    val viewModel: FeedViewModel = viewModel(factory = FeedViewModelFactory(appRepository))
+    val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val feedData by viewModel.feedData.collectAsState()
 

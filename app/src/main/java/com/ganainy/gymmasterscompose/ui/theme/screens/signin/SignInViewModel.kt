@@ -7,12 +7,15 @@ import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils
+import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class SignInFormData(
     val email: String = "",
@@ -28,7 +31,8 @@ sealed class SignInUiState {
     object Success : SignInUiState()
 }
 
-class SignInViewModel(private val repository: IAuthRepository) : ViewModel() {
+@HiltViewModel
+class SignInViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignInUiState>(SignInUiState.Initial)
     val uiState: StateFlow<SignInUiState> = _uiState.asStateFlow()
@@ -79,16 +83,5 @@ class SignInViewModel(private val repository: IAuthRepository) : ViewModel() {
         }
     }
 
-}
-
-
-class SignInViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SignInViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return SignInViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
 }
 

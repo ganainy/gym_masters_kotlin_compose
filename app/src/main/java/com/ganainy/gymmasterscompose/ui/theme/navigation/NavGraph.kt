@@ -23,14 +23,11 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavGraph(navController: NavHostController) {
-    val authRepository = AuthRepository()
-    val dataRepository = DataRepository(authRepository)
+fun AppNavGraph(navController: NavHostController, ) {
     val actions = remember(navController) { NavigationActions(navController) }
     NavHost(navController = navController, startDestination = Screen.SignUp.route) {
         composable(route = Screen.SignUp.route) {
             SignUpScreen(
-                authRepository,
                 actions.navigateToSignIn,
                 actions.navigateToFeed,
                 actions.navigateBack
@@ -38,15 +35,16 @@ fun AppNavGraph(navController: NavHostController) {
         }
         composable(route = Screen.SignIn.route) {
             SignInScreen(
-                authRepository, actions.navigateToSignUp,
-                actions.navigateToFeed, actions.navigateBack
+                actions.navigateToSignUp,
+                actions.navigateToFeed,
+                actions.navigateBack
             )
         }
         composable(route = Screen.Feed.route) {
-            FeedScreen(authRepository, actions.navigateToSignIn, actions.navigateToDiscover)
+            FeedScreen( actions.navigateToSignIn, actions.navigateToDiscover)
         }
         composable(route = Screen.Discover.route) {
-            DiscoverScreen(dataRepository)
+            DiscoverScreen()
         }
 
     }

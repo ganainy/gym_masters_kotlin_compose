@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
@@ -38,15 +39,15 @@ import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpViewModel
 
 @Composable
 fun SignInScreen(
-    appRepository: AuthRepository,
     navigateToSignUp: () -> Unit,
     navigateToFeed: () -> Unit,
     navigateBack: () -> Unit
 ) {
-    val viewModel: SignInViewModel = viewModel(factory = SignInViewModelFactory(appRepository))
+    val viewModel: SignInViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val formData by viewModel.formData.collectAsState()
 

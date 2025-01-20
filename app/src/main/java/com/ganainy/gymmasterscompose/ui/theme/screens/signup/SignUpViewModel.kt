@@ -9,13 +9,16 @@ import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils
 import com.ganainy.gymmasterscompose.ui.theme.AppUtils.generateRandomUsername
+import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import javax.inject.Inject
 
 
 data class SignUpFormData(
@@ -36,8 +39,8 @@ sealed class SignUpUiState {
     // account already exists on device
 }
 
-
-class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
+@HiltViewModel
+class SignUpViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SignUpUiState>(SignUpUiState.Initial)
     val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
@@ -145,14 +148,4 @@ class SignUpViewModel(private val repository: IAuthRepository) : ViewModel() {
 
 }
 
-
-class SignUpViewModelFactory(private val repository: IAuthRepository) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SignUpViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return SignUpViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
 

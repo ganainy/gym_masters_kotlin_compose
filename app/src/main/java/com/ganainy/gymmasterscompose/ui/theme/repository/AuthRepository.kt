@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 
 interface IAuthRepository {
@@ -21,9 +22,9 @@ interface IAuthRepository {
 }
 
 
-class AuthRepository(
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
-    private val database: FirebaseDatabase = FirebaseDatabase.getInstance(FIREBASE_DATABASE_NAME)
+class AuthRepository @Inject constructor(
+    private val auth: FirebaseAuth ,
+    private val database: FirebaseDatabase
 ) : IAuthRepository {
 
     override suspend fun createUser(email: String, password: String): Result<String> {
