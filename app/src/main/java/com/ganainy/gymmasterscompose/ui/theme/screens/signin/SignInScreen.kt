@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,14 +31,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.Utils.ShowSnackbar
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
-import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpViewModel
+import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 
 @Composable
 fun SignInScreen(
@@ -69,13 +65,13 @@ fun SignInScreen(
 
         is SignInUiState.Loading -> {
             // Show loading indicator
-            CustomProgressIndicator()
+            LoadingIndicator()
         }
 
         is SignInUiState.Error -> {
             // Show error message
-            CustomSnackBar(message = stringResource((uiState as SignInUiState.Error).messageStringResource)) {
-            }
+            val errorMessage= stringResource((uiState as SignInUiState.Error).messageStringResource)
+            ShowSnackbar(errorMessage)
         }
 
         is SignInUiState.Success -> {
@@ -143,7 +139,7 @@ fun SignInScreenContent(
                     fontSize = 14.sp,
                 )
                 TextButton(onClick = onNavigateToSignUp) {
-                    Text(text = stringResource(R.string.sign_up_here), color = Color.Blue)
+                    Text(text = stringResource(R.string.sign_up_here))
                 }
             }
             Spacer(modifier = Modifier.height(32.dp))
@@ -153,10 +149,6 @@ fun SignInScreenContent(
                     .padding(vertical = 16.dp)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black,
-                    contentColor = Color.White
-                )
             ) {
                 Text(
                     text = stringResource(R.string.sign_in),

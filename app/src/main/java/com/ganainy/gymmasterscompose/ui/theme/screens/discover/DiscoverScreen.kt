@@ -1,6 +1,9 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
 import CustomSearchBar
+import Profile
+import Stats
+import User
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,12 +15,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
-import com.ganainy.gymmasterscompose.ui.theme.components.DiscoverProfile
+import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
+import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import java.util.Date
 
 @Composable
 fun DiscoverScreen() {
@@ -39,32 +43,62 @@ fun DiscoverScreen() {
         Box(modifier = Modifier.padding(8.dp)) {
             when (uiState) {
                 is DiscoverUiState.Loading -> {
-                    CustomProgressIndicator()
+                    LoadingIndicator()
                 }
 
                 is DiscoverUiState.Error -> {
-                    CustomSnackBar(
-                        message = stringResource((uiState as DiscoverUiState.Error).messageStringResource)
+                    ErrorComponent(
+                        text = stringResource((uiState as DiscoverUiState.Error).messageStringResource)
                     ) {
                         // Add any action for the SnackBar if needed
                     }
                 }
 
                 is DiscoverUiState.Success -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(discoverData.users) { localUser ->
-                            DiscoverProfile(
-                                localUser,
-                                { localUser.user?.let { viewModel.followUnfollowUser(it) } },
-                                localUser.user?.let { viewModel.isFollowedByLoggedUser(it) }
-                            )
-                        }
-                    }
+                    DiscoverScreenContent(discoverData, viewModel)
                 }
             }
         }
 
     }
+}
+
+@Composable
+private fun DiscoverScreenContent(
+    discoverData: DiscoverData,
+    viewModel: DiscoverViewModel
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(discoverData.users) { user ->
+            DiscoverProfile(
+                user,
+                { user.let { viewModel.followUnfollowUser(it) } },
+                user.let { viewModel.isFollowedByLoggedUser(it) }
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+fun DiscoverScreenContentPreview() {
+    DiscoverScreenContent(
+        discoverData = DiscoverData(
+            users = listOf(
+                User(
+                    profile = Profile(
+                        id = "1234",
+                        displayName = "amr",
+                        username = "user1",
+                        email = "amr@gmail.com",
+                        joinDate = Date().time,
+                    ), Stats(3, 2, 3, 19)
+                ),
+            ),
+            searchQuery = ""
+        ),
+        viewModel = viewModel()
+    )
 }

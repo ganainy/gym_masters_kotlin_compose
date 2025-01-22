@@ -10,7 +10,7 @@
     <string name="user_name">User name</string>
     <string name="email">Email</string>
     <string name="password">Password</string>
-    <string name="username_cannot_be_empty">Username must be at least four characters</string>
+    <string name="display_cannot_be_empty">Display name must be at least four characters</string>
     <string name="password_must_be_atleast_six_characters_long">Password must be at least six characters long</string>
     <string name="email_invalid_format">Email has invalid format\n</string>
     <string name="welcome_back_to_gym_masters">Welcome back to gym masters!</string>
@@ -23,9 +23,9 @@
     <string name="invalid_email">Please enter a valid Email address</string>
     <string name="invalid_password">Please enter password of at least 6 numbers/characters</string>
     <string name="error_logging_out">Error logging out</string>
-    <string name="followers">%1$s Followers</string>
-    <string name="workouts">%1$s Workouts</string>
-    <string name="exercises">%1$s Exercises</string>
+    <string name="followers">Followers</string>
+    <string name="workouts">Workouts</string>
+    <string name="exercises">Exercises</string>
     <string name="rating">%1$s/5 ⭐</string>
     <string name="error_loading_data">Error loading data</string>
     <string name="sign_out">Sign out</string>
@@ -43,4 +43,18 @@
     <string name="invalid_credentials">Invalid Credentials</string>
     <string name="error_signing_in">Error signing in</string>
     <string name="error_loading_following_list">Error loading your following list</string>
+    <string name="retry">Retry</string>
+    <string name="lorem_ipsum_short">Lorem ipsum dolor sit amet</string>
+    <string name="lorem_ipsum_long">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam finibus, lacus ut maximus convallis, nunc nisl malesuada magna, ac pharetra nunc nisl vitae sem.</string>
+    <string name="joined">Joined %1$s</string>
+    <string name="display_name">Display name</string>
+    <string name="error_creating_post">Error creating post</string>
+    <string name="error_updating_reaction">Error updating reaction</string>
+    <string name="error_loading_feed">Error loading feed</string>
+    <string name="error_loading_posts">Error loading posts</string>
+    <string name="what_s_on_your_mind">What\'s on your mind?</string>
+    <string name="post">Post</string>
+    <string name="network_error_occurred">Network error occurred</string>
+    <string name="error_loading_following">Error loading people you follow</string>
+    <string name="profile">My Profile</string>
 </resources>

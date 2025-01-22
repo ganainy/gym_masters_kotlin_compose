@@ -1,47 +1,65 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.feed
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Feed
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomProgressIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomSnackBar
-import com.ganainy.gymmasterscompose.ui.theme.components.ToolbarWithMenu
-import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInUiState
-import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpViewModel
+import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.components.feed_components.PostCard
 import kotlinx.coroutines.launch
-
 
 @Composable
 fun FeedScreen(
-    navigateToSignIn: () -> Unit,
-    navigateToDiscover: () -> Unit
+    navigateToLogin:  () -> Unit,
+    navigateToCreatePost:  () -> Unit,
+    navigateToDiscover:  () -> Unit,
+    navigateToProfile: (String?) -> Unit,
+    navigateToExercise: (String) -> Unit,
+    navigateToWorkout: (String) -> Unit
 ) {
-
     val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
-    val feedData by viewModel.feedData.collectAsState()
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -56,54 +74,159 @@ fun FeedScreen(
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.sign_out)) },
                     selected = false,
-                    onClick = { viewModel.signOut() }
+                    onClick = { viewModel.signOut {
+                        //onSignOut()
+                        navigateToLogin()
+                    } }
+                )
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    label = { Text(text = stringResource(R.string.profile)) },
+                    selected = false,
+                    onClick = { navigateToProfile(null) }
                 )
             }
         }
-    ) {
-        Scaffold(
-            topBar = {
-                ToolbarWithMenu(
-                    openMenu = {
-                        scope.launch {
-                            drawerState.open() // Open the drawer when menu icon is clicked
+    )
+    {
+
+    Scaffold(
+        topBar = {
+            FeedTopBar(
+                onRefresh = { viewModel.refreshFeed() },
+                openMenu = {
+                    scope.launch {
+                        if (drawerState.isOpen) {
+                            drawerState.close()
+                        } else {
+                            drawerState.open()
                         }
                     }
-                )
-            },
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navigateToCreatePost() },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create Post")
+            }
+        }
+    ) { paddingValues ->
 
-            ) { paddingValues ->
-            Column(modifier = Modifier.padding(paddingValues)) {
-                //todo add feed content in a lazy column with box exercises and workouts
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    LoadingIndicator()
+                }
+                uiState.error != null -> {
+                    ErrorMessage(uiState.error!!) { viewModel.refreshFeed() }
+                }
+                uiState.posts.isEmpty() -> {
+                    EmptyFeedMessage()
+                }
+                else -> {
+                    LazyColumn(modifier = Modifier.testTag("posts_list")) {
+                        items(uiState.posts) { post ->
+                            PostCard(
+                                post = post,
+                                onProfileClick = { navigateToProfile(post.authorId) },
+                                onExerciseClick = post.linkedExerciseId?.let { { navigateToExercise(it) } },
+                                onWorkoutClick = post.linkedWorkoutId?.let { { navigateToWorkout(it) } },
+                                onLikeClick = { viewModel.toggleReaction(post.id) }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
-
-
-
-
-
-    when (uiState) {
-        is FeedUiState.Initial -> {
-            // Show initial state (empty form)
-        }
-
-        is FeedUiState.Loading -> {
-            // Show loading indicator
-            CustomProgressIndicator()
-        }
-
-        is FeedUiState.Error -> {
-            // Show error message
-            CustomSnackBar(message = stringResource((uiState as SignInUiState.Error).messageStringResource)) {
-            }
-        }
-
-        is FeedUiState.LogoutSuccess -> {
-            LaunchedEffect(Unit) {
-                navigateToSignIn()
-            }
-        }
-    }
-
 }
+}
+
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FeedTopBar(onRefresh: () -> Unit, openMenu: () -> Unit) {
+    TopAppBar(
+        title = { Text("Feed") },
+        navigationIcon = {
+            IconButton(onClick = openMenu) {
+                Icon(Icons.Default.Menu, contentDescription = "Menu")
+            }
+        },
+        actions = {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        }
+    )
+}
+
+
+@Composable
+private fun ErrorMessage( error: String,refreshFeed: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("error_message"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text =error,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = refreshFeed ,
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Retry")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFeedMessage() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("empty_feed_message"),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Feed,
+                contentDescription = null,
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(48.dp),
+                tint = MaterialTheme.colorScheme.secondary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No posts yet",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Follow more users or create your first post",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+

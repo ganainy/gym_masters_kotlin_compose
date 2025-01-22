@@ -8,7 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
-import com.ganainy.gymmasterscompose.ui.theme.GymMastersComposeTheme
+import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.navigation.AppNavGraph
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.AndroidEntryPoint
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
         // Initialize Firebase
         FirebaseApp.initializeApp(this)
         setContent {
-            GymMastersComposeTheme {
+            AppTheme {
                 Surface() {
                     val navController = rememberNavController()
                     AppNavGraph(navController = navController)
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    GymMastersComposeTheme {
+    AppTheme {
 
     }
 }

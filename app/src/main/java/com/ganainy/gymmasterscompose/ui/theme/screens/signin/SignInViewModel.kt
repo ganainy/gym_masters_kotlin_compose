@@ -2,13 +2,11 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.signin
 
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.AppUtils
+import com.ganainy.gymmasterscompose.ui.theme.Utils
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,14 +45,14 @@ class SignInViewModel @Inject constructor(private val repository: AuthRepository
         _formData.update {
             it.copy(
                 password = password, isPasswordValid =
-                AppUtils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
+                Utils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
             )
         }
     }
 
 
     fun updateEmail(email: String) {
-        _formData.update { it.copy(email = email, isEmailValid = AppUtils.isValidEmail(email)) }
+        _formData.update { it.copy(email = email, isEmailValid = Utils.isValidEmail(email)) }
     }
 
     fun logIntoAccount() {

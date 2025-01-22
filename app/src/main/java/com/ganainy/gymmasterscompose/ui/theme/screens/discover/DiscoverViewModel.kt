@@ -1,13 +1,13 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
-import LocalUser
 import User
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.repository.DataRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.IDataRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,12 +16,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-
 data class DiscoverData(
-    val users: List<LocalUser> = listOf(),
+    val users: List<User> = listOf(),
     val searchQuery: String = "",
     val user: User? = null,
-    val userFollowingMap: Map<String, String>? = null,
+    val loggedUserFollowingList: List<String>? = null,
 )
 
 sealed class DiscoverUiState {
@@ -31,97 +30,107 @@ sealed class DiscoverUiState {
 }
 
 @HiltViewModel
-class DiscoverViewModel @Inject constructor(private val dataRepository: DataRepository) : ViewModel() {
+class DiscoverViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val userRepository: IUserRepository,
+    private val usersRepository: IUsersRepository,
+    private val socialRepository: ISocialRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow<DiscoverUiState>(DiscoverUiState.Loading)
     val uiState: StateFlow<DiscoverUiState> = _uiState.asStateFlow()
 
-    // Holds the original list of all users
-    private val allUsers = mutableListOf<LocalUser>()
-
+    // Maintain separate lists for all users and filtered users
+    private val _allUsers = MutableStateFlow<List<User>>(emptyList())
     private val _discoverData = MutableStateFlow(DiscoverData())
     val discoverData: StateFlow<DiscoverData> = _discoverData.asStateFlow()
 
+    // Keep track of the current search query
+    private var currentSearchQuery = ""
+
     init {
-
         _uiState.value = DiscoverUiState.Loading
-        // Load all users when the ViewModel is created
+
         viewModelScope.launch {
+            // Setup listeners
+            usersRepository.listenForUsersUpdates()
+            usersRepository.listenForFollowersUpdates()
 
-            dataRepository.listenForUsersUpdates()
-            dataRepository.listenForFollowersUpdates()
-
-            dataRepository.getUsers().collect { users ->
-                allUsers.clear()  // Clear any previous data
-                allUsers.addAll(users)  // Cache the full list of users
-                _discoverData.update { it.copy(users = users) }  // Show all users initially
-                _uiState.value = DiscoverUiState.Success
-            }
-
-
-        }
-
-        // listen to logged user updates
-        /*dataRepository.getLoggedUser { result ->
-            result.onSuccess { updatedUser ->
-                _discoverData.update {
-                    it.copy(
-                        user = updatedUser
-                    )
+            // Collect users updates
+            launch {
+                userRepository.getAllUsers().collect { users ->
+                    _allUsers.value = users
+                    // Reapply current search filter when users list updates
+                    applySearchFilter(currentSearchQuery)
+                    _uiState.value = DiscoverUiState.Success
                 }
-            }.onFailure { exception ->
-                val cExeption = exception as CustomException
-                _uiState.value = DiscoverUiState.Error(cExeption.stringRes)
             }
-        }*/
-        // listen to logged user following list updates
-        dataRepository.getUserFollowing(onSuccess = { userFollowingMap ->
-            _discoverData.update {
-                it.copy(userFollowingMap = userFollowingMap)
+
+            // Collect following updates
+            launch {
+                socialRepository.getUserFollowing(auth.uid)
+                    .collect { result ->
+                        result.onSuccess { userFollowingList ->
+                            _discoverData.update {
+                                it.copy(loggedUserFollowingList = userFollowingList)
+                            }
+                        }.onFailure { exception ->
+                            _uiState.value = DiscoverUiState.Error(R.string.error_loading_following)
+                        }
+                    }
             }
-        }, onFailure = {
-            _uiState.value = DiscoverUiState.Error(it)
-        })
+        }
+    }
+
+    private fun applySearchFilter(query: String) {
+        val filteredUsers = if (query.isEmpty()) {
+            _allUsers.value
+        } else {
+            _allUsers.value.filter { user ->
+                user.profile.displayName.contains(query, ignoreCase = true)
+            }
+        }
+        _discoverData.update { it.copy(users = filteredUsers) }
+    }
+
+    fun onQueryChange(query: String) {
+        currentSearchQuery = query
+        applySearchFilter(query)
+        _discoverData.update { it.copy(searchQuery = query) }
     }
 
     fun isFollowedByLoggedUser(userToCheckIfFollowed: User): Boolean {
-        return discoverData.value.userFollowingMap?.containsValue(userToCheckIfFollowed.userId)
+        return discoverData.value.loggedUserFollowingList?.contains(userToCheckIfFollowed.profile.id)
             ?: false
     }
 
-
-    // Update search query and filter the users
-    fun onQueryChange(query: String) {
-        _discoverData.update { currentState ->
-            // Filter users based on the query (case-insensitive search)
-            val filteredUsers = if (query.isEmpty()) {
-                allUsers // If query is empty, show all users
-            } else {
-                allUsers.filter { localUser ->
-                    localUser.user?.name?.contains(query, ignoreCase = true)
-                        ?: false // Filter based on the user's name
-                }
-            }
-            currentState.copy(searchQuery = query, users = filteredUsers)
-        }
-    }
-
     fun followUnfollowUser(userToFollowUnfollow: User) {
-        // Launch a coroutine in the viewModelScope
         viewModelScope.launch {
             try {
-                // Call the suspend function
-                dataRepository.followUnfollowUser(
-                    userToFollowUnfollow,
-                    onSuccess = {
-                    },
-                    onFailure = { messageStringResource ->
-                        DiscoverUiState.Error(messageStringResource)
-                    })
+
+                socialRepository.getUserFollowing(userId = auth.uid).collect { result ->
+                    result.onSuccess { followingList ->
+                        _discoverData.update { it.copy(loggedUserFollowingList = followingList) }
+                    }.onFailure { exception ->
+                        _uiState.value = DiscoverUiState.Error(R.string.error_loading_following)
+                    }
+                }
+
+                if (discoverData.value.loggedUserFollowingList?.contains(userToFollowUnfollow.profile.id) == true) {
+                    socialRepository.unfollowUser(userToFollowUnfollow.profile.id).onSuccess {
+                        _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.minus(
+                            userToFollowUnfollow.profile.id
+                        )) }
+                    }
+                } else {
+                    socialRepository.followUser(userToFollowUnfollow.profile.id).onSuccess {
+                        _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.plus(userToFollowUnfollow.profile.id)) }
+                    }
+                }
+
             } catch (e: Exception) {
                 _uiState.value = DiscoverUiState.Error(R.string.error_follow_unfollow)
             }
         }
     }
-
 }

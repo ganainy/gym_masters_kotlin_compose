@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ganainy.gymmasterscompose.R
 
@@ -30,4 +31,12 @@ fun FollowButton(isFollowedByLoggedUser: Boolean?, onFollowClick: () -> Unit) {
             false -> Text(text = stringResource(R.string.follow))
         }
     }
+}
+
+@Preview
+@Composable
+fun FollowButtonPreview() {
+    FollowButton(isFollowedByLoggedUser = null, onFollowClick = {})
+    FollowButton(isFollowedByLoggedUser = true, onFollowClick = {})
+    FollowButton(isFollowedByLoggedUser = false, onFollowClick = {})
 }

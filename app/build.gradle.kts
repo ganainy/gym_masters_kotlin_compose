@@ -4,20 +4,20 @@ plugins {
     id("com.google.gms.google-services")
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.ganainy.gymmasterscompose"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.ganainy.gymmasterscompose"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -45,11 +45,24 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.7"
     }
-    packaging {
+    packagingOptions {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += listOf(
+                "META-INF/LICENSE.md",
+                "META-INF/LICENSE-notice.md",
+                "META-INF/LICENSE.txt",
+                "META-INF/NOTICE.txt",
+                "META-INF/DEPENDENCIES",
+                "META-INF/*.kotlin_module",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1"
+            )
         }
     }
+
+
+
 }
 
 kapt {
@@ -57,6 +70,7 @@ kapt {
 }
 
 dependencies {
+
     //navigation
     implementation(libs.androidx.navigation.compose)
     // Places
@@ -72,10 +86,42 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     //Coil
     implementation(libs.coil.compose)
+
     //Dagger Hilt
-    implementation("com.google.dagger:hilt-android:2.51.1")
-    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
-    implementation ("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation(libs.hilt.android)
+    implementation(libs.testng)
+    implementation(libs.androidx.ui.test.junit4.android)
+    implementation(libs.androidx.runner)
+    implementation(libs.hilt.android.testing)
+    implementation(libs.core)
+    androidTestImplementation(libs.androidx.core.testing)
+    androidTestImplementation(libs.ext.junit)
+    kapt(libs.dagger.hilt.android.compiler)
+    implementation (libs.androidx.hilt.navigation.compose)
+
+    //time ago
+    implementation (libs.timeago)
+
+    //pull to refresh
+    implementation(libs.androidx.material)
+
+    //  testing
+    androidTestImplementation(libs.ui.test.junit4)
+    debugImplementation(libs.ui.test.manifest)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+
+    // Optional but recommended for better assertions
+    androidTestImplementation(libs.kotlintest.assertions)
+
+    // Compose UI testing
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.7.6") {
+        exclude(group = "androidx.test.ext", module = "junit")
+        exclude(group = "androidx.test.espresso", module = "espresso-core")
+    }
+
+
 
     //Default
     implementation(libs.androidx.core.ktx)
@@ -95,3 +141,18 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+
+
+// Add version alignment strategy
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "androidx.test" ||
+            requested.group == "androidx.test.ext" ||
+            requested.group == "androidx.test.espresso") {
+            requested.version?.let { useVersion(it) }
+        }
+    }
+
+}
+

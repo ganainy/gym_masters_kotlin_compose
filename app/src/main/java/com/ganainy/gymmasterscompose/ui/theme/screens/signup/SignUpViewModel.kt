@@ -1,35 +1,32 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.signup
 
 
-import User
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.AppConstants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.AppUtils
-import com.ganainy.gymmasterscompose.ui.theme.AppUtils.generateRandomUsername
+import com.ganainy.gymmasterscompose.ui.theme.Utils
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Date
 import javax.inject.Inject
 
 
 data class SignUpFormData(
     val uid: String = "", // id of the user in the database
-    val username: String = "",
     val email: String = "",
     val password: String = "",
+    val displayName: String = "",
     val isUsernameValid: Boolean = false,
     val isEmailValid: Boolean = false,
-    val isPasswordValid: Boolean = false
-)
+    val isPasswordValid: Boolean = false,
+    val username: String? = null
+) {
+}
 
 sealed class SignUpUiState {
     object Initial : SignUpUiState()
@@ -40,7 +37,8 @@ sealed class SignUpUiState {
 }
 
 @HiltViewModel
-class SignUpViewModel @Inject constructor(private val repository: AuthRepository) : ViewModel() {
+class SignUpViewModel @Inject constructor(private val authRepository: AuthRepository) :
+    ViewModel() {
 
     private val _uiState = MutableStateFlow<SignUpUiState>(SignUpUiState.Initial)
     val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
@@ -49,9 +47,8 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
     val signUpFormData: StateFlow<SignUpFormData> = _signUpFormData.asStateFlow()
 
     init {
-        // Check if user is signed in (non-null)
-        val currentUser = repository.getCurrentUserId()
-        if (currentUser != null) {
+        // Check if user is signed in already
+        if (authRepository.isAlreadySignedIn()) {
             // com.ganainy.gymmasterscompose.ui.theme.models.User is signed already in, redirect to feed screen
             _uiState.value = SignUpUiState.Success
         }
@@ -77,12 +74,12 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
 
     private suspend fun authenticateWithFirebase() {
 
-        repository.createUser(
+        authRepository.createUserAuth(
             _signUpFormData.value.email,
             _signUpFormData.value.password
         ).onSuccess {
             // createUser success, save user data in db and update ui
-            val userId: String = repository.getCurrentUserId()
+            val userId: String = authRepository.getCurrentUserId()
                 ?: throw Exception("authenticateWithFirebase: com.ganainy.gymmasterscompose.ui.theme.models.User ID is null")
 
             _signUpFormData.update {
@@ -99,13 +96,10 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
 
     private suspend fun saveUserInfo() {
 
-        val newUser = User(
-            userId = _signUpFormData.value.uid, name = _signUpFormData.value.username,
+        authRepository.createUserProfile(
             email = _signUpFormData.value.email,
-            joinDate = Date().time, username = generateRandomUsername()
-        )
-
-        repository.saveUserInfo(newUser).onSuccess {
+            displayName = _signUpFormData.value.displayName
+        ).onSuccess {
             _uiState.value = SignUpUiState.Success
         }.onFailure {
             _uiState.value = SignUpUiState.Error((R.string.create_account_failed))
@@ -118,18 +112,18 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
         _signUpFormData.update {
             it.copy(
                 password = password, isPasswordValid =
-                AppUtils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
+                Utils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
             )
         }
     }
 
 
-    fun updateUsername(username: String) {
+    fun updateDisplayName(displayName: String) {
         _signUpFormData.update {
             it.copy(
-                username = username,
-                isUsernameValid = AppUtils.isValidFieldLength(
-                    username,
+                displayName = displayName,
+                isUsernameValid = Utils.isValidFieldLength(
+                    displayName,
                     AppConstants.MINIMUM_NAME_LENGTH
                 )
             )
@@ -140,7 +134,7 @@ class SignUpViewModel @Inject constructor(private val repository: AuthRepository
         _signUpFormData.update {
             it.copy(
                 email = email,
-                isEmailValid = AppUtils.isValidEmail(email)
+                isEmailValid = Utils.isValidEmail(email)
             )
         }
     }

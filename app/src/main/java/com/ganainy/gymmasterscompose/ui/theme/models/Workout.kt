@@ -1,31 +1,35 @@
 package com.ganainy.gymmasterscompose.ui.theme.models
 
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
-
 data class Workout(
-    val workoutId: String = "",
-    val userId: String = "",
-    val title: String = "",
-    val imageUrl: String = "",
-    val description: String = "",
-    val dateCreated: Long = 0L,
-    val duration: Duration = 0.minutes,
-    val difficultyLevel: DifficultyLevel = DifficultyLevel.BEGINNER,
-    val exercises: List<ExerciseInWorkout> = emptyList(),
-    val tags: Set<String>? = null // Optional: for categorizing workouts
+    val workoutId: String,
+    val userId: String,
+    val title: String,
+    val description: String,
+    val difficultyLevel: String,
+    val duration: Int,
+    val dateCreated: Long, // Timestamp
+    val imageUrl: String,
+    val tags: List<String>,
+    val exercises: List<WorkoutExercise>,
+    val isPublic: Boolean
 )
 
-data class ExerciseInWorkout(
-    val exercise: Exercise = Exercise(),
-    val sets: Int = 0,
-    val reps: Int = 0
+data class WorkoutExercise(
+    val exercise: ExerciseSummary,
+    val order: Int,
+    val sets: Int,
+    val reps: Int,
+    val duration: Int,
+    val restBetweenSets: Int
 )
 
-
-enum class DifficultyLevel {
-    BEGINNER,
-    INTERMEDIATE,
-    ADVANCED,
-    EXPERT
-}
+data class ExerciseSummary(
+    val exerciseId: String,
+    val name: String,
+    val description: String,
+    val difficulty: String,
+    val muscleGroup: String,
+    val imageUrl: String,
+    val imageUrl2: String,
+    val additionalNotes: String
+)

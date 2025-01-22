@@ -11,6 +11,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,7 +30,7 @@ fun CustomSearchBar(
         query = searchQuery,
         onQueryChange = onQueryChange,
         onSearch = { /* Handle search */ },
-        active = false, // Not using the active state in this case
+        active = false,
         onActiveChange = { /* Handle active state if needed */ },
         placeholder = {
             Text(
@@ -43,14 +44,14 @@ fun CustomSearchBar(
                 Icon(Icons.Default.Search, contentDescription = "Search icon")
             }
         },
+        shape = RoundedCornerShape(8.dp), // Set the shape directly
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 0.dp) // Adjust padding to control spacing
+            .padding(horizontal = 8.dp, vertical = 0.dp)
     ) {
         // No content inside, since this SearchBar doesn't open
     }
 }
-
 
 
 @Preview(showBackground = true)

@@ -1,20 +1,23 @@
 data class User(
-    val userId: String = "",
-    val name: String = "",
+    val profile: Profile = Profile(),
+    val stats: Stats = Stats()
+)
+
+data class Profile(
+    val id: String = "",
+    val displayName: String = "",
     val username: String = "",
     val email: String = "",
-    val joinDate: Long = 0L,
-    val bio: String? = null,
+    val joinDate: Long = 0, // Timestamp
     val profilePictureUrl: String? = null,
+    val bio: String? = null,
+    val lastActive: Long? = null // Timestamp
 )
 
-// wrapper around the user class to add extra fields only locally
-data class LocalUser(
-    val user: User?,
-    var exerciseCount: Int,
-    val workoutCount: Int,
-    var followersCount: Int,
-    val averageRating: String?
+data class Stats(
+    val postCount: Int = 0,
+    val workoutCount: Int = 0,
+    val exerciseCount: Int = 0,
+    var followersCount: Int = 0,
+    val followingCount: Int = 0
 )
-
-
