@@ -1,3 +1,4 @@
+import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -5,7 +6,13 @@ plugins {
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
     alias(libs.plugins.compose.compiler)
+    id("kotlin-parcelize")
+    id("com.google.devtools.ksp")
 }
+
+val properties = Properties()
+properties.load(project.rootProject.file("local.properties").inputStream())
+
 
 android {
     namespace = "com.ganainy.gymmasterscompose"
@@ -21,6 +28,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "RAPID_API_KEY", properties.getProperty("RAPID_API_KEY"))
+
+
     }
 
     buildTypes {
@@ -41,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.7"
@@ -62,8 +74,9 @@ android {
     }
 
 
-
 }
+
+
 
 kapt {
     correctErrorTypes = true
@@ -94,6 +107,7 @@ dependencies {
     implementation(libs.androidx.runner)
     implementation(libs.hilt.android.testing)
     implementation(libs.core)
+    implementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.core.testing)
     androidTestImplementation(libs.ext.junit)
     kapt(libs.dagger.hilt.android.compiler)
@@ -121,7 +135,24 @@ dependencies {
         exclude(group = "androidx.test.espresso", module = "espresso-core")
     }
 
+    // retrofit
+    implementation (libs.squareup.retrofit)
+    // gson converter
+    implementation (libs.squareup.converter.gson)
+    //okhttp
+    implementation (libs.okhttp)
+    //http interceptor
+    implementation(libs.logging.interceptor)
 
+    //glide for handling gifs
+    implementation (libs.glide)
+    kapt (libs.compiler)
+
+    //Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    debugImplementation(libs.androidx.ui.tooling)
+    ksp("androidx.room:room-compiler:2.5.0")
 
     //Default
     implementation(libs.androidx.core.ktx)

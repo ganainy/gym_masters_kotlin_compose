@@ -11,6 +11,7 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -67,12 +68,16 @@ class FeedViewModel @Inject constructor(
                     }
                 }
                 .collect { result ->
-                    result.onSuccess { followingIds ->
-                        followingUserIds = followingIds.toMutableSet()
-                        if (currentUserId != null) followingUserIds.add(currentUserId)
-                        listenToFeedPosts()
-                    }.onFailure { throwable ->
-                        _uiState.update { it.copy(error = throwable.message, isLoading = false) }
+                    when (result) {
+                        is ResultWrapper.Error -> {
+                            _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
+                        }
+
+                        is ResultWrapper.Success -> {
+                            followingUserIds = result.data.toMutableSet()
+                            if (currentUserId != null) followingUserIds.add(currentUserId)
+                            listenToFeedPosts()
+                        }
                     }
                 }
         }
@@ -90,29 +95,31 @@ class FeedViewModel @Inject constructor(
                     }
                 }
                 .collect { result ->
-                    result.onSuccess { posts ->
-                        // Enrich posts with author, exercise, and workout data
-                        val enrichedPosts = posts.map { post ->
-                            enrichPost(post)
+                    when (result) {
+                        is ResultWrapper.Error -> {
+                            _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
                         }
+                        is ResultWrapper.Success -> {
+                            // Enrich posts with author, exercise, and workout data
+                            val enrichedPosts = result.data.map { post ->
+                                enrichPost(post)
+                            }
 
-                        // Sort by creation time, newest first
-                        val sortedPosts = enrichedPosts.sortedByDescending { it.createdAt }
+                            // Sort by creation time, newest first
+                            val sortedPosts = enrichedPosts.sortedByDescending { it.createdAt }
 
-                        _uiState.update {
-                            it.copy(
-                                posts = sortedPosts,
-                                isLoading = false,
-                                error = null
-                            )
+                            _uiState.update {
+                                it.copy(
+                                    posts = sortedPosts,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
                         }
-                    }.onFailure { throwable ->
-                        _uiState.update { it.copy(error = throwable.message, isLoading = false) }
                     }
                 }
         }
     }
-
 
     private suspend fun enrichPost(post: FeedPost): FeedPost {
         return coroutineScope {
@@ -130,7 +137,7 @@ class FeedViewModel @Inject constructor(
 
             // Wait for all requests to complete
             post.copy(
-                author = authorDeferred.await(),
+                author = (authorDeferred.await() as? ResultWrapper.Success)?.data,
                 linkedExercise = exerciseDeferred?.await(),
                 linkedWorkout = workoutDeferred?.await(),
                 currentUserReaction = reactionDeferred.await()
@@ -141,15 +148,13 @@ class FeedViewModel @Inject constructor(
 
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
-            try {
-                postRepository.togglePostReaction(
-                    postId = postId,
-                    reactionType = "LIKE"
-                ).onFailure { throwable ->
-                    _uiState.update { it.copy(error = throwable.message) }
+            when (val result = postRepository.togglePostReaction(postId = postId, reactionType = "LIKE")) {
+                is ResultWrapper.Success -> {
+                    // Handle success if needed
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = context.getString(R.string.error_updating_reaction)) }
+                is ResultWrapper.Error -> {
+                    _uiState.update { it.copy(error = result.exception.message) }
+                }
             }
         }
     }
@@ -162,11 +167,14 @@ class FeedViewModel @Inject constructor(
     fun signOut(onSignedOut: () -> Unit) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            authRepository.signOut().onSuccess {
-                _uiState.update { it.copy(isLoading = false) }
-                onSignedOut()
-            }.onFailure {
-                _uiState.update { it.copy(error = context.getString(R.string.error_logging_out), isLoading = false) }
+            when (val result = authRepository.signOut()) {
+                is ResultWrapper.Success -> {
+                    _uiState.update { it.copy(isLoading = false) }
+                    onSignedOut()
+                }
+                is ResultWrapper.Error -> {
+                    _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
+                }
             }
         }
     }

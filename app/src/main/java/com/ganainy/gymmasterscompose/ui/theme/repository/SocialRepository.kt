@@ -12,11 +12,11 @@ import javax.inject.Inject
 
 // Social interactions (following/followers)
 interface ISocialRepository {
-    suspend fun followUser(userId: String): Result<Unit>
-    suspend fun unfollowUser(userId: String): Result<Unit>
-    fun getUserFollowers(userId: String?): Flow<Result<List<String>>>
-    fun getUserFollowing(userId: String?): Flow<Result<List<String>>>
-    abstract fun isFollowing(userId: String): Flow<Result<Boolean>> // Check if the current user is following the target user, returns Boolean
+    suspend fun followUser(userId: String): ResultWrapper<Unit>
+    suspend fun unfollowUser(userId: String): ResultWrapper<Unit>
+    fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>>
+    fun getUserFollowing(userId: String?): Flow<ResultWrapper<List<String>>>
+    abstract fun isFollowing(userId: String): Flow<ResultWrapper<Boolean>> // Check if the current user is following the target user, returns Boolean
 }
 
 class SocialRepository @Inject constructor(
@@ -31,18 +31,18 @@ class SocialRepository @Inject constructor(
         private const val FOLLOWING = "following"
     }
 
-    override suspend fun followUser(userId: String): Result<Unit> {
+    override suspend fun followUser(userId: String): ResultWrapper<Unit> {
         return updateFollowState(userId, isFollowing = false)
     }
 
-    override suspend fun unfollowUser(userId: String): Result<Unit> {
+    override suspend fun unfollowUser(userId: String): ResultWrapper<Unit> {
         return updateFollowState(userId, isFollowing = true)
     }
 
-    override fun getUserFollowers(userId: String?): Flow<Result<List<String>>> = flow {
+    override fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>> = flow {
 
         if (userId == null) {
-            emit(Result.failure(Exception("logged in user id is null")))
+            emit(ResultWrapper.Error(Exception("logged in user id is null")))
         }
 
         try {
@@ -53,16 +53,16 @@ class SocialRepository @Inject constructor(
                     .children
                     .map { it.key!! }
             }
-            emit(Result.success(followers))
+            emit(ResultWrapper.Success(followers))
         } catch (e: Exception) {
-            emit(Result.failure(e))
+            emit(ResultWrapper.Error(e))
         }
     }
 
-    override fun getUserFollowing(userId: String?): Flow<Result<List<String>>> = flow {
+    override fun getUserFollowing(userId: String?): Flow<ResultWrapper<List<String>>> = flow {
 
         if (userId == null) {
-            emit(Result.failure(Exception("logged in user id is null")))
+            emit(ResultWrapper.Error(Exception("logged in user id is null")))
         }
 
         try {
@@ -73,13 +73,13 @@ class SocialRepository @Inject constructor(
                     .children
                     .map { it.key!! }
             }
-            emit(Result.success(following))
+            emit(ResultWrapper.Success(following))
         } catch (e: Exception) {
-            emit(Result.failure(e))
+            emit(ResultWrapper.Error(e))
         }
     }
 
-    override fun isFollowing(userId: String): Flow<Result<Boolean>> = flow {
+    override fun isFollowing(userId: String): Flow<ResultWrapper<Boolean>> = flow {
         try {
             val isFollowing = withContext(Dispatchers.IO) {
                 database.getReference("$FOLLOWING/$currentUserUid/$userId")
@@ -87,13 +87,13 @@ class SocialRepository @Inject constructor(
                     .await()
                     .exists()
             }
-            emit(Result.success(isFollowing))
+            emit(ResultWrapper.Success(isFollowing))
         } catch (e: Exception) {
-            emit(Result.failure(e))
+            emit(ResultWrapper.Error(e))
         }
     }
 
-    private suspend fun updateFollowState(userId: String, isFollowing: Boolean): Result<Unit> {
+    private suspend fun updateFollowState(userId: String, isFollowing: Boolean): ResultWrapper<Unit> {
         val followersRef = database.getReference("$FOLLOWERS/$userId")
         val followingRef = database.getReference("$FOLLOWING/$currentUserUid")
 
@@ -131,9 +131,9 @@ class SocialRepository @Inject constructor(
                 database.reference.updateChildren(updates).await()
             }
 
-            Result.success(Unit)
+            ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            ResultWrapper.Error(e)
         }
     }
 

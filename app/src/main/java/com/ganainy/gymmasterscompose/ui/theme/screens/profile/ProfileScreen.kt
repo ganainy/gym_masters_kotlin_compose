@@ -65,7 +65,7 @@ import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
 @Composable
 fun ProfileScreen(
     userId: String?,
-    navigateToLogin:  () -> Unit,
+    navigateToLogin: () -> Unit,
     navigateToCreatePost: () -> Unit,
 ) {
     val viewModel = hiltViewModel<ProfileViewModel>()
@@ -94,17 +94,19 @@ fun ProfileScreen(
                 onClick = { /* Navigate to edit profile */ }
             )
             LogoutButton(
-                onClick = { viewModel.logout{
-                    navigateToLogin()
-                }}
+                onClick = {
+                    viewModel.logout {
+                        navigateToLogin()
+                    }
+                }
             )
         } else {
             FollowButton(
                 isFollowedByLoggedUser = uiState.isFollowing,
                 onFollowClick = { viewModel.toggleFollow(userId) }
             )
-           /* MessageButton(
-                onClick = { *//* Navigate to chat *//* }
+            /* MessageButton(
+                 onClick = { *//* Navigate to chat *//* }
             )*/
         }
 
@@ -130,8 +132,12 @@ fun ProfileHeader(
         ProfileImage(
             profilePictureUrl = user.profile.profilePictureUrl,
             size = 128.dp,
-            onEdit = { if (isOwnProfile) {
-                TODO() } else null }
+            onEdit = {
+                if (isOwnProfile) {
+                    TODO()
+                } else null
+            },
+            isOwnProfile = isOwnProfile
         )
 
         Text(user.profile.displayName)
@@ -141,7 +147,7 @@ fun ProfileHeader(
     }
 }
 
-@Preview(showBackground =true)
+@Preview(showBackground = true)
 @Composable
 fun PreviewProfileHeader() {
     ProfileHeader(
@@ -232,7 +238,6 @@ enum class StatType {
 }
 
 
-
 @Composable
 fun EditProfileButton(
     onClick: () -> Unit,
@@ -287,7 +292,6 @@ fun LogoutButton(
         )
     }
 }
-
 
 
 @Composable
@@ -435,10 +439,10 @@ private fun PostItem(
 
             // Linked Content (Exercise or Workout)
             post.linkedExercise?.let { exercise ->
-               //TODO() LinkedExerciseCard(exercise = exercise)
+                //TODO() LinkedExerciseCard(exercise = exercise)
             }
             post.linkedWorkout?.let { workout ->
-              //  TODO()  LinkedWorkoutCard(workout = workout)
+                //  TODO()  LinkedWorkoutCard(workout = workout)
             }
 
             // Stats

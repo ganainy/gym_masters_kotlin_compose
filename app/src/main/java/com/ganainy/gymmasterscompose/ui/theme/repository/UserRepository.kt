@@ -1,8 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
 import User
-import com.ganainy.gymmasterscompose.AppConstants.USERS
-import com.ganainy.gymmasterscompose.AppConstants.USER_ID
+import com.ganainy.gymmasterscompose.Constants.USERS
+import com.ganainy.gymmasterscompose.Constants.USER_ID
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
@@ -21,12 +21,12 @@ import javax.inject.Inject
 
 // User profile and relationship management
 interface IUserRepository {
-    suspend fun createUser(email: String, password: String): Result<String>
-    suspend fun getLoggedUser(): Flow<Result<User>>
-    suspend fun getUser(userId: String): Flow<User>
-    suspend fun getUserPosts(userId: String): Flow<Result<List<FeedPost>>>
+    suspend fun createUser(email: String, password: String): ResultWrapper<String>
+    suspend fun getLoggedUser(): Flow<ResultWrapper<User>>
+    suspend fun getUser(userId: String): Flow<ResultWrapper<User>>
+    suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>>
     fun getAllUsers(): Flow<List<User>>
-    suspend fun updateUser(user: User): Result<Unit>
+    suspend fun updateUser(user: User): ResultWrapper<Unit>
 }
 
 
@@ -35,33 +35,33 @@ class UserRepository @Inject constructor(
     private val database: FirebaseDatabase
 ) : IUserRepository {
 
-    override suspend fun createUser(email: String, password: String): Result<String> {
+    override suspend fun createUser(email: String, password: String): ResultWrapper<String> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            Result.success(
+            ResultWrapper.Success(
                 result.user?.uid
                     ?: throw Exception("com.ganainy.gymmasterscompose.ui.theme.models.User ID is null")
             )
         } catch (e: Exception) {
-            Result.failure(e)
+            ResultWrapper.Error(e)
         }
     }
 
-    override suspend fun getUser(userId: String): Flow<User> = callbackFlow {
+    override suspend fun getUser(userId: String): Flow<ResultWrapper<User>> = callbackFlow {
         val userRef = database.getReference("users").child(userId)
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(User::class.java)
                 if (user != null) {
-                    trySend(user)
+                    trySend(ResultWrapper.Success(user))
                 } else {
-                    close(Exception("User not found"))
+                    trySend(ResultWrapper.Error(CustomException(R.string.user_not_found)))
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+                trySend(ResultWrapper.Error(error.toException()))
             }
         }
 
@@ -69,7 +69,7 @@ class UserRepository @Inject constructor(
         awaitClose { userRef.removeEventListener(listener) }
     }
 
-    override suspend fun getUserPosts(userId: String): Flow<Result<List<FeedPost>>> = callbackFlow {
+    override suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>> = callbackFlow {
         val userRef = database.getReference("users").child(userId).child("posts")
 
         val listener = object : ValueEventListener {
@@ -77,11 +77,11 @@ class UserRepository @Inject constructor(
                 val posts = snapshot.children.mapNotNull { postSnapshot ->
                     postSnapshot.getValue(FeedPost::class.java)
                 }
-                trySend(Result.success(posts))
+                trySend(ResultWrapper.Success(posts))
             }
 
             override fun onCancelled(error: DatabaseError) {
-                trySend(Result.failure(error.toException()))
+                trySend(ResultWrapper.Error(error.toException()))
             }
         }
 
@@ -118,11 +118,11 @@ class UserRepository @Inject constructor(
         }
     }
 
-    override suspend fun updateUser(user: User): Result<Unit> {
+    override suspend fun updateUser(user: User): ResultWrapper<Unit> {
         TODO("Not yet implemented")
     }
 
-    override suspend fun getLoggedUser(): Flow<Result<User>> = callbackFlow {
+    override suspend fun getLoggedUser(): Flow<ResultWrapper<User>> = callbackFlow {
         try {
             // Set up a real-time listener to continuously listen for changes to the logged user data
             val userRef = database.getReference(USERS).orderByChild(USER_ID)
@@ -131,12 +131,12 @@ class UserRepository @Inject constructor(
             val snapshot = userRef.get().await()
             val user = snapshot.children.first().getValue<User>()
             if (user != null) {
-                trySend(Result.success(user)).isSuccess
+                trySend(ResultWrapper.Success(user)).isSuccess
             } else {
-                trySend(Result.failure(CustomException(R.string.user_not_found))).isSuccess
+                trySend(ResultWrapper.Error(CustomException(R.string.user_not_found))).isSuccess
             }
         } catch (e: Exception) {
-            trySend(Result.failure(CustomException(R.string.user_not_found))).isSuccess
+            trySend(ResultWrapper.Error(CustomException(R.string.user_not_found))).isSuccess
         }
         awaitClose { }
     }

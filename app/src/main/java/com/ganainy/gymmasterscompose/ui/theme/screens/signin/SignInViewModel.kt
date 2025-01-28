@@ -3,10 +3,11 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.signin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.AppConstants
+import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.Utils
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.utils.Utils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +46,7 @@ class SignInViewModel @Inject constructor(private val repository: AuthRepository
         _formData.update {
             it.copy(
                 password = password, isPasswordValid =
-                Utils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
+                Utils.isValidFieldLength(password, Constants.MINIMUM_PASSWORD_LENGTH)
             )
         }
     }
@@ -65,10 +66,10 @@ class SignInViewModel @Inject constructor(private val repository: AuthRepository
                 return@launch
             }
 
-            repository.signInUser(_formData.value.email, _formData.value.password).onSuccess {
-                _uiState.value = SignInUiState.Success
-            }.onFailure {
-                _uiState.value = SignInUiState.Error(R.string.authentication_failed)
+            val result = repository.signInUser(_formData.value.email, _formData.value.password)
+            _uiState.value = when (result) {
+                is ResultWrapper.Success -> SignInUiState.Success
+                is ResultWrapper.Error -> SignInUiState.Error(R.string.authentication_failed)
             }
         }
     }

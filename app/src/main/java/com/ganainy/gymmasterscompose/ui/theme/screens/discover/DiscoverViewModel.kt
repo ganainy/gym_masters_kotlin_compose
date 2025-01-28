@@ -7,6 +7,7 @@ import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,16 +69,18 @@ class DiscoverViewModel @Inject constructor(
 
             // Collect following updates
             launch {
-                socialRepository.getUserFollowing(auth.uid)
-                    .collect { result ->
-                        result.onSuccess { userFollowingList ->
+                socialRepository.getUserFollowing(auth.uid).collect { result ->
+                    when (result) {
+                        is ResultWrapper.Success -> {
                             _discoverData.update {
-                                it.copy(loggedUserFollowingList = userFollowingList)
+                                it.copy(loggedUserFollowingList = result.data)
                             }
-                        }.onFailure { exception ->
+                        }
+                        is ResultWrapper.Error -> {
                             _uiState.value = DiscoverUiState.Error(R.string.error_loading_following)
                         }
                     }
+                }
             }
         }
     }
@@ -107,27 +110,39 @@ class DiscoverViewModel @Inject constructor(
     fun followUnfollowUser(userToFollowUnfollow: User) {
         viewModelScope.launch {
             try {
+                socialRepository.isFollowing(userToFollowUnfollow.profile.id).collect { result ->
+                    when (result) {
+                        is ResultWrapper.Success -> {
+                            if (result.data) {
+                                    when (socialRepository.unfollowUser(userToFollowUnfollow.profile.id)) {
+                                        is ResultWrapper.Success -> {
+                                            _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.minus(
+                                                userToFollowUnfollow.profile.id
+                                            )) }
+                                        }
+                                        is ResultWrapper.Error -> {
+                                            _uiState.value = DiscoverUiState.Error(R.string.error_unfollowing_user)
+                                        }
+                                    }
+                            } else {
+                                when(socialRepository.followUser(userToFollowUnfollow.profile.id)) {
+                                    is ResultWrapper.Success -> {
+                                        _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.plus(
+                                            userToFollowUnfollow.profile.id
+                                        )) }
+                                    }
+                                    is ResultWrapper.Error -> {
+                                        _uiState.value = DiscoverUiState.Error(R.string.error_loading_following)
+                                    }
 
-                socialRepository.getUserFollowing(userId = auth.uid).collect { result ->
-                    result.onSuccess { followingList ->
-                        _discoverData.update { it.copy(loggedUserFollowingList = followingList) }
-                    }.onFailure { exception ->
-                        _uiState.value = DiscoverUiState.Error(R.string.error_loading_following)
+                                }
+                            }
+                        }
+                        is ResultWrapper.Error -> {
+                            _uiState.value = DiscoverUiState.Error(R.string.error_follow_unfollow)
+                        }
                     }
                 }
-
-                if (discoverData.value.loggedUserFollowingList?.contains(userToFollowUnfollow.profile.id) == true) {
-                    socialRepository.unfollowUser(userToFollowUnfollow.profile.id).onSuccess {
-                        _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.minus(
-                            userToFollowUnfollow.profile.id
-                        )) }
-                    }
-                } else {
-                    socialRepository.followUser(userToFollowUnfollow.profile.id).onSuccess {
-                        _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.plus(userToFollowUnfollow.profile.id)) }
-                    }
-                }
-
             } catch (e: Exception) {
                 _uiState.value = DiscoverUiState.Error(R.string.error_follow_unfollow)
             }

@@ -1,19 +1,28 @@
 package com.ganainy.gymmasterscompose.ui.theme.navigation
 
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_post.CreatePostScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.CreateWorkoutViewModel
+import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.WorkoutExerciseListScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.WorkoutSetupScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.discover.DiscoverScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.exercise.ExerciseScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.exercise_list.ExerciseListScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.profile.ProfileScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpScreen
+import com.google.gson.Gson
 
 
 sealed class Screen(val route: String) {
@@ -30,10 +39,19 @@ sealed class Screen(val route: String) {
             "profile" + (userId?.let { "?userId=$it" } ?: "")
     }
 
+    object ExerciseList : Screen("exercise_list")
+    object Exercise : Screen("exercise")
+    object WorkoutSetup : Screen("workout_setup")
+    object WorkoutExerciseList : Screen("workout_exercise_list")
+
 }
 
 @Composable
-fun AppNavGraph(navController: NavHostController, ) {
+fun AppNavGraph(navController: NavHostController) {
+
+    //shared view model between WorkoutExerciseList and WorkoutSetup screens
+    val sharedViewModel = hiltViewModel<CreateWorkoutViewModel>()
+
     val actions = remember(navController) { NavigationActions(navController) }
     NavHost(navController = navController, startDestination = Screen.SignUp.route) {
         composable(route = Screen.SignUp.route) {
@@ -57,18 +75,19 @@ fun AppNavGraph(navController: NavHostController, ) {
                 navigateToCreatePost = actions.navigateToCreatePost,
                 navigateToDiscover = actions.navigateToDiscover,
                 navigateToProfile = actions.navigateToProfile,
-                navigateToExercise = actions.navigateToExercise,
                 navigateToWorkout = actions.navigateToWorkout,
+                navigateToExercises = actions.navigateToExercises,
+                navigateToCreateWorkout = actions.navigateToWorkoutSetup
             )
 
 
         }
         composable(route = Screen.Discover.route) {
-            DiscoverScreen()
+            DiscoverScreen(navigateToProfile = actions.navigateToProfile)
         }
 
         composable(route = Screen.CreatePost.route) {
-            CreatePostScreen (actions.navigateBack)
+            CreatePostScreen(actions.navigateBack)
         }
 
         // Profile Screen Navigation
@@ -90,7 +109,34 @@ fun AppNavGraph(navController: NavHostController, ) {
                         popUpTo(Screen.Feed.route) { inclusive = true }
                     }
                 },
-                        navigateToCreatePost=actions.navigateToCreatePost
+                navigateToCreatePost = actions.navigateToCreatePost
+            )
+        }
+        composable(route = Screen.ExerciseList.route) {
+            ExerciseListScreen(actions.navigateToExercise, actions.navigateBack)
+        }
+
+        composable(route = Screen.WorkoutExerciseList.route) {
+            WorkoutExerciseListScreen(
+                navigateBack = actions.navigateBack,
+                viewModel = sharedViewModel
+            )
+        }
+
+        composable(
+            "${Screen.Exercise.route}?exercise={exercise}",
+            arguments = listOf(navArgument("exercise") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val exerciseJson = backStackEntry.arguments?.getString("exercise")
+            val exercise = Gson().fromJson(exerciseJson, Exercise::class.java)
+            ExerciseScreen(exercise = exercise, navigateBack = actions.navigateBack)
+        }
+
+        composable(route = Screen.WorkoutSetup.route) {
+            WorkoutSetupScreen(
+                navigateToCreateWorkoutExerciseList = actions.navigateToCreateWorkoutExerciseList,
+                navigateToFeed = actions.navigateToFeed,
+                viewModel = sharedViewModel
             )
         }
 
@@ -102,11 +148,14 @@ class NavigationActions(private val navController: NavHostController) {
     val navigateToWorkout: (String) -> Unit = { workoutId ->
         TODO("Navigate to workout screen with workoutId $workoutId")
     }
-    val navigateToExercise: (String) -> Unit = { exerciseId ->
-        TODO("Navigate to exercise screen with exerciseId $exerciseId")
-    }
+
     val navigateToProfile: (String?) -> Unit = { userId ->
         navController.navigate(Screen.Profile.createRoute(userId = userId))
+    }
+
+    val navigateToExercise: (Exercise) -> Unit = { exercise ->
+        val exerciseJson = Uri.encode(Gson().toJson(exercise))
+        navController.navigate("${Screen.Exercise.route}?exercise=$exerciseJson")
     }
 
     val navigateToSignUp: () -> Unit = {
@@ -126,6 +175,18 @@ class NavigationActions(private val navController: NavHostController) {
 
     val navigateToCreatePost: () -> Unit = {
         navController.navigate(Screen.CreatePost.route)
+    }
+
+    val navigateToExercises: () -> Unit = {
+        navController.navigate(Screen.ExerciseList.route)
+    }
+
+    val navigateToWorkoutSetup: () -> Unit = {
+        navController.navigate(Screen.WorkoutSetup.route)
+    }
+
+    val navigateToCreateWorkoutExerciseList: () -> Unit = {
+        navController.navigate(Screen.WorkoutExerciseList.route)
     }
 
     val navigateBack: () -> Unit = {

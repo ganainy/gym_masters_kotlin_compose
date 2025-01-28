@@ -43,17 +43,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.feed_components.PostCard
+import com.ganainy.gymmasterscompose.ui.theme.components.PostCard
 import kotlinx.coroutines.launch
 
 @Composable
 fun FeedScreen(
-    navigateToLogin:  () -> Unit,
-    navigateToCreatePost:  () -> Unit,
-    navigateToDiscover:  () -> Unit,
+    navigateToLogin: () -> Unit,
+    navigateToCreatePost: () -> Unit,
+    navigateToDiscover: () -> Unit,
     navigateToProfile: (String?) -> Unit,
-    navigateToExercise: (String) -> Unit,
-    navigateToWorkout: (String) -> Unit
+    navigateToWorkout: (String) -> Unit,
+    navigateToExercises: () -> Unit,
+    navigateToCreateWorkout: () -> Unit
 ) {
     val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -84,6 +85,18 @@ fun FeedScreen(
                     label = { Text(text = stringResource(R.string.profile)) },
                     selected = false,
                     onClick = { navigateToProfile(null) }
+                )
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    label = { Text(text = stringResource(R.string.exercises)) },
+                    selected = false,
+                    onClick = { navigateToExercises() }
+                )
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    label = { Text(text = stringResource(R.string.create_workout)) },
+                    selected = false,
+                    onClick = { navigateToCreateWorkout() }
                 )
             }
         }
@@ -135,7 +148,7 @@ fun FeedScreen(
                             PostCard(
                                 post = post,
                                 onProfileClick = { navigateToProfile(post.authorId) },
-                                onExerciseClick = post.linkedExerciseId?.let { { navigateToExercise(it) } },
+                                onExerciseClick = post.linkedExerciseId?.let { { /*todo navigateToExercise(it)*/ } },
                                 onWorkoutClick = post.linkedWorkoutId?.let { { navigateToWorkout(it) } },
                                 onLikeClick = { viewModel.toggleReaction(post.id) }
                             )

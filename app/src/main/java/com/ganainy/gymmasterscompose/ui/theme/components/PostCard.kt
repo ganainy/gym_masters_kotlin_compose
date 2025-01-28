@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.components.feed_components
+package com.ganainy.gymmasterscompose.ui.theme.components
 
 import Profile
 import Stats
@@ -32,8 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.ganainy.gymmasterscompose.ui.theme.Utils.formatRelativeTime
-import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
 
 @Composable

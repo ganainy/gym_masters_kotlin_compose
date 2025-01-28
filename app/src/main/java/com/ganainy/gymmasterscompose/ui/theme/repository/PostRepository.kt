@@ -10,8 +10,8 @@ import javax.inject.Inject
 
 // Posts and feed management
 interface IPostRepository {
-    suspend fun createPost(feedPost: FeedPost): Result<Unit>
-    suspend fun togglePostReaction(postId: String, reactionType: String): Result<Unit>
+    suspend fun createPost(feedPost: FeedPost): ResultWrapper<Unit>
+    suspend fun togglePostReaction(postId: String, reactionType: String): ResultWrapper<Unit>
     suspend fun getUserReactionForPost(postId: String, userId: String): String?
     fun getPostsByUsers(userIds: Set<String>): Flow<List<FeedPost>>
 }
@@ -20,19 +20,19 @@ interface IPostRepository {
 
 
 class PostRepository @Inject constructor( val auth : FirebaseAuth,val database: FirebaseDatabase,) : IPostRepository{
-    override suspend fun createPost(feedPost: FeedPost): Result<Unit> {
+    override suspend fun createPost(feedPost: FeedPost): ResultWrapper<Unit> {
         return try {
             val postRef = database.getReference("posts/${feedPost.id}")
             postRef.setValue(feedPost).await()
-            Result.success(Unit)
+            ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception("Error creating post"))
+            ResultWrapper.Error(Exception("Error creating post"))
         }
     }
 
 
 
-    override suspend fun togglePostReaction(postId: String, reactionType: String): Result<Unit> {
+    override suspend fun togglePostReaction(postId: String, reactionType: String): ResultWrapper<Unit> {
         return try {
             val userId = auth.currentUser?.uid
             val reactionRef = database.getReference("reactions/$postId/reactions/$userId")
@@ -58,9 +58,9 @@ class PostRepository @Inject constructor( val auth : FirebaseAuth,val database: 
 
             // Perform updates atomically
             database.reference.updateChildren(updates).await()
-            Result.success(Unit)
+            ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception("Error updating reaction"))
+            ResultWrapper.Error(Exception("Error updating reaction"))
         }
     }
 

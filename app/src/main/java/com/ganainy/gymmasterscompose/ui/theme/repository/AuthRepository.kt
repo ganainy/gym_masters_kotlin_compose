@@ -3,9 +3,10 @@ package com.ganainy.gymmasterscompose.ui.theme.repository
 import Profile
 import Stats
 import User
-import com.ganainy.gymmasterscompose.AppConstants.USERS
-import com.ganainy.gymmasterscompose.ui.theme.Utils.generateRandomId
-import com.ganainy.gymmasterscompose.ui.theme.Utils.generateRandomUsername
+import com.ganainy.gymmasterscompose.Constants
+import com.ganainy.gymmasterscompose.Constants.USERS
+import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
+import com.ganainy.gymmasterscompose.utils.Utils.generateRandomUsername
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -17,14 +18,14 @@ import javax.inject.Inject
 
 
 interface IAuthRepository {
-    suspend fun signInUser(email: String, password: String): Result<FirebaseUser>
-    suspend fun signOut(): Result<Unit>
+    suspend fun signInUser(email: String, password: String): ResultWrapper<FirebaseUser>
+    suspend fun signOut(): ResultWrapper<Unit>
     fun getCurrentUserId(): String
     suspend fun createUserAuth(email: String, password: String): Result<FirebaseUser>
     suspend fun createUserProfile(
         email: String,
         displayName: String,
-    ): Result<User>
+    ): ResultWrapper<User>
 
     abstract fun isAlreadySignedIn(): Boolean
 }
@@ -69,7 +70,7 @@ class AuthRepository @Inject constructor(
     // Updated createUser function
     override suspend fun createUserProfile(
         email: String, displayName: String
-    ): Result<User> {
+    ): ResultWrapper<User> {
 
                return try {
                     // Create Profile and Stats objects
@@ -78,7 +79,7 @@ class AuthRepository @Inject constructor(
                         email = email,
                         displayName = displayName,
                         joinDate = Date().time,
-                        id = generateRandomId(),
+                        id = generateRandomId(Constants.USER),
                         profilePictureUrl = null,
                         bio = null,
                         lastActive = null
@@ -100,10 +101,10 @@ class AuthRepository @Inject constructor(
                     userRef.setValue(user).await()
 
                     // Return the success result with the User object
-                    Result.success(user)
+                    ResultWrapper.Success(user)
                 } catch (e: Exception) {
                     // Handle any exception that occurs while saving the user to the database
-                    Result.failure<User>(e)
+                    ResultWrapper.Error(e)
                 }
 
     }
@@ -112,27 +113,27 @@ class AuthRepository @Inject constructor(
         return auth.currentUser != null
     }
 
-    override suspend fun signInUser(email: String, password: String): Result<FirebaseUser> {
+    override suspend fun signInUser(email: String, password: String): ResultWrapper<FirebaseUser> {
         return try {
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
             authResult.user?.let { firebaseUser ->
-                Result.success(firebaseUser)
-            } ?: Result.failure(Exception("Sign in successful but user is null"))
+                ResultWrapper.Success(firebaseUser)
+            } ?: ResultWrapper.Error(Exception("Sign in successful but user is null"))
         } catch (e: Exception) {
             when (e) {
-                is FirebaseAuthInvalidUserException -> Result.failure(Exception("com.ganainy.gymmasterscompose.ui.theme.models.User not found"))
-                is FirebaseAuthInvalidCredentialsException -> Result.failure(Exception("Invalid credentials"))
-                else -> Result.failure(e)
+                is FirebaseAuthInvalidUserException -> ResultWrapper.Error(Exception("com.ganainy.gymmasterscompose.ui.theme.models.User not found"))
+                is FirebaseAuthInvalidCredentialsException -> ResultWrapper.Error(Exception("Invalid credentials"))
+                else -> ResultWrapper.Error(e)
             }
         }
     }
 
-    override suspend fun signOut(): Result<Unit> {
+    override suspend fun signOut(): ResultWrapper<Unit> {
         return try {
             auth.signOut()
-            Result.success(Unit)
+            ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            ResultWrapper.Error(e)
         }
     }
 

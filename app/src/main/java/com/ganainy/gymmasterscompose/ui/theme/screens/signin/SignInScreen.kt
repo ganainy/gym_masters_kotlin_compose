@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -32,7 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.Utils.ShowSnackbar
+import com.ganainy.gymmasterscompose.utils.Utils.showToast
+
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
@@ -47,6 +49,7 @@ fun SignInScreen(
     val uiState by viewModel.uiState.collectAsState()
     val formData by viewModel.formData.collectAsState()
 
+    val context = LocalContext.current
 
     // Show sign-in form with current input and validation states
     SignInScreenContent(
@@ -71,7 +74,9 @@ fun SignInScreen(
         is SignInUiState.Error -> {
             // Show error message
             val errorMessage= stringResource((uiState as SignInUiState.Error).messageStringResource)
-            ShowSnackbar(errorMessage)
+            showToast(context,
+                errorMessage,
+            )
         }
 
         is SignInUiState.Success -> {

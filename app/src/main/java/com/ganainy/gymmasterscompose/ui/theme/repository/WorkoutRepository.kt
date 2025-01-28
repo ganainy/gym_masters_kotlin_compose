@@ -1,6 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
 import android.util.Log
+import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.Workout
 import com.google.firebase.database.FirebaseDatabase
@@ -11,15 +12,16 @@ import javax.inject.Inject
 interface IWorkoutRepository {
     suspend fun getExercise(exerciseId: String): Exercise?
     suspend fun getWorkout(workoutId: String): Workout?
-    suspend fun createWorkout(workout: Workout): Result<Unit>
-    suspend fun createExercise(exercise: Exercise): Result<Unit>
+    suspend fun createWorkout(workout: Workout): ResultWrapper<Unit>
+    suspend fun createExercise(exercise: Exercise): ResultWrapper<Unit>
+    suspend fun uploadWorkout(workout: Workout): ResultWrapper<Unit>
 }
 
 class WorkoutRepository @Inject constructor(private val  database: FirebaseDatabase) : IWorkoutRepository{
 
     override suspend fun getExercise(exerciseId: String): Exercise? {
         return try {
-            val exerciseRef = database.getReference("exercises").child(exerciseId)
+            val exerciseRef = database.getReference(Constants.EXERCISES).child(exerciseId)
             val snapshot = exerciseRef.get().await()
             if (snapshot.exists()) {
                 snapshot.getValue(Exercise::class.java)
@@ -34,7 +36,7 @@ class WorkoutRepository @Inject constructor(private val  database: FirebaseDatab
 
     override suspend fun getWorkout(workoutId: String): Workout? {
         return try {
-            val workoutRef = database.getReference("workouts").child(workoutId)
+            val workoutRef = database.getReference(Constants.WORKOUTS).child(workoutId)
             val snapshot = workoutRef.get().await()
             if (snapshot.exists()) {
                 snapshot.getValue(Workout::class.java)
@@ -47,16 +49,23 @@ class WorkoutRepository @Inject constructor(private val  database: FirebaseDatab
         }
     }
 
-    override suspend fun createWorkout(workout: Workout): Result<Unit> {
+    override suspend fun createWorkout(workout: Workout): ResultWrapper<Unit> {
         TODO("Not yet implemented")
     }
 
-    override suspend fun createExercise(exercise: Exercise): Result<Unit> {
+    override suspend fun createExercise(exercise: Exercise): ResultWrapper<Unit> {
         TODO("Not yet implemented")
     }
 
-
-
+    override suspend fun uploadWorkout(workout: Workout): ResultWrapper<Unit> {
+        return try {
+            val workoutRef = database.getReference(Constants.WORKOUTS).child(workout.workoutId)
+            workoutRef.setValue(workout).await()
+            ResultWrapper.Success(Unit)
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
+        }
+    }
 
 }
 

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -57,9 +56,10 @@ import java.util.Date
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiscoverProfile(
-    localUser: User,
+    user: User,
     onFollowClick: () -> Unit,
     isFollowedByLoggedUser: Boolean?,
+    onProfileClick: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -70,7 +70,7 @@ fun DiscoverProfile(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable(
-                onClick = { }),
+                onClick = { onProfileClick(user.profile.id) }),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -88,9 +88,8 @@ fun DiscoverProfile(
                 //  Profile Image
 
                 ProfileImage(
-                    profilePictureUrl = localUser.profile.profilePictureUrl,
+                    profilePictureUrl = user.profile.profilePictureUrl,
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(2.dp)
                         .clip(CircleShape),
                 )
@@ -100,7 +99,7 @@ fun DiscoverProfile(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // User Name with Custom Style
-                    localUser.profile.displayName.let {
+                    user.profile.displayName.let {
                         Text(
                             text = it,
                             style = MaterialTheme.typography.titleLarge.copy(
@@ -117,26 +116,26 @@ fun DiscoverProfile(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.Center
                     ) {
-                        if (localUser.stats.followersCount != null) {
+                        if (user.stats.followersCount != null) {
                             StatItem(
                                 icon = Icons.Rounded.People,
-                                count = localUser.stats.followersCount ?: 0,
+                                count = user.stats.followersCount ?: 0,
                                 label = stringResource(R.string.followers)
                             )
                         }
 
-                        if (localUser.stats.workoutCount != null) {
+                        if (user.stats.workoutCount != null) {
                             StatItem(
                                 icon = Icons.Rounded.FitnessCenter,
-                                count = localUser.stats.workoutCount,
+                                count = user.stats.workoutCount,
                                 label = stringResource(R.string.workouts)
                             )
                         }
 
-                        if (localUser.stats.exerciseCount != null) {
+                        if (user.stats.exerciseCount != null) {
                             StatItem(
                                 icon = Icons.Rounded.SportsMartialArts,
-                                count = localUser.stats.exerciseCount,
+                                count = user.stats.exerciseCount,
                                 label = stringResource(R.string.exercises)
                             )
                         }
@@ -149,7 +148,7 @@ fun DiscoverProfile(
                         JoinDateItem(
                             joinDate = stringResource(
                                 R.string.joined,
-                                TimeAgo.using(localUser.profile.joinDate, timeAgoMessages)
+                                TimeAgo.using(user.profile.joinDate, timeAgoMessages)
                             )
                         )
                     }
@@ -259,7 +258,8 @@ fun PreviewDiscoverProfile() {
                 ), Stats(3, 2, 3, 19)
             ),
             {},
-            true
+            true,
+            {}
         )
     }
 }

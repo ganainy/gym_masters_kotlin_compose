@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.components.feed_components
+package com.ganainy.gymmasterscompose.ui.theme.components
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding

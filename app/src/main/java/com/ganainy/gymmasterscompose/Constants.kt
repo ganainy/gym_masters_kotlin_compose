@@ -1,9 +1,11 @@
 package com.ganainy.gymmasterscompose
 
-object AppConstants {
+object Constants {
     //database endpoints
     const val FIREBASE_DATABASE_NAME = "https://gym-masters-compose.firebaseio.com/"
+    const val USER = "user"
     const val USERS = "users"
+    const val WORKOUT = "workout"
     const val WORKOUTS = "workouts"
     const val EXERCISES = "exercises"
     const val FOLLOWERS = "followers"
@@ -20,4 +22,7 @@ object AppConstants {
 
     const val MINIMUM_PASSWORD_LENGTH = 6
     const val MINIMUM_NAME_LENGTH = 4
+
+    //navigation constants
+    const val SELECTED_WORKOUT_EXERCISES = "selected_workout_exercises"
 }

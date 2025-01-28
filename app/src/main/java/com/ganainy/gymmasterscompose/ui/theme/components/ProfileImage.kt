@@ -49,6 +49,7 @@ fun ProfileImage(
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     onClick: () -> Unit = {},
+    isOwnProfile: Boolean = false,
     onEdit: (() -> Unit)? = null
 ) {
     var isHovered by remember { mutableStateOf(false) }
@@ -81,9 +82,9 @@ fun ProfileImage(
         )
 
         // Edit Overlay
-        onEdit?.let {
-            Box(
-                modifier = Modifier
+        if (isOwnProfile) {
+            onEdit?.let {
+                Modifier
                     .size(size)
                     .clip(CircleShape)
                     .hoverable(
@@ -91,7 +92,7 @@ fun ProfileImage(
                         enabled = true,
                     )
                     .clickable(
-                        onClick = onEdit
+                        onClick = it
                     )
                     .background(
                         color = animateColorAsState(
@@ -103,48 +104,53 @@ fun ProfileImage(
                             label = "overlayColor"
                         ).value,
                         shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .alpha(
-                            animateFloatAsState(
-                                if (isHovered) 1f else 0.85f,
-                                label = "contentAlpha"
-                            ).value
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CameraAlt,
-                        contentDescription = "Update Profile Picture",
-                        modifier = Modifier.size(size * 0.3f),
-                        tint = Color.White
                     )
-                    if (size >= 96.dp) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Update",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = (size.value * 0.12f).sp,
-                            fontWeight = FontWeight.Medium
+            }?.let {
+                Box(
+                    modifier = it,
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .alpha(
+                                animateFloatAsState(
+                                    if (isHovered) 1f else 0.85f,
+                                    label = "contentAlpha"
+                                ).value
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CameraAlt,
+                            contentDescription = "Update Profile Picture",
+                            modifier = Modifier.size(size * 0.3f),
+                            tint = Color.White
                         )
+                        if (size >= 96.dp) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Update",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = (size.value * 0.12f).sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewProfileImageEditableBig() {
     ProfileImage(
         "asd",
-        onClick = {  },
-        onEdit = {  },
+        onClick = { },
+        onEdit = { },
         size = 128.dp
     )
 }
@@ -154,6 +160,6 @@ fun PreviewProfileImageEditableBig() {
 fun PreviewProfileImageSmall() {
     ProfileImage(
         "asd",
-        onClick = {  },
+        onClick = { },
     )
 }

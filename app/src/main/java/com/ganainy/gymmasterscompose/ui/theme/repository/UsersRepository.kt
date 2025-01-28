@@ -4,9 +4,9 @@ package com.ganainy.gymmasterscompose.ui.theme.repository
 import Profile
 import Stats
 import User
-import com.ganainy.gymmasterscompose.AppConstants.FOLLOWERS
-import com.ganainy.gymmasterscompose.AppConstants.FOLLOWING
-import com.ganainy.gymmasterscompose.AppConstants.USERS
+import com.ganainy.gymmasterscompose.Constants.FOLLOWERS
+import com.ganainy.gymmasterscompose.Constants.FOLLOWING
+import com.ganainy.gymmasterscompose.Constants.USERS
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
@@ -23,10 +23,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 interface IUsersRepository {
-    fun listenForUsersUpdates(): Flow<Result<List<User>>>
-    fun listenForFollowersUpdates(): Flow<Result<Unit>>
-    fun getUserFollowing(): Flow<Result<List<String>>>
-    fun listenToPostsByUsers(userIds: Set<String>): Flow<Result<List<FeedPost>>>
+    fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>>
+    fun listenForFollowersUpdates(): Flow<ResultWrapper<Unit>>
+    fun getUserFollowing(): Flow<ResultWrapper<List<String>>>
+    fun listenToPostsByUsers(userIds: Set<String>): Flow<ResultWrapper<List<FeedPost>>>
 }
 
 class UsersRepository @Inject constructor(
@@ -37,7 +37,7 @@ class UsersRepository @Inject constructor(
     private val userList = mutableListOf<User>()
     private val _userListFlow = MutableStateFlow<List<User>>(emptyList())
 
-    override fun listenForUsersUpdates(): Flow<Result<List<User>>> = callbackFlow {
+    override fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>> = callbackFlow {
         val usersRef = database.getReference(USERS)
 
         val listener = usersRef.addValueEventListener(object : ValueEventListener {
@@ -63,22 +63,22 @@ class UsersRepository @Inject constructor(
                         }
                         userList.addAll(tempUserList)
                         _userListFlow.value = userList
-                        trySend(Result.success(userList))
+                        trySend(ResultWrapper.Success(userList))
                     } catch (e: Exception) {
-                        trySend(Result.failure(e))
+                        trySend(ResultWrapper.Error(e))
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                trySend(Result.failure(error.toException()))
+                trySend(ResultWrapper.Error(error.toException()))
             }
         })
 
         awaitClose { usersRef.removeEventListener(listener) }
     }
 
-    override fun listenForFollowersUpdates(): Flow<Result<Unit>> = callbackFlow {
+    override fun listenForFollowersUpdates(): Flow<ResultWrapper<Unit>> = callbackFlow {
         val followersRef = database.getReference(FOLLOWERS)
 
         val listener = followersRef.addValueEventListener(object : ValueEventListener {
@@ -94,22 +94,22 @@ class UsersRepository @Inject constructor(
                             localUser.stats.followersCount = followersCountMap[localUser.profile.id] ?: 0
                         }
                         _userListFlow.value = userList
-                        trySend(Result.success(Unit))
+                        trySend(ResultWrapper.Success(Unit))
                     } catch (e: Exception) {
-                        trySend(Result.failure(e))
+                        trySend(ResultWrapper.Error(e))
                     }
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                trySend(Result.failure(error.toException()))
+                trySend(ResultWrapper.Error(error.toException()))
             }
         })
 
         awaitClose { followersRef.removeEventListener(listener) }
     }
 
-    override fun getUserFollowing(): Flow<Result<List<String>>> = callbackFlow {
+    override fun getUserFollowing(): Flow<ResultWrapper<List<String>>> = callbackFlow {
         val followingRef = currentUserId?.let {
             database.reference.child(FOLLOWING).child(it)
         } ?: return@callbackFlow
@@ -117,18 +117,18 @@ class UsersRepository @Inject constructor(
         val listener = followingRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val followingList = snapshot.children.mapNotNull { it.key }
-                trySend(Result.success(followingList))
+                trySend(ResultWrapper.Success(followingList))
             }
 
             override fun onCancelled(error: DatabaseError) {
-                trySend(Result.failure<List<String>>(error.toException()))
+                trySend(ResultWrapper.Error(error.toException()))
             }
         })
 
         awaitClose { followingRef.removeEventListener(listener) }
     }
 
-    override fun listenToPostsByUsers(userIds: Set<String>): Flow<Result<List<FeedPost>>> = callbackFlow {
+    override fun listenToPostsByUsers(userIds: Set<String>): Flow<ResultWrapper<List<FeedPost>>> = callbackFlow {
         val postsRef = database.getReference("posts")
 
         val listener = postsRef
@@ -140,14 +140,14 @@ class UsersRepository @Inject constructor(
                             val post = postSnapshot.getValue(FeedPost::class.java)
                             if (post?.authorId in userIds) post else null
                         }
-                        trySend(Result.success(posts))
+                        trySend(ResultWrapper.Success(posts))
                     } catch (e: Exception) {
-                        trySend(Result.failure(e))
+                        trySend(ResultWrapper.Error(e))
                     }
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    trySend(Result.failure(error.toException()))
+                    trySend(ResultWrapper.Error(error.toException()))
                 }
             })
 

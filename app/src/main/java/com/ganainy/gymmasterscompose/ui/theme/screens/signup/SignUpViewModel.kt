@@ -3,10 +3,11 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.signup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.AppConstants
+import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.Utils
+import com.ganainy.gymmasterscompose.utils.Utils
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -94,25 +95,26 @@ class SignUpViewModel @Inject constructor(private val authRepository: AuthReposi
         }
     }
 
-    private suspend fun saveUserInfo() {
-
-        authRepository.createUserProfile(
+    private suspend fun saveUserInfo(): ResultWrapper<Unit> {
+        return authRepository.createUserProfile(
             email = _signUpFormData.value.email,
             displayName = _signUpFormData.value.displayName
-        ).onSuccess {
-            _uiState.value = SignUpUiState.Success
-        }.onFailure {
-            _uiState.value = SignUpUiState.Error((R.string.create_account_failed))
+        ).let {
+            if (it is ResultWrapper.Success) {
+                _uiState.value = SignUpUiState.Success
+                ResultWrapper.Success(Unit)
+            } else {
+                _uiState.value = SignUpUiState.Error((R.string.create_account_failed))
+                ResultWrapper.Error(Exception("saveUserInfo: failed to save user info"))
+            }
         }
-
     }
-
 
     fun updatePassword(password: String) {
         _signUpFormData.update {
             it.copy(
                 password = password, isPasswordValid =
-                Utils.isValidFieldLength(password, AppConstants.MINIMUM_PASSWORD_LENGTH)
+                Utils.isValidFieldLength(password, Constants.MINIMUM_PASSWORD_LENGTH)
             )
         }
     }
@@ -124,7 +126,7 @@ class SignUpViewModel @Inject constructor(private val authRepository: AuthReposi
                 displayName = displayName,
                 isUsernameValid = Utils.isValidFieldLength(
                     displayName,
-                    AppConstants.MINIMUM_NAME_LENGTH
+                    Constants.MINIMUM_NAME_LENGTH
                 )
             )
         }
