@@ -33,7 +33,7 @@ fun WorkoutItem() {
             .padding(16.dp)
     ) {
         // todo Profile Section (com.ganainy.gymmasterscompose.ui.theme.models.User Image, Name, and Time)
-        ProfileHeader("place holder", "place holder")
+        ProfileHeader("place holder", "","place holder")
 
         Spacer(modifier = Modifier.height(8.dp))
 

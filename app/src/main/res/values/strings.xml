@@ -59,4 +59,7 @@
     <string name="profile">My Profile</string>
     <string name="create_workout">Create workout</string>
     <string name="error_unfollowing_user">Error while unfollowing</string>
+    <string name="error_fetching_user">Error loading user account</string>
+    <string name="stats_not_found">Error loading user stats</string>
+    <string name="error_signing_out">Error signing out</string>
 </resources>

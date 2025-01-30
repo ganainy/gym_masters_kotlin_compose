@@ -154,6 +154,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     ksp("androidx.room:room-compiler:2.5.0")
 
+    //Mockito  for unit tests
+    testImplementation("org.mockito:mockito-core:5.4.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    //  Robolectric framework, which provides a simulated Android environment for unit tests.
+    testImplementation("org.robolectric:robolectric:4.10.3")
     //Default
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -1,5 +1,6 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.create_workout
 
+import CustomSearchBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,16 +15,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetState
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,18 +36,15 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -60,9 +60,28 @@ import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
 import com.ganainy.gymmasterscompose.ui.theme.models.WorkoutExercise
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+
+// UI States
+sealed interface ExerciseListScreenEvent {
+    object NavigateBack : ExerciseListScreenEvent
+    object ShowFilterSheet : ExerciseListScreenEvent
+    object DismissFilterSheet : ExerciseListScreenEvent
+    object SaveWorkout : ExerciseListScreenEvent
+    data class SearchQueryChanged(val query: String) : ExerciseListScreenEvent
+    data class ExerciseSelected(val exercise: Exercise) : ExerciseListScreenEvent
+    data class ExerciseModified(val exercise: WorkoutExercise) : ExerciseListScreenEvent
+    data class ExerciseDeleted(val exercise: WorkoutExercise) : ExerciseListScreenEvent
+    object DismissAddExerciseDialog : ExerciseListScreenEvent
+    object ApplyFilters : ExerciseListScreenEvent
+    object clearFilters : ExerciseListScreenEvent
+    data class AddWorkoutExercise(val exercise: WorkoutExercise?) : ExerciseListScreenEvent
+    data class EditWorkoutExercise(val exercise: WorkoutExercise?) : ExerciseListScreenEvent
+    data class BodyPartFilterChange(val bodyPart: BodyPart) : ExerciseListScreenEvent
+    data class EquipmentFilterChange(val equipment: Equipment) : ExerciseListScreenEvent
+    data class TargetMuscleFilterChange(val targetMuscle: TargetMuscle) : ExerciseListScreenEvent
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,343 +89,256 @@ fun WorkoutExerciseListScreen(
     navigateBack: () -> Unit,
     viewModel: CreateWorkoutViewModel
 ) {
-
-    var showExerciseDialog by remember { mutableStateOf(false) }
-
     val uiState by viewModel.uiState.collectAsState()
-
     val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
-
-    // State for controlling the bottom sheet visibility
     val sheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
 
-    ModalBottomSheetLayout(
+    // Event handler
+    val handleEvent: (ExerciseListScreenEvent) -> Unit = { event ->
+        when (event) {
+            is ExerciseListScreenEvent.NavigateBack -> navigateBack()
+            is ExerciseListScreenEvent.ShowFilterSheet -> {
+                coroutineScope.launch { sheetState.show() }
+            }
+            is ExerciseListScreenEvent.DismissFilterSheet -> {
+                coroutineScope.launch { sheetState.hide() }
+            }
+            is ExerciseListScreenEvent.SaveWorkout -> {
+                navigateBack()
+            }
+            is ExerciseListScreenEvent.SearchQueryChanged -> {
+                viewModel.filterManager.onQueryChange(event.query)
+            }
+            is ExerciseListScreenEvent.ExerciseSelected -> {
+                viewModel.exerciseManager.setSelectedExercise(event.exercise)
+            }
+            is ExerciseListScreenEvent.ExerciseModified -> {
+                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
+            }
+            is ExerciseListScreenEvent.ExerciseDeleted -> {
+                viewModel.exerciseManager.deleteWorkoutExercise(event.exercise)
+            }
+            is ExerciseListScreenEvent.DismissAddExerciseDialog -> {
+                viewModel.exerciseManager.dismissAddExerciseDialog()
+            }
+            is ExerciseListScreenEvent.AddWorkoutExercise -> {
+                viewModel.exerciseManager.addWorkoutExercise(event.exercise)
+        }
+
+            is ExerciseListScreenEvent.BodyPartFilterChange -> {
+                viewModel.filterManager.onBodyPartFilterChange(event.bodyPart)
+            }
+
+            ExerciseListScreenEvent.ApplyFilters -> viewModel.filterManager.applyFilters()
+            is ExerciseListScreenEvent.EquipmentFilterChange -> {
+                viewModel.filterManager.onEquipmentFilterChange(event.equipment)
+            }
+            is ExerciseListScreenEvent.TargetMuscleFilterChange -> {
+                viewModel.filterManager.onTargetMuscleFilterChange(event.targetMuscle)
+            }
+            ExerciseListScreenEvent.clearFilters -> viewModel.filterManager.clearFilters()
+            is ExerciseListScreenEvent.EditWorkoutExercise -> {
+                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
+            }
+        }
+    }
+
+    // Error handling
+    LaunchedEffect(uiState.exerciseListState) {
+        if (uiState.exerciseListState is UiState.DataState.Error) {
+            showToast(context, (uiState.exerciseListState as UiState.DataState.Error).message)
+            viewModel.clearError()
+        }
+    }
+
+    WorkoutExerciseListScreenContent(
+        uiState = uiState,
         sheetState = sheetState,
-        sheetContent = {
-            FilterSearchUI(
-                bodyPartList = uiState.bodyPartList,
-                equipmentList = uiState.equipmentList,
-                targetList = uiState.targetList,
-                bodyPartFilter = uiState.bodyPartFilter,
-                onBodyPartFilterChange = viewModel::onBodyPartFilterChange,
-                equipmentFilter = uiState.equipmentFilter,
-                onEquipmentFilterChange = viewModel::onEquipmentFilterChange,
-                targetFilter = uiState.targetFilter,
-                onTargetMuscleFilterChange = viewModel::onTargetMuscleFilterChange,
-                onApplyFilters = {
-                    viewModel.applyFilters()
-                    coroutineScope.launch {
-                        sheetState.hide()
-                    }
-                }
-            )
-        }
-    ) {
-
-        when (uiState.exerciseListState) {
-
-            is ExerciseListDataState.Initial -> {
-                // Do nothing
-            }
-
-            is ExerciseListDataState.Loading -> {
-                LoadingIndicator()
-            }
-
-            is ExerciseListDataState.Success -> {
-                // Do nothing
-            }
-
-            is ExerciseListDataState.Error -> {
-                showToast(
-                    context,
-                    (uiState.exerciseListState as ExerciseListDataState.Error).message,
-                )
-                viewModel.clearError()
-            }
-        }
-
-        // Main Screen Content
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ExercisesContent(
-                uiState = uiState,
-                navigateBack,
-                showModalSheet = {
-                    coroutineScope.launch {
-                        sheetState.show()
-                    }
-                },
-                searchQuery = uiState.searchQuery,
-                onQueryChange = viewModel::onQueryChange,
-                onAddExerciseClick = {
-                    viewModel.setSelectedExercise(it)
-                    showExerciseDialog = true
-                },
-                onModifyExerciseClick = {
-                    viewModel.setSelectedExercise(it.exercise)
-                    showExerciseDialog = true
-                },
-                onDeleteExerciseClick = viewModel::deleteWorkoutExercise,
-            )
-
-        }
-
-
-
-        if (showExerciseDialog) {
-            AddExerciseDialog(
-                selectedExercise = uiState.selectedExercise,
-                onDismiss = { showExerciseDialog = false },
-                onExerciseAdd = { newWorkoutExercise ->
-                    viewModel.addWorkoutExercise(newWorkoutExercise)
-                    showExerciseDialog = false
-                },
-                onEditWorkoutExercise = viewModel::editWorkoutExercise,
-            )
-        }
-
-
-    }
-}
-
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun ExercisesContent(
-    uiState: WorkoutUiState,
-    navigateBack: () -> Unit,
-    showModalSheet: () -> Job,
-    searchQuery: String,
-    onQueryChange: (String) -> Unit,
-    onAddExerciseClick: (Exercise) -> Unit,
-    onModifyExerciseClick: (WorkoutExercise) -> Unit,
-    onDeleteExerciseClick: (WorkoutExercise) -> Unit,
-) {
-    val filteredExercises = uiState.filteredExerciseList
-
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Workout Exercises") },
-            navigationIcon = {
-                IconButton(onClick = navigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                IconButton(onClick = { showModalSheet() }) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = "Filters"
-                    )
-                }
-                IconButton(onClick = navigateBack) {
-                    Icon(
-                        imageVector = Icons.Default.Save,
-                        contentDescription = "Save"
-                    )
-                }
-            }
-        )
-
-        SearchBar(
-            searchQuery = searchQuery,
-            onQueryChange = onQueryChange,
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-        )
-
-
-        when (uiState.exerciseListState) {
-
-            is ExerciseListDataState.Initial -> {
-                // Do nothing
-            }
-
-            is ExerciseListDataState.Loading -> {
-                LoadingIndicator()
-            }
-
-            is ExerciseListDataState.Success -> {
-                if (filteredExercises.isNotEmpty()) {
-                    LazyColumn {
-                        items(filteredExercises) { exercise ->
-                            val workoutExerciseList: List<WorkoutExercise> =
-                                uiState.workoutExerciseList
-                            if (workoutExerciseList.any { it.exercise.id == exercise.id }) {
-                                //exercise has been already added to workout
-                                val workoutExercise =
-                                    workoutExerciseList.find { it.exercise.id == exercise.id }
-                                ExerciseListItem(
-                                    type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
-                                    workoutExercise = workoutExercise,
-                                    onModify = {
-                                        if (workoutExercise != null) {
-                                            onModifyExerciseClick(workoutExercise)
-                                        }
-                                    },
-                                    onDelete = {
-                                        if (workoutExercise != null) {
-                                            onDeleteExerciseClick(workoutExercise)
-                                        }
-                                    },
-                                )
-                            } else {
-                                //exercise has not been added to workout
-                                ExerciseListItem(
-                                    exercise = exercise,
-                                    onAddToWorkout = { onAddExerciseClick(exercise) },
-                                    type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE,
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    EmptyComponent("No exercises found")
-                }
-            }
-
-            is ExerciseListDataState.Error -> {
-                ErrorComponent(text = (uiState.exerciseListState as ExerciseListDataState.Error).message)
-            }
-        }
-
-
-    }
-
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchBar(
-    searchQuery: String,
-    onQueryChange: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedTextField(
-        value = searchQuery,
-        onValueChange = { onQueryChange(it) },
-        modifier = modifier,
-        placeholder = { Text("Search exercise") },
-        leadingIcon = { Icon(Icons.Default.Search, "Search") },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+        onEvent = handleEvent
     )
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddExerciseDialog(
-    selectedExercise: WorkoutExercise?,
-    onDismiss: () -> Unit,
-    onExerciseAdd: (WorkoutExercise?) -> Unit,
-    onEditWorkoutExercise: (WorkoutExercise?) -> Unit
+private fun WorkoutExerciseListScreenContent(
+    uiState: UiState.WorkoutUiState,
+    sheetState: ModalBottomSheetState,
+    onEvent: (ExerciseListScreenEvent) -> Unit
 ) {
-
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (selectedExercise != null) {
-                    Text(
-                        selectedExercise.exercise.name,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-
-                OutlinedTextField(
-                    value = selectedExercise?.sets?.toString() ?: "",
-                    onValueChange = { setsString: String ->
-                        val sets = setsString.toIntOrNull()
-                        if (sets != null) {
-                            onEditWorkoutExercise(selectedExercise?.copy(sets = sets))
-                        }
-                    },
-                    label = { Text("Sets") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
+    ModalBottomSheetLayout(
+        sheetState = sheetState,
+        sheetContent = {
+            FilterSheet(
+                uiState = uiState,
+                onEvent = onEvent
+            )
+        }
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (uiState.exerciseListState) {
+                is UiState.DataState.Loading -> LoadingIndicator()
+                else -> MainContent(
+                    uiState = uiState,
+                    onEvent = onEvent
                 )
+            }
 
-                OutlinedTextField(
-                    value = selectedExercise?.reps?.toString() ?: "",
-                    onValueChange = { reps: String ->
-                        val repsInt = reps.toIntOrNull()
-                        if (repsInt != null) {
-                            onEditWorkoutExercise(selectedExercise?.copy(reps = repsInt))
-                        }
-                    },
-                    label = { Text("Reps") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
+            // Exercise Dialog
+            if (uiState.showExerciseDialog) {
+                ExerciseDialog(
+                    onDismiss = {onEvent(ExerciseListScreenEvent.DismissAddExerciseDialog)},
+                    onAdd = {onEvent(ExerciseListScreenEvent.AddWorkoutExercise(it))},
+                    onEdit = {onEvent(ExerciseListScreenEvent.EditWorkoutExercise(it))},
+                    selectedExercise = uiState.selectedExercise,
+                    validationState = uiState.validationState
                 )
-
-
-                OutlinedTextField(
-                    value = selectedExercise?.restBetweenSets?.toString() ?: "",
-                    onValueChange = { rest: String ->
-                        val restInt = rest.toIntOrNull()
-                        if (restInt != null) {
-                            onEditWorkoutExercise(
-                                selectedExercise?.copy(
-                                    restBetweenSets = restInt
-                                )
-                            )
-                        }
-                    },
-                    label = { Text("Rest between sets (seconds)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    androidx.compose.material3.Button(
-                        onClick = { onExerciseAdd(selectedExercise) },
-                        enabled = selectedExercise != null
-                    ) {
-                        Text("Add to workout")
-                    }
-                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilterSearchUI(
-    bodyPartList: List<BodyPart>?,
-    equipmentList: List<Equipment>?,
-    targetList: List<TargetMuscle>?,
-    bodyPartFilter: BodyPart?,
-    onBodyPartFilterChange: (BodyPart?) -> Unit,
-    equipmentFilter: Equipment?,
-    onEquipmentFilterChange: (Equipment?) -> Unit,
-    targetFilter: TargetMuscle?,
-    onTargetMuscleFilterChange: (TargetMuscle?) -> Unit,
-    onApplyFilters: () -> Unit
+private fun MainContent(
+    uiState: UiState.WorkoutUiState,
+    onEvent: (ExerciseListScreenEvent) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopBar(
+            onNavigateBack = { onEvent(ExerciseListScreenEvent.NavigateBack) },
+            onShowFilters = { onEvent(ExerciseListScreenEvent.ShowFilterSheet) },
+            onSave = { onEvent(ExerciseListScreenEvent.SaveWorkout) }
+        )
+
+        CustomSearchBar(
+            onQueryChange = { onEvent(ExerciseListScreenEvent.SearchQueryChanged(it)) },
+            searchQuery = uiState.searchQuery,
+        )
+
+        ExerciseList(
+            onExerciseAdd = { onEvent(ExerciseListScreenEvent.ExerciseSelected(it)) },
+            onExerciseModify = { onEvent(ExerciseListScreenEvent.ExerciseModified(it)) },
+            onExerciseDelete = { onEvent(ExerciseListScreenEvent.ExerciseDeleted(it)) },
+            exerciseListState = uiState.exerciseListState,
+            filteredExerciseList = uiState.filteredExerciseList,
+            workoutExerciseList = uiState.workout.workoutExerciseList,
+        )
+    }
+}
+
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopBar(
+    onNavigateBack: () -> Unit,
+    onShowFilters: () -> Unit,
+    onSave: () -> Unit
+) {
+    TopAppBar(
+        title = { Text("Workout Exercises") },
+        navigationIcon = {
+            IconButton(onClick = onNavigateBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+        },
+        actions = {
+            IconButton(onClick = onShowFilters) {
+                Icon(Icons.Default.FilterList, "Filters")
+            }
+            IconButton(onClick = onSave) {
+                Icon(Icons.Default.Save, "Save")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ExerciseList(
+    exerciseListState: UiState.DataState,
+    filteredExerciseList: List<Exercise>,
+    workoutExerciseList: List<WorkoutExercise>,
+    onExerciseAdd: (Exercise) -> Unit,
+    onExerciseModify: (WorkoutExercise) -> Unit,
+    onExerciseDelete: (WorkoutExercise) -> Unit
+) {
+    when (exerciseListState) {
+        is UiState.DataState.Success -> {
+            if (filteredExerciseList.isNotEmpty()) {
+                LazyColumn {
+                    items(filteredExerciseList) { exercise ->
+                        ExerciseListItem(
+                            exercise = exercise,
+                            workoutExercises = workoutExerciseList,
+                            onAdd = onExerciseAdd,
+                            onModify = onExerciseModify,
+                            onDelete = onExerciseDelete
+                        )
+                    }
+                }
+            } else {
+                EmptyComponent("No exercises found")
+            }
+        }
+        is UiState.DataState.Error -> {
+            ErrorComponent(text = (exerciseListState as UiState.DataState.Error).message)
+        }
+        else -> Unit
+    }
+}
+
+@Composable
+private fun ExerciseListItem(
+    exercise: Exercise,
+    workoutExercises: List<WorkoutExercise>,
+    onAdd: (Exercise) -> Unit,
+    onModify: (WorkoutExercise) -> Unit,
+    onDelete: (WorkoutExercise) -> Unit
+) {
+    val workoutExercise = workoutExercises.find { it.exercise.id == exercise.id }
+
+    if (workoutExercise != null) {
+        ExerciseListItem(
+            type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
+            workoutExercise = workoutExercise,
+            onModify = { onModify(workoutExercise) },
+            onDelete = { onDelete(workoutExercise) }
+        )
+    } else {
+        ExerciseListItem(
+            exercise = exercise,
+            onAddToWorkout = { onAdd(exercise) },
+            type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExerciseDialog(
+    selectedExercise: WorkoutExercise?,
+    validationState: UiState.ValidationState,
+    onDismiss: () -> Unit,
+    onAdd: (WorkoutExercise?) -> Unit,
+    onEdit: (WorkoutExercise?) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        ExerciseDialogContent(
+            selectedExercise = selectedExercise,
+            validationState = validationState,
+            onDismiss = onDismiss,
+            onAdd = onAdd,
+            onEdit = onEdit
+        )
+    }
+}
+
+
+@Composable
+fun FilterSheet(
+    uiState: UiState.WorkoutUiState,
+    onEvent: (ExerciseListScreenEvent) -> Unit,
 ) {
 
     Column(modifier = Modifier.padding(16.dp)) {
@@ -420,32 +352,34 @@ fun FilterSearchUI(
         // Body Part Dropdown
         ChipOptionList(
             label = "Body Part",
-            options = bodyPartList,
-            selectedOption = bodyPartFilter,
-            onOptionSelected = { onBodyPartFilterChange(it) }
+            options = uiState.bodyPartList,
+            selectedOption = uiState.bodyPartFilter,
+            onOptionSelected = { onEvent(ExerciseListScreenEvent.BodyPartFilterChange(it)) }
         )
 
         // Equipment Dropdown
         ChipOptionList(
             label = "Equipment",
-            options = equipmentList,
-            selectedOption = equipmentFilter,
-            onOptionSelected = { onEquipmentFilterChange(it) }
+            options =  uiState.equipmentList,
+            selectedOption =  uiState.equipmentFilter,
+            onOptionSelected = { onEvent(ExerciseListScreenEvent.EquipmentFilterChange(it)) }
         )
 
         // Target Dropdown
         ChipOptionList(
             label = "Target",
-            options = targetList,
-            selectedOption = targetFilter,
-            onOptionSelected = { onTargetMuscleFilterChange(it) }
+            options =  uiState.targetList,
+            selectedOption =  uiState.targetFilter,
+            onOptionSelected = { onEvent(ExerciseListScreenEvent.TargetMuscleFilterChange(it)) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Apply Filters Button
         Button(
-            onClick = onApplyFilters,
+            onClick =  {
+                onEvent(ExerciseListScreenEvent.ApplyFilters)
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = "Apply Filters")
@@ -455,9 +389,7 @@ fun FilterSearchUI(
         // Clear Filters Button
         TextButton(
             onClick = {
-                onBodyPartFilterChange(null)
-                onEquipmentFilterChange(null)
-                onTargetMuscleFilterChange(null)
+                onEvent(ExerciseListScreenEvent.clearFilters)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -466,40 +398,148 @@ fun FilterSearchUI(
     }
 }
 
-
-@Preview
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PreviewFilterSearchUI() {
-    val bodyPartList = listOf("Back", "Cardio", "Chest", "Lower Arms")
-    val equipmentList = listOf("Assisted", "Band", "Barbell", "Body Weight")
-    val targetList = listOf("Abductors", "Abs", "Adductors", "Biceps", "Calves")
+private fun ExerciseDialogContent(
+    selectedExercise: WorkoutExercise?,
+    validationState: UiState.ValidationState,
+    onDismiss: () -> Unit,
+    onAdd: (WorkoutExercise?) -> Unit,
+    onEdit: (WorkoutExercise?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Exercise Name Header
+            selectedExercise?.let { exercise ->
+                Text(
+                    text = exercise.exercise.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-    FilterSearchUI(
-        bodyPartList = listOf(
-            BodyPart("Back"),
-            BodyPart("Cardio"),
-            BodyPart("Chest"),
-            BodyPart("Lower Arms")
-        ),
-        equipmentList = listOf(
-            Equipment("Assisted"),
-            Equipment("Band"),
-            Equipment("Barbell"),
-            Equipment("Body Weight")
-        ),
-        targetList = listOf(
-            TargetMuscle("Abductors"),
-            TargetMuscle("Abs"),
-            TargetMuscle("Adductors"),
-            TargetMuscle("Biceps"),
-            TargetMuscle("Calves")
-        ),
-        bodyPartFilter = null,
-        onBodyPartFilterChange = { /* Handle body part filter change */ },
-        equipmentFilter = null,
-        onEquipmentFilterChange = { /* Handle equipment filter change */ },
-        targetFilter = null,
-        onTargetMuscleFilterChange = { /* Handle target muscle filter change */ },
-        onApplyFilters = { /* Handle apply filters */ }
-    )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            }
+
+            // Sets Input
+            ExerciseNumberField(
+                value = selectedExercise?.sets?.toString() ?: "",
+                onValueChange = { setsString ->
+                    val sets = setsString.toIntOrNull()
+                    if (sets != null) {
+                        onEdit(selectedExercise?.copy(sets = sets))
+                    }
+                },
+                label = "Sets",
+                error = validationState.setsError,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Reps Input
+            ExerciseNumberField(
+                value = selectedExercise?.reps?.toString() ?: "",
+                onValueChange = { repsString ->
+                    val reps = repsString.toIntOrNull()
+                    if (reps != null) {
+                        onEdit(selectedExercise?.copy(reps = reps))
+                    }
+                },
+                label = "Reps",
+                error = validationState.repsError,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Rest Input
+            ExerciseNumberField(
+                value = selectedExercise?.restBetweenSets?.toString() ?: "",
+                onValueChange = { restString ->
+                    val rest = restString.toIntOrNull()
+                    if (rest != null) {
+                        onEdit(selectedExercise?.copy(restBetweenSets = rest))
+                    }
+                },
+                label = "Rest between sets (seconds)",
+                error = validationState.restError,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Action Buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Text("Cancel")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = { onAdd(selectedExercise) },
+                    enabled = selectedExercise != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Add")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExerciseNumberField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    error: String?,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { newValue ->
+                // Only allow digits
+                if (newValue.isEmpty() || newValue.all { it.isDigit() }) {
+                    onValueChange(newValue)
+                }
+            },
+            label = { Text(label) },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            ),
+            singleLine = true,
+            isError = error != null,
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                errorLabelColor = MaterialTheme.colorScheme.error,
+                errorSupportingTextColor = MaterialTheme.colorScheme.error
+            ),
+            supportingText = error?.let {
+                { Text(it) }
+            }
+        )
+    }
 }

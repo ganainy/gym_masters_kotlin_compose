@@ -1,15 +1,11 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
-import Profile
-import Stats
-import User
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,10 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.FitnessCenter
-import androidx.compose.material.icons.rounded.People
-import androidx.compose.material.icons.rounded.SportsMartialArts
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,9 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -48,8 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
-import com.github.marlonlom.utilities.timeago.TimeAgo
-import com.github.marlonlom.utilities.timeago.TimeAgoMessages
+import com.ganainy.gymmasterscompose.ui.theme.models.User
 import java.util.Date
 
 //todo open user profile on click
@@ -70,7 +59,7 @@ fun DiscoverProfile(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable(
-                onClick = { onProfileClick(user.profile.id) }),
+                onClick = { onProfileClick(user.id) }),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -88,7 +77,7 @@ fun DiscoverProfile(
                 //  Profile Image
 
                 ProfileImage(
-                    profilePictureUrl = user.profile.profilePictureUrl,
+                    profilePictureUrl = user.profilePictureUrl,
                     modifier = Modifier
                         .padding(2.dp)
                         .clip(CircleShape),
@@ -99,59 +88,16 @@ fun DiscoverProfile(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // User Name with Custom Style
-                    user.profile.displayName.let {
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Text(
+                        text = user.displayName,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
 
-                    // Stats Row with Icons
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        if (user.stats.followersCount != null) {
-                            StatItem(
-                                icon = Icons.Rounded.People,
-                                count = user.stats.followersCount ?: 0,
-                                label = stringResource(R.string.followers)
-                            )
-                        }
 
-                        if (user.stats.workoutCount != null) {
-                            StatItem(
-                                icon = Icons.Rounded.FitnessCenter,
-                                count = user.stats.workoutCount,
-                                label = stringResource(R.string.workouts)
-                            )
-                        }
-
-                        if (user.stats.exerciseCount != null) {
-                            StatItem(
-                                icon = Icons.Rounded.SportsMartialArts,
-                                count = user.stats.exerciseCount,
-                                label = stringResource(R.string.exercises)
-                            )
-                        }
-
-                        val currentLocale = LocalContext.current.resources.configuration.locales[0]
-                        val timeAgoMessages = remember(currentLocale) {
-                            TimeAgoMessages.Builder().withLocale(currentLocale).build()
-                        }
-
-                        JoinDateItem(
-                            joinDate = stringResource(
-                                R.string.joined,
-                                TimeAgo.using(user.profile.joinDate, timeAgoMessages)
-                            )
-                        )
-                    }
                 }
 
                 // Animated Follow Button
@@ -163,6 +109,8 @@ fun DiscoverProfile(
         }
     }
 }
+
+
 
 @Composable
 private fun StatItem(
@@ -249,13 +197,11 @@ fun PreviewDiscoverProfile() {
     AppTheme {
         DiscoverProfile(
             User(
-                profile = Profile(
-                    id = "1234",
-                    displayName = "amr",
-                    username = "user1",
-                    email = "amr@gmail.com",
-                    joinDate = Date().time,
-                ), Stats(3, 2, 3, 19)
+                id = "1234",
+                displayName = "amr",
+                username = "user1",
+                email = "amr@gmail.com",
+                joinDate = Date().time,
             ),
             {},
             true,

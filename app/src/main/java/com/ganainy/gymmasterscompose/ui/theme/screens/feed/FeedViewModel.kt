@@ -1,16 +1,16 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.feed
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.PostStats
+import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,37 +20,48 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
-data class FeedUiState(
-    val posts: List<FeedPost> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
+sealed class FeedUiState {
+    object EmptyFeed : FeedUiState()
+    object NonEmptyFeed : FeedUiState()
+    object Loading : FeedUiState()
+    data class Error(val messageStringResource: Int) : FeedUiState()
+}
+
+
+data class FeedUiData(
+    val followingUserIds: Set<String>,
+    val postList: List<FeedPost>,
+    val postAuthorList: List<User>,
+    val postStatsList: List<PostStats>,
 )
+
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
-    private val application: Application,
     private val auth: FirebaseAuth,
     private val authRepository: IAuthRepository,
     private val socialRepository: ISocialRepository,
     private val userRepository: IUserRepository,
     private val usersRepository: IUsersRepository,
-    private val workoutRepository: IWorkoutRepository,
     private val postRepository: IPostRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(FeedUiState(isLoading = true))
+    private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
-    private var followingUserIds = mutableSetOf<String>()
-    private val currentUserId = auth.uid
+    private val _feedUiData =
+        MutableStateFlow(FeedUiData(emptySet(), emptyList(), mutableListOf(), mutableListOf()))
+    val feedUiData: StateFlow<FeedUiData> = _feedUiData.asStateFlow()
 
-    private val context = application
+    private val currentUserId: String?
+        get() = auth.currentUser?.uid
+
 
     init {
         loadFeed()
@@ -58,62 +69,63 @@ class FeedViewModel @Inject constructor(
 
     private fun loadFeed() {
         viewModelScope.launch {
-            socialRepository.getUserFollowing(currentUserId)
-                .catch { e ->
-                    _uiState.update {
-                        it.copy(
-                            error = context.getString(R.string.error_loading_feed),
-                            isLoading = false
-                        )
+            _uiState.value = FeedUiState.Loading
+            currentUserId?.let { userId ->
+                socialRepository.getUserFollowing(userId)
+                    .catch { e ->
+                        _uiState.value = FeedUiState.Error(R.string.error_loading_feed)
                     }
-                }
-                .collect { result ->
-                    when (result) {
-                        is ResultWrapper.Error -> {
-                            _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
-                        }
+                    .collect { result ->
+                        when (result) {
+                            is ResultWrapper.Error -> {
+                                _uiState.value = FeedUiState.Error(R.string.error_loading_feed)
+                            }
 
-                        is ResultWrapper.Success -> {
-                            followingUserIds = result.data.toMutableSet()
-                            if (currentUserId != null) followingUserIds.add(currentUserId)
-                            listenToFeedPosts()
+                            is ResultWrapper.Success -> {
+                                _feedUiData.update { uiData ->
+                                    uiData.copy(
+                                        followingUserIds = result.data.toMutableSet().apply {
+                                            currentUserId?.let { add(it) }
+                                        }
+                                    )
+                                }
+                                listenToFeedPosts()
+                            }
                         }
                     }
-                }
+            }
         }
     }
 
     private fun listenToFeedPosts() {
         viewModelScope.launch {
-            usersRepository.listenToPostsByUsers(followingUserIds)
+            val usersToGetPostsFrom=_feedUiData.value.followingUserIds+currentUserId
+            usersRepository.listenToPostsByUsers(usersToGetPostsFrom)
                 .catch { e ->
-                    _uiState.update {
-                        it.copy(
-                            error = context.getString(R.string.error_loading_posts),
-                            isLoading = false
-                        )
-                    }
+                    _uiState.value = FeedUiState.Error(R.string.error_loading_posts)
+
                 }
                 .collect { result ->
                     when (result) {
                         is ResultWrapper.Error -> {
-                            _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
+                            _uiState.value = FeedUiState.Error(R.string.error_loading_posts)
                         }
+
                         is ResultWrapper.Success -> {
-                            // Enrich posts with author, exercise, and workout data
-                            val enrichedPosts = result.data.map { post ->
-                                enrichPost(post)
-                            }
 
-                            // Sort by creation time, newest first
-                            val sortedPosts = enrichedPosts.sortedByDescending { it.createdAt }
+                            if (result.data.isNotEmpty()) {
+                                _uiState.value = FeedUiState.NonEmptyFeed
+                                result.data.forEach { post ->
+                                    enrichPost(post.authorId, post.id)
+                                }
 
-                            _uiState.update {
-                                it.copy(
-                                    posts = sortedPosts,
-                                    isLoading = false,
-                                    error = null
-                                )
+                                _feedUiData.update {
+                                    it.copy(
+                                        postList = (it.postList + result.data).distinctBy { post -> post.id }
+                                    )
+                                }
+                            } else {
+                                _uiState.value = FeedUiState.EmptyFeed
                             }
                         }
                     }
@@ -121,59 +133,71 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    private suspend fun enrichPost(post: FeedPost): FeedPost {
-        return coroutineScope {
-            // Launch parallel requests for author and linked content
-            val authorDeferred = async { userRepository.getUser(post.authorId).first() }
-            val exerciseDeferred = post.linkedExerciseId?.let {
-                async { workoutRepository.getExercise(it) }
+    private suspend fun enrichPost(authorId: String, postId: String) {
+        coroutineScope {
+            val authorDeferred = async {
+                userRepository.getUser(authorId).firstOrNull() // Collects first emitted value
             }
-            val workoutDeferred = post.linkedWorkoutId?.let {
-                async { workoutRepository.getWorkout(it) }
-            }
-            val reactionDeferred = async {
-                postRepository.getUserReactionForPost(post.id, currentUserId ?: "")
+            val statsDeferred = async {
+                postRepository.getPostStats(postId).firstOrNull() // Collects first emitted value
             }
 
-            // Wait for all requests to complete
-            post.copy(
-                author = (authorDeferred.await() as? ResultWrapper.Success)?.data,
-                linkedExercise = exerciseDeferred?.await(),
-                linkedWorkout = workoutDeferred?.await(),
-                currentUserReaction = reactionDeferred.await()
-            )
+            val authorResult = authorDeferred.await()
+            val statsResult = statsDeferred.await()
+
+            if (authorResult != null ) {
+                _feedUiData.update {
+                    it.copy(
+                        postAuthorList = (authorResult as? ResultWrapper.Success<User>)?.data
+                            ?.let { user -> it.postAuthorList + user } ?: it.postAuthorList,
+
+                    )
+                }
+            }
+            if (statsResult != null) {
+                _feedUiData.update {
+                    it.copy(
+                        postStatsList = (statsResult as? ResultWrapper.Success<PostStats>)?.data
+                            ?.let { stats -> it.postStatsList + stats } ?: it.postStatsList
+                    )
+                }
+            }
         }
     }
+
 
 
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
-            when (val result = postRepository.togglePostReaction(postId = postId, reactionType = "LIKE")) {
-                is ResultWrapper.Success -> {
-                    // Handle success if needed
-                }
-                is ResultWrapper.Error -> {
-                    _uiState.update { it.copy(error = result.exception.message) }
-                }
+            runCatching {
+                postRepository.togglePostReaction(postId = postId, reactionType = "LIKE")
+            }.onFailure {
+                _uiState.value = FeedUiState.Error(R.string.error_updating_reaction)
             }
         }
+
+    }
+
+    fun isPostLikedByCurrentUser(postId: String): Boolean {
+        return (_feedUiData.value.postStatsList.firstOrNull { it.postId == postId }?.likes ?: 0) > 0
     }
 
     fun refreshFeed() {
-        _uiState.update { it.copy(isLoading = true) }
+        _uiState.value = FeedUiState.Loading
         loadFeed()
     }
 
     fun signOut(onSignedOut: () -> Unit) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.value = FeedUiState.Loading
             when (val result = authRepository.signOut()) {
                 is ResultWrapper.Success -> {
-                    _uiState.update { it.copy(isLoading = false) }
                     onSignedOut()
+                    _uiState.value = FeedUiState.EmptyFeed
                 }
+
                 is ResultWrapper.Error -> {
-                    _uiState.update { it.copy(error = result.exception.message, isLoading = false) }
+                    _uiState.value = FeedUiState.Error(R.string.error_signing_out)
                 }
             }
         }

@@ -16,47 +16,92 @@ import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
-sealed class ExerciseListDataState {
-    object Initial : ExerciseListDataState()
-    object Loading : ExerciseListDataState()
-    object Success : ExerciseListDataState()
-    data class Error(val message: String) : ExerciseListDataState()
+// State Management
+sealed interface UiState {
+    sealed interface DataState {
+        object Initial : DataState
+        object Loading : DataState
+        object Success : DataState
+        data class Error(val message: String) : DataState
+    }
+
+    data class WorkoutUiState(
+        val exerciseListState: DataState = DataState.Initial,
+        val workoutState: DataState = DataState.Initial,
+        val searchQuery: String = "",
+        val currentTag: String = "",
+        val bodyPartFilter: BodyPart? = null,
+        val equipmentFilter: Equipment? = null,
+        val targetFilter: TargetMuscle? = null,
+        val bodyPartList: List<BodyPart> = emptyList(),
+        val equipmentList: List<Equipment> = emptyList(),
+        val targetList: List<TargetMuscle> = emptyList(),
+        val exerciseList: List<Exercise> = emptyList(), //all exercises from api or local db
+        val availableDifficulties: List<String> = listOf(
+            "Beginner",
+            "Intermediate",
+            "Advanced",
+            "Expert"
+        ),
+        val filteredExerciseList: List<Exercise> = emptyList(),
+        val selectedExercise: WorkoutExercise? = null,
+        var workout: Workout = Workout(
+            workoutId = generateRandomId(Constants.WORKOUT),
+            difficulty = "Beginner"
+        ),
+        val validationState: ValidationState = ValidationState(),
+        val showExerciseDialog: Boolean = false,
+        val isUploadEnabled: Boolean = false
+    )
+
+    data class ValidationState(
+        val setsError: String? = null,
+        val repsError: String? = null,
+        val restError: String? = null
+    ) {
+        val hasErrors: Boolean
+            get() = setsError != null || repsError != null || restError != null
+    }
 }
 
-sealed class WorkoutDataState {
-    object Initial : WorkoutDataState()
-    object Loading : WorkoutDataState()
-    object Success : WorkoutDataState()
-    data class Error(val message: String) : WorkoutDataState()
+// Validator
+object WorkoutValidator {
+    sealed class ValidationRule<T> {
+        abstract fun validate(value: T): String?
+
+        class NonZero : ValidationRule<Int>() {
+            override fun validate(value: Int) =
+                if (value == 0) "Value cannot be empty" else null
+        }
+    }
+
+    private val rules = mapOf(
+        "sets" to ValidationRule.NonZero(),
+        "reps" to ValidationRule.NonZero(),
+        "rest" to ValidationRule.NonZero()
+    )
+
+    fun validate(workoutExercise: WorkoutExercise): UiState.ValidationState {
+        return UiState.ValidationState(
+            setsError = rules["sets"]?.validate(workoutExercise.sets),
+            repsError = rules["reps"]?.validate(workoutExercise.reps),
+            restError = rules["rest"]?.validate(workoutExercise.restBetweenSets)
+        )
+    }
 }
 
-
-data class WorkoutUiState(
-    val exerciseListState: ExerciseListDataState = ExerciseListDataState.Initial,
-    val workoutState: WorkoutDataState = WorkoutDataState.Initial,
-    val searchQuery: String = "",
-    val currentTag: String = "",
-    val bodyPartFilter: BodyPart? = null,
-    val equipmentFilter: Equipment? = null,
-    val targetFilter: TargetMuscle? = null,
-    val bodyPartList: List<BodyPart> = emptyList(),
-    val equipmentList: List<Equipment> = emptyList(),
-    val targetList: List<TargetMuscle> = emptyList(),
-    val exerciseList: List<Exercise> = emptyList(),
-    val availableDifficulties: List<String> = listOf("Beginner", "Intermediate", "Advanced", "Expert"),
-    val currentDifficulty: String ="Beginner",
-    val filteredExerciseList: List<Exercise> = emptyList(),
-    val workoutExerciseList: List<WorkoutExercise> = emptyList(),
-    val selectedExercise: WorkoutExercise? = null,
-    val workout: Workout = Workout(workoutId = generateRandomId(Constants.WORKOUT))
-)
-
+// ViewModel
 @HiltViewModel
 class CreateWorkoutViewModel @Inject constructor(
     private val exerciseDataManager: ExerciseDataManager,
@@ -64,177 +109,273 @@ class CreateWorkoutViewModel @Inject constructor(
     private val workoutRepository: IWorkoutRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(WorkoutUiState())
-    val uiState = _uiState.asStateFlow()
+
+
+    /**
+     * Private state flow for the UI state.
+     */
+    private val _uiState = MutableStateFlow(UiState.WorkoutUiState())
+
+    val uiState: StateFlow<UiState.WorkoutUiState> = _uiState.asStateFlow()
+
+
 
     init {
         loadInitialData()
+        observeFieldChanges()
     }
 
-    private fun loadInitialData() {
+    private fun observeFieldChanges() {
+        // Combine the two fields into a StateFlow
+        uiState.map { state -> state.workout.title to state.workout.workoutExerciseList }
+            .distinctUntilChanged() // Only emit when the pair of values changes
+            .onEach { (field1, field2) ->
+                // Call the function whenever these fields change
+                isUploadButtonEnabled()
+            }
+            .launchIn(viewModelScope) // Replace with your scope (e.g., lifecycleScope)
+    }
+
+    /**
+     * Updates the UI state to set the upload button to enabled or disabled.
+     */
+    private fun isUploadButtonEnabled() {
+        if (_uiState.value.workout.workoutExerciseList.isNotEmpty() && _uiState.value.workout.title.isNotEmpty()) {
+            _uiState.update { it.copy(isUploadEnabled = true) }
+        } else {
+            _uiState.update { it.copy(isUploadEnabled = false) }
+        }
+    }
+
+
+    // Operations Management
+    private sealed class Operation {
+        object UploadWorkout : Operation()
+        object LoadInitialData : Operation()
+    }
+
+    private fun handleOperation(operation: Operation, block: suspend () -> Unit) {
         viewModelScope.launch {
-            setExerciseListState(ExerciseListDataState.Loading)
-
-            exerciseDataManager.loadExerciseData()
-                .onSuccess { result ->
-                    _uiState.update { state ->
-                        state.copy(
-                            exerciseListState = ExerciseListDataState.Success,
-                            bodyPartList = result.bodyParts,
-                            targetList = result.targets,
-                            equipmentList = result.equipment,
-                            exerciseList = result.exercises,
-                            filteredExerciseList = result.exercises,
-                            workout = state.workout.copy(userId = authRepository.getCurrentUserId())
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    setExerciseListState(ExerciseListDataState.Error(error.message ?: "Unknown error"))
-                }
-        }
-    }
-
-    private fun setExerciseListState(state: ExerciseListDataState) {
-        _uiState.update { it.copy(exerciseListState = state) }
-    }
-
-    private fun setWorkoutState(state: WorkoutDataState) {
-        _uiState.update { it.copy(workoutState = state) }
-    }
-
-    fun onQueryChange(query: String) = viewModelScope.launch {
-        _uiState.update { it.copy(searchQuery = query) }
-        applyFilters()
-    }
-
-    fun applyFilters() {
-        val state = _uiState.value
-        val filteredExercises = state.exerciseList.filter { exercise ->
-            val matchesSearch = state.searchQuery.isBlank() ||
-                    exercise.name.contains(state.searchQuery, ignoreCase = true)
-            val matchesBodyPart = state.bodyPartFilter == null ||
-                    exercise.bodyPart == state.bodyPartFilter.name
-            val matchesEquipment = state.equipmentFilter == null ||
-                    exercise.equipment == state.equipmentFilter.name
-            val matchesTarget = state.targetFilter == null ||
-                    exercise.target == state.targetFilter.name
-
-            matchesSearch && matchesBodyPart && matchesEquipment && matchesTarget
-        }
-
-        _uiState.update { it.copy(filteredExerciseList = filteredExercises) }
-    }
-
-    fun uploadWorkout() = viewModelScope.launch {
-        try {
-            setWorkoutState(WorkoutDataState.Loading)
-
-            when (val result = workoutRepository.uploadWorkout(_uiState.value.workout)) {
-                is ResultWrapper.Success -> {
-                    setWorkoutState(WorkoutDataState.Success)
-                    resetUiState()
-                }
-                is ResultWrapper.Error -> {
-                    setWorkoutState(WorkoutDataState.Error(result.exception.message ?: "Unknown error"))
-                }
-                else -> Unit
+            try {
+                setStateForOperation(operation, UiState.DataState.Loading)
+                block()
+                setStateForOperation(operation, UiState.DataState.Success)
+            } catch (e: Exception) {
+                setStateForOperation(
+                    operation,
+                    UiState.DataState.Error(e.message ?: "Unknown error")
+                )
             }
-        } catch (e: Exception) {
-            setWorkoutState(WorkoutDataState.Error(e.message ?: "Unknown error"))
         }
     }
 
-    fun addWorkoutExercise(newWorkoutExercise: WorkoutExercise?) {
-        newWorkoutExercise ?: return
-        _uiState.update { state ->
-            val updatedList = state.workoutExerciseList.toMutableList()
-            val existingIndex = updatedList.indexOfFirst {
-                it.exercise.id == newWorkoutExercise.exercise.id
+    private fun setStateForOperation(operation: Operation, state: UiState.DataState) {
+        _uiState.update { currentState ->
+            when (operation) {
+                is Operation.UploadWorkout -> currentState.copy(workoutState = state)
+                is Operation.LoadInitialData -> currentState.copy(exerciseListState = state)
+            }
+        }
+    }
+
+    // Data Loading
+    private fun loadInitialData() = handleOperation(Operation.LoadInitialData) {
+        exerciseDataManager.loadExerciseData()
+            .onSuccess { result ->
+                _uiState.update { state ->
+                    state.copy(
+                        bodyPartList = result.bodyParts,
+                        targetList = result.targets,
+                        equipmentList = result.equipment,
+                        exerciseList = result.exercises,
+                        filteredExerciseList = result.exercises,
+                        workout = state.workout.copy(userId = authRepository.getCurrentUserId())
+                    )
+                }
+            }
+            .onFailure { throw it }
+    }
+
+    fun retry() {
+        loadInitialData()
+    }
+
+    // Exercise Management
+    inner class ExerciseManager {
+        fun addWorkoutExercise(newWorkoutExercise: WorkoutExercise?) {
+            newWorkoutExercise ?: return
+
+            val validationState = WorkoutValidator.validate(newWorkoutExercise)
+            if (validationState.hasErrors) {
+                _uiState.update { it.copy(validationState = validationState) }
+                return
             }
 
-            if (existingIndex != -1) {
-                updatedList[existingIndex] = newWorkoutExercise
-            } else {
-                updatedList.add(newWorkoutExercise)
+            _uiState.update { state ->
+
+                newWorkoutExercise.order = state.workout.workoutExerciseList.size + 1
+
+                state.copy(
+                    selectedExercise = null,
+                    showExerciseDialog = false,
+                    validationState = UiState.ValidationState(),
+                    workout = state.workout.copy(
+                        workoutExerciseList = state.workout.workoutExerciseList + newWorkoutExercise
+                    ),
+                )
+            }
+        }
+
+        fun deleteWorkoutExercise(workoutExercise: WorkoutExercise) =
+            _uiState.update { state ->
+                state.copy(
+                    workout = state.workout.copy(
+                        workoutExerciseList = state.workout.workoutExerciseList - workoutExercise
+                    ),
+                    selectedExercise = if (state.selectedExercise == workoutExercise) null else state.selectedExercise
+                )
             }
 
-            state.copy(
-                workoutExerciseList = updatedList,
-                selectedExercise = null // Clear selection after adding
-            )
+        fun setSelectedExercise(exercise: Exercise?) {
+            val workoutExercise = exercise?.let { WorkoutExercise(it) }
+            _uiState.update {
+                it.copy(
+                    selectedExercise = workoutExercise,
+                    showExerciseDialog = true
+                )
+            }
+        }
+
+        fun editWorkoutExercise(workoutExercise: WorkoutExercise?) {
+            _uiState.update { it.copy(selectedExercise = workoutExercise) }
+        }
+
+        fun dismissAddExerciseDialog() {
+            _uiState.update { it.copy(showExerciseDialog = false) }
         }
     }
 
-    fun deleteWorkoutExercise(workoutExercise: WorkoutExercise) {
-        _uiState.update { state ->
-            state.copy(
-                workoutExerciseList = state.workoutExerciseList - workoutExercise,
-                selectedExercise = if (state.selectedExercise == workoutExercise) null else state.selectedExercise
-            )
+    // Filter Management
+    inner class FilterManager {
+        fun onQueryChange(query: String) = viewModelScope.launch {
+            _uiState.update { it.copy(searchQuery = query) }
+            applyFilters()
         }
-    }
 
-    fun setSelectedExercise(exercise: Exercise?) {
-        val workoutExercise = exercise?.let { WorkoutExercise(it) }
-        _uiState.update { it.copy(selectedExercise = workoutExercise) }
-    }
+        fun applyFilters() {
+            val state = _uiState.value
+            val filteredExercises = state.exerciseList.filter { exercise ->
+                val matchesSearch = state.searchQuery.isBlank() ||
+                        exercise.name.contains(state.searchQuery, ignoreCase = true)
+                val matchesBodyPart = state.bodyPartFilter == null ||
+                        exercise.bodyPart == state.bodyPartFilter.name
+                val matchesEquipment = state.equipmentFilter == null ||
+                        exercise.equipment == state.equipmentFilter.name
+                val matchesTarget = state.targetFilter == null ||
+                        exercise.target == state.targetFilter.name
 
-    // Filter Updates
-    fun onBodyPartFilterChange(bodyPart: BodyPart?) {
-        _uiState.update { it.copy(bodyPartFilter = bodyPart) }
-        applyFilters()
-    }
+                matchesSearch && matchesBodyPart && matchesEquipment && matchesTarget
+            }
 
-    fun onEquipmentFilterChange(equipment: Equipment?) {
-        _uiState.update { it.copy(equipmentFilter = equipment) }
-        applyFilters()
-    }
-
-    fun onTargetMuscleFilterChange(targetMuscle: TargetMuscle?) {
-        _uiState.update { it.copy(targetFilter = targetMuscle) }
-        applyFilters()
-    }
-
-    fun clearFilters() {
-        _uiState.update {
-            it.copy(
-                bodyPartFilter = null,
-                equipmentFilter = null,
-                targetFilter = null,
-                searchQuery = ""
-            )
+            _uiState.update { it.copy(filteredExerciseList = filteredExercises) }
         }
-        applyFilters()
-    }
 
-    // Workout Updates
-    fun updateWorkout(update: (Workout) -> Workout) {
-        _uiState.update { state ->
-            state.copy(workout = update(state.workout))
+        fun onBodyPartFilterChange(bodyPart: BodyPart?) {
+            _uiState.update { it.copy(bodyPartFilter = bodyPart) }
+            applyFilters()
         }
+
+        fun onEquipmentFilterChange(equipment: Equipment?) {
+            _uiState.update { it.copy(equipmentFilter = equipment) }
+            applyFilters()
+        }
+
+        fun onTargetMuscleFilterChange(targetMuscle: TargetMuscle?) {
+            _uiState.update { it.copy(targetFilter = targetMuscle) }
+            applyFilters()
+        }
+
+        fun clearFilters() {
+            _uiState.update {
+                it.copy(
+                    bodyPartFilter = null,
+                    equipmentFilter = null,
+                    targetFilter = null,
+                    searchQuery = ""
+                )
+            }
+            applyFilters()
+        }
+
+
     }
 
     // Tag Management
-    fun addTag() {
-        val currentTag = _uiState.value.currentTag.trim()
-        if (currentTag.isNotBlank()) {
-            updateWorkout { it.copy(tags = it.tags + currentTag) }
-            _uiState.update { it.copy(currentTag = "") }
+    inner class TagManager {
+        fun addTag() {
+            val currentTag = _uiState.value.currentTag.trim()
+            if (currentTag.isNotBlank()) {
+                updateWorkout { it.copy(tags = it.tags + currentTag) }
+                _uiState.update { it.copy(currentTag = "") }
+            }
+        }
+
+        fun removeTag(tag: String) {
+            updateWorkout { it.copy(tags = it.tags - tag) }
+        }
+
+        fun changeCurrentTagText(tag: String) {
+            _uiState.update { it.copy(currentTag = tag) }
+        }
+
+        private fun updateWorkout(update: (Workout) -> Workout) {
+            _uiState.update { it.copy(workout = update(it.workout)) }
         }
     }
 
-    fun removeTag(tag: String) {
-        updateWorkout { it.copy(tags = it.tags - tag) }
+    // Workout Management
+    inner class WorkoutManager {
+        fun uploadWorkout() = handleOperation(Operation.UploadWorkout) {
+            val workout = _uiState.value.workout
+            val resultImage = workoutRepository.uploadWorkoutCoverImage(workout.imagePath)
+            val workoutWithImageUrl = when (resultImage) {
+                is ResultWrapper.Success<*> -> workout.copy(imageUrl = (resultImage as ResultWrapper.Success<String>).data)
+                else -> workout
+            }
+
+            val resultWorkout = workoutRepository.uploadWorkout(workoutWithImageUrl)
+            when (resultWorkout) {
+                is ResultWrapper.Success -> resetUiState()
+                is ResultWrapper.Error -> throw resultWorkout.exception
+                else -> Unit
+            }
+        }
+
+        fun updateWorkout(update: (Workout) -> Workout) {
+            _uiState.update { state ->
+                state.copy(workout = update(state.workout))
+            }
+        }
+
+        fun editWorkout(workout: Workout) {
+            _uiState.update { it.copy(workout = workout) }
+        }
+
+
     }
 
-    fun changeCurrentTagText(tag: String) {
-        _uiState.update { it.copy(currentTag = tag) }
+    // State Management
+    fun clearError() {
+        _uiState.update { state ->
+            state.copy(
+                exerciseListState = UiState.DataState.Initial,
+                workoutState = UiState.DataState.Initial
+            )
+        }
     }
 
-    // Reset and Clear functions
     fun resetUiState() {
-        _uiState.value = WorkoutUiState().copy(
+        _uiState.value = UiState.WorkoutUiState().copy(
             workout = Workout(
                 workoutId = generateRandomId(Constants.WORKOUT),
                 userId = authRepository.getCurrentUserId()
@@ -243,36 +384,9 @@ class CreateWorkoutViewModel @Inject constructor(
         loadInitialData()
     }
 
-    fun clearError() {
-        _uiState.update { state ->
-            state.copy(
-                exerciseListState = when (state.exerciseListState) {
-                    is ExerciseListDataState.Error -> ExerciseListDataState.Initial
-                    else -> state.exerciseListState
-                },
-                workoutState = when (state.workoutState) {
-                    is WorkoutDataState.Error -> WorkoutDataState.Initial
-                    else -> state.workoutState
-                }
-            )
-        }
-    }
-
-    fun retry() {
-        loadInitialData()
-    }
-
-    fun editWorkoutExercise(workoutExercise: WorkoutExercise?) {
-        _uiState.update { it.copy(selectedExercise = workoutExercise) }
-    }
-
-    fun editWorkout(workout: Workout) {
-        _uiState.update { it.copy(workout = workout) }
-    }
-
-    fun changeWorkoutDifficulty(newDifficulty: String) {
-        _uiState.update { it.copy(currentDifficulty = newDifficulty) }
-    }
-
-
+    // Public instance of managers
+    val exerciseManager = ExerciseManager()
+    val filterManager = FilterManager()
+    val tagManager = TagManager()
+    val workoutManager = WorkoutManager()
 }

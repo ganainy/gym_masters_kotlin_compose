@@ -1,10 +1,13 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
+import android.net.Uri
 import android.util.Log
 import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.Workout
+import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -12,12 +15,11 @@ import javax.inject.Inject
 interface IWorkoutRepository {
     suspend fun getExercise(exerciseId: String): Exercise?
     suspend fun getWorkout(workoutId: String): Workout?
-    suspend fun createWorkout(workout: Workout): ResultWrapper<Unit>
-    suspend fun createExercise(exercise: Exercise): ResultWrapper<Unit>
     suspend fun uploadWorkout(workout: Workout): ResultWrapper<Unit>
+    suspend fun uploadWorkoutCoverImage(imagePath: String): ResultWrapper<String>
 }
 
-class WorkoutRepository @Inject constructor(private val  database: FirebaseDatabase) : IWorkoutRepository{
+class WorkoutRepository @Inject constructor(private val  database: FirebaseDatabase, private val storage: FirebaseStorage) : IWorkoutRepository{
 
     override suspend fun getExercise(exerciseId: String): Exercise? {
         return try {
@@ -49,13 +51,6 @@ class WorkoutRepository @Inject constructor(private val  database: FirebaseDatab
         }
     }
 
-    override suspend fun createWorkout(workout: Workout): ResultWrapper<Unit> {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun createExercise(exercise: Exercise): ResultWrapper<Unit> {
-        TODO("Not yet implemented")
-    }
 
     override suspend fun uploadWorkout(workout: Workout): ResultWrapper<Unit> {
         return try {
@@ -67,5 +62,14 @@ class WorkoutRepository @Inject constructor(private val  database: FirebaseDatab
         }
     }
 
+    override suspend fun uploadWorkoutCoverImage(imagePath: String): ResultWrapper<String> {
+        val imageRef = storage.reference.child(Constants.WORKOUT_COVER_IMAGES).child(generateRandomId(Constants.COVER_IMAGE))
+        return try {
+            imageRef.putFile(Uri.parse(imagePath)).await()
+            ResultWrapper.Success(imageRef.downloadUrl.await().toString())
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
+        }
+    }
 }
 

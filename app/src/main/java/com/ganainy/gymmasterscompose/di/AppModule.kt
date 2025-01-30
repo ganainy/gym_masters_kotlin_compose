@@ -24,6 +24,7 @@ import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -72,7 +73,7 @@ object AppModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java, "exercise-database"
-        ).build()
+        )  .fallbackToDestructiveMigration().build()
     }
 
     @Provides
@@ -103,13 +104,19 @@ object AppModule {
         return FirebaseDatabase.getInstance(FIREBASE_DATABASE_NAME)
     }
 
+
+
     @Provides
     @Singleton
     fun provideAuthRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase
+        database: FirebaseDatabase,
+        appDatabase: AppDatabase,
+        @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): IAuthRepository {
-        return AuthRepository(auth, database)
+        return AuthRepository(
+            auth, database,appDatabase ,ioDispatcher,
+        )
     }
 
 
@@ -146,9 +153,10 @@ object AppModule {
     @Singleton
     fun provideUsersRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase
+        database: FirebaseDatabase,
+        appDatabase: AppDatabase,
     ): IUsersRepository {
-        return UsersRepository(auth, database)
+        return UsersRepository(auth, database,appDatabase)
     }
 
 
@@ -156,9 +164,10 @@ object AppModule {
     @Singleton
     fun provideWorkoutRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase
+        database: FirebaseDatabase,
+        storage: FirebaseStorage
     ): IWorkoutRepository {
-        return WorkoutRepository(database)
+        return WorkoutRepository(database,storage)
     }
 
 
@@ -175,6 +184,12 @@ object AppModule {
         )
     }
 
+
+    @Provides
+    @Singleton
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return FirebaseStorage.getInstance()
+    }
 
     @Provides
     @IoDispatcher

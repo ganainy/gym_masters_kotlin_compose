@@ -1,6 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.create_post
 
 import android.net.Uri
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -24,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
@@ -68,6 +68,9 @@ fun CreatePostScreen(
     val viewModel = hiltViewModel<CreatePostViewModel>()
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
+    val uiState by viewModel.uiState.collectAsState()
+    val createPostUiData by viewModel.createPostUiData.collectAsState()
+
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -75,7 +78,6 @@ fun CreatePostScreen(
         selectedImages = uris
     }
 
-    val postContent by viewModel.postContent.collectAsState()
 
     Scaffold(
         topBar = {
@@ -96,10 +98,10 @@ fun CreatePostScreen(
                 actions = {
                     TextButton(
                         onClick = {
-                            viewModel.submitPost()
+                            viewModel.publishPost()
                             onBack()
                         },
-                        enabled = postContent.isNotBlank()
+                        enabled = createPostUiData.feedPost.content.isNotBlank()
                     ) {
                         Text(
                             "Post",
@@ -126,7 +128,7 @@ fun CreatePostScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ProfileImage(
-                    "viewModel.currentUserProfilePic",
+                    createPostUiData.user?.profilePictureUrl,
                     Modifier
                         .size(40.dp)
                         .clip(CircleShape),
@@ -135,7 +137,7 @@ fun CreatePostScreen(
                 
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "viewModel.currentUserName",
+                    text = createPostUiData.user?.displayName ?: "",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     )
@@ -150,7 +152,7 @@ fun CreatePostScreen(
             ) {
 
                 TextField(
-                    value = postContent,
+                    value = createPostUiData.feedPost.content,
                     onValueChange = { viewModel.updatePostContent(it) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -215,36 +217,37 @@ fun CreatePostScreen(
             }
 
             // Action Buttons
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    ActionButton(
-                        icon = Icons.Default.Image,
-                        label = "Photo",
-                        onClick = { imagePickerLauncher.launch("image/*") }
-                    )
-                    ActionButton(
-                        icon = Icons.Default.FitnessCenter,
-                        label = "Exercise",
-                        onClick = { /* TODO */ }
-                    )
-                    ActionButton(
-                        icon = Icons.Default.Schedule,
-                        label = "Workout",
-                        onClick = { /* TODO */ }
-                    )
-                }
-            }
+            CreatePostActionButtons(imagePickerLauncher)
+        }
+    }
+}
+
+@Composable
+private fun CreatePostActionButtons(imagePickerLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            ActionButton(
+                icon = Icons.Default.Image,
+                label = "Photo",
+                onClick = { imagePickerLauncher.launch("image/*") }
+            )
+
+            ActionButton(
+                icon = Icons.Default.Schedule,
+                label = "Workout",
+                onClick = { /* TODO */ }
+            )
         }
     }
 }

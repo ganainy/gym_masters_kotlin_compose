@@ -1,11 +1,12 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.profile
 
-import User
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
@@ -47,11 +48,15 @@ class ProfileViewModel @Inject constructor(
                 socialRepository.getUserFollowing(targetUserId),
                 socialRepository.getUserFollowers(targetUserId),
                 socialRepository.isFollowing(targetUserId),
-            ) { user: ResultWrapper<User>,
-                posts: ResultWrapper<List<FeedPost>>,
-                following: ResultWrapper<List<String>>,
-                followers: ResultWrapper<List<String>>,
-                isFollowing: ResultWrapper<Boolean> ->
+                userRepository.getUserStats(targetUserId)
+            ) { results: Array<ResultWrapper<*>> ->
+
+                val user = results[0] as ResultWrapper<User>
+                val posts = results[1] as ResultWrapper<List<FeedPost>>
+                val following = results[2] as ResultWrapper<List<String>>
+                val followers = results[3] as ResultWrapper<List<String>>
+                val isFollowing = results[4] as ResultWrapper<Boolean>
+                val userStats = results[5] as ResultWrapper<UserStats>
 
                 // Handle each ResultWrapper to extract data or handle errors
                 val profileData = when {
@@ -75,6 +80,10 @@ class ProfileViewModel @Inject constructor(
                         _uiState.update { it.copy(error = isFollowing.exception.message) }
                         return@combine
                     }
+                    userStats is ResultWrapper.Error -> {
+                        _uiState.update { it.copy(error = userStats.exception.message) }
+                        return@combine
+                    }
                     else -> {
                         // All results are successful, safely cast and update state
                         _uiState.update { currentState ->
@@ -85,6 +94,7 @@ class ProfileViewModel @Inject constructor(
                                 following = (following as ResultWrapper.Success).data,
                                 posts = (posts as ResultWrapper.Success).data,
                                 isFollowing = (isFollowing as ResultWrapper.Success).data,
+                                stats = (userStats as ResultWrapper.Success).data,
                                 error = null
                             )
                         }
@@ -93,7 +103,6 @@ class ProfileViewModel @Inject constructor(
             }.collect{}
         }
     }
-
 
     fun toggleFollow(userId: String?) {
         viewModelScope.launch {
@@ -119,5 +128,6 @@ data class ProfileUiState(
     val following: List<String> = emptyList(),
     val followers: List<String> = emptyList(),
     val error: String? = null,
+    val stats: UserStats? = null,
     val isFollowing: Boolean = false
 )

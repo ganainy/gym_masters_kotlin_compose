@@ -1,9 +1,9 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
-import User
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
@@ -90,7 +90,7 @@ class DiscoverViewModel @Inject constructor(
             _allUsers.value
         } else {
             _allUsers.value.filter { user ->
-                user.profile.displayName.contains(query, ignoreCase = true)
+                user.displayName.contains(query, ignoreCase = true)
             }
         }
         _discoverData.update { it.copy(users = filteredUsers) }
@@ -103,21 +103,21 @@ class DiscoverViewModel @Inject constructor(
     }
 
     fun isFollowedByLoggedUser(userToCheckIfFollowed: User): Boolean {
-        return discoverData.value.loggedUserFollowingList?.contains(userToCheckIfFollowed.profile.id)
+        return discoverData.value.loggedUserFollowingList?.contains(userToCheckIfFollowed.id)
             ?: false
     }
 
     fun followUnfollowUser(userToFollowUnfollow: User) {
         viewModelScope.launch {
             try {
-                socialRepository.isFollowing(userToFollowUnfollow.profile.id).collect { result ->
+                socialRepository.isFollowing(userToFollowUnfollow.id).collect { result ->
                     when (result) {
                         is ResultWrapper.Success -> {
                             if (result.data) {
-                                    when (socialRepository.unfollowUser(userToFollowUnfollow.profile.id)) {
+                                    when (socialRepository.unfollowUser(userToFollowUnfollow.id)) {
                                         is ResultWrapper.Success -> {
                                             _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.minus(
-                                                userToFollowUnfollow.profile.id
+                                                userToFollowUnfollow.id
                                             )) }
                                         }
                                         is ResultWrapper.Error -> {
@@ -125,10 +125,10 @@ class DiscoverViewModel @Inject constructor(
                                         }
                                     }
                             } else {
-                                when(socialRepository.followUser(userToFollowUnfollow.profile.id)) {
+                                when(socialRepository.followUser(userToFollowUnfollow.id)) {
                                     is ResultWrapper.Success -> {
                                         _discoverData.update { it.copy(loggedUserFollowingList = it.loggedUserFollowingList?.plus(
-                                            userToFollowUnfollow.profile.id
+                                            userToFollowUnfollow.id
                                         )) }
                                     }
                                     is ResultWrapper.Error -> {

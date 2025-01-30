@@ -1,11 +1,13 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
-import User
+import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.Constants.USERS
 import com.ganainy.gymmasterscompose.Constants.USER_ID
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -27,6 +29,7 @@ interface IUserRepository {
     suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>>
     fun getAllUsers(): Flow<List<User>>
     suspend fun updateUser(user: User): ResultWrapper<Unit>
+    suspend fun getUserStats(userId: String): Flow<ResultWrapper<UserStats>>
 }
 
 
@@ -48,11 +51,11 @@ class UserRepository @Inject constructor(
     }
 
     override suspend fun getUser(userId: String): Flow<ResultWrapper<User>> = callbackFlow {
-        val userRef = database.getReference("users").child(userId)
+        val userRef = database.getReference(Constants.USERS).child(userId)
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val user = snapshot.getValue(User::class.java)
+                val user = runCatching { snapshot.getValue(User::class.java) }.getOrNull()
                 if (user != null) {
                     trySend(ResultWrapper.Success(user))
                 } else {
@@ -70,7 +73,7 @@ class UserRepository @Inject constructor(
     }
 
     override suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>> = callbackFlow {
-        val userRef = database.getReference("users").child(userId).child("posts")
+        val userRef = database.getReference("users").child(userId).child(Constants.POSTS)
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -98,7 +101,7 @@ class UserRepository @Inject constructor(
                 val users = mutableListOf<User>()
                 for (userSnapshot in snapshot.children) {
                     userSnapshot.getValue(User::class.java)?.let { user ->
-                        if (user.profile.id == currentUserId) return@let // don't add the current user
+                        if (user.id == currentUserId) return@let // don't add the current user
                         users.add(user)
                     }
                 }
@@ -120,6 +123,30 @@ class UserRepository @Inject constructor(
 
     override suspend fun updateUser(user: User): ResultWrapper<Unit> {
         TODO("Not yet implemented")
+    }
+
+    override suspend fun getUserStats(userId: String): Flow<ResultWrapper<UserStats>> {
+        return callbackFlow {
+            val userRef = database.getReference(Constants.USERS).child(userId).child(Constants.USER_STATS)
+
+            val listener = object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val stats = snapshot.getValue(UserStats::class.java)
+                    if (stats != null) {
+                        trySend(ResultWrapper.Success(stats))
+                    } else {
+                        trySend(ResultWrapper.Error(CustomException(R.string.stats_not_found)))
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    trySend(ResultWrapper.Error(error.toException()))
+                }
+            }
+
+            userRef.addValueEventListener(listener)
+            awaitClose { userRef.removeEventListener(listener) }
+        }
     }
 
     override suspend fun getLoggedUser(): Flow<ResultWrapper<User>> = callbackFlow {

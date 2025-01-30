@@ -71,7 +71,7 @@ private fun DiscoverScreenContent(
                 user = user,
                 onFollowClick = { user.let { viewModel.followUnfollowUser(it) } },
                 isFollowedByLoggedUser = user.let { viewModel.isFollowedByLoggedUser(it) },
-                onProfileClick = { user.let { navigateToProfile(it.profile.id)  } }
+                onProfileClick = { user.let { navigateToProfile(it.id)  } }
             )
         }
     }

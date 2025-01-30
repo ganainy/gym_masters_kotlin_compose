@@ -42,8 +42,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.components.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.PostCard
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,6 +58,7 @@ fun FeedScreen(
 ) {
     val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val feedUiData by viewModel.feedUiData.collectAsState()
 
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -75,10 +76,12 @@ fun FeedScreen(
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.sign_out)) },
                     selected = false,
-                    onClick = { viewModel.signOut {
-                        //onSignOut()
-                        navigateToLogin()
-                    } }
+                    onClick = {
+                        viewModel.signOut {
+                            //onSignOut()
+                            navigateToLogin()
+                        }
+                    }
                 )
                 HorizontalDivider()
                 NavigationDrawerItem(
@@ -103,64 +106,68 @@ fun FeedScreen(
     )
     {
 
-    Scaffold(
-        topBar = {
-            FeedTopBar(
-                onRefresh = { viewModel.refreshFeed() },
-                openMenu = {
-                    scope.launch {
-                        if (drawerState.isOpen) {
-                            drawerState.close()
-                        } else {
-                            drawerState.open()
+        Scaffold(
+            topBar = {
+                FeedTopBar(
+                    onRefresh = { viewModel.refreshFeed() },
+                    openMenu = {
+                        scope.launch {
+                            if (drawerState.isOpen) {
+                                drawerState.close()
+                            } else {
+                                drawerState.open()
+                            }
                         }
                     }
+                )
+            },
+            floatingActionButton = {
+                FloatingActionButton(
+                    onClick = { navigateToCreatePost() },
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Create Post")
                 }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navigateToCreatePost() },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Create Post")
             }
-        }
-    ) { paddingValues ->
+        ) { paddingValues ->
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    LoadingIndicator()
-                }
-                uiState.error != null -> {
-                    ErrorMessage(uiState.error!!) { viewModel.refreshFeed() }
-                }
-                uiState.posts.isEmpty() -> {
-                    EmptyFeedMessage()
-                }
-                else -> {
-                    LazyColumn(modifier = Modifier.testTag("posts_list")) {
-                        items(uiState.posts) { post ->
-                            PostCard(
-                                post = post,
-                                onProfileClick = { navigateToProfile(post.authorId) },
-                                onExerciseClick = post.linkedExerciseId?.let { { /*todo navigateToExercise(it)*/ } },
-                                onWorkoutClick = post.linkedWorkoutId?.let { { navigateToWorkout(it) } },
-                                onLikeClick = { viewModel.toggleReaction(post.id) }
-                            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when (uiState) {
+                    FeedUiState.Loading -> {
+                        LoadingIndicator()
+                    }
+
+                    FeedUiState.EmptyFeed -> {
+                        EmptyFeedMessage()
+                    }
+
+                    FeedUiState.NonEmptyFeed -> {
+                        LazyColumn(modifier = Modifier.testTag("posts_list")) {
+                            items(feedUiData.postList) { post ->
+                                FeedPostItem(
+                                    post = post,
+                                    onProfileClick = { navigateToProfile(post.authorId) },
+                                    onLikeClick = { viewModel.toggleReaction(post.id) },
+                                    postAuthor = feedUiData.postAuthorList.firstOrNull { it.id == post.authorId },
+                                    postStats = feedUiData.postStatsList.firstOrNull { it.postId == post.id },
+                                    onCommentClick = { /*TODO*/ },
+                                    isPostLikedByCurrentUser =
+
+                                )
+                            }
                         }
                     }
+
+                    is FeedUiState.Error -> ErrorMessage("Error loading feed") { viewModel.refreshFeed() }
+
                 }
             }
         }
     }
 }
-}
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,7 +190,7 @@ private fun FeedTopBar(onRefresh: () -> Unit, openMenu: () -> Unit) {
 
 
 @Composable
-private fun ErrorMessage( error: String,refreshFeed: () -> Unit) {
+private fun ErrorMessage(error: String, refreshFeed: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -195,12 +202,12 @@ private fun ErrorMessage( error: String,refreshFeed: () -> Unit) {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text =error,
+                text = error,
                 color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center
             )
             Button(
-                onClick = refreshFeed ,
+                onClick = refreshFeed,
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text("Retry")

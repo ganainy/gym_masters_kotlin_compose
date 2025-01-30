@@ -39,7 +39,7 @@ import com.ganainy.gymmasterscompose.R
 fun HintTextWithIcon(
     hint: String,
     modifier: Modifier = Modifier,
-    iconResId: Int = R.drawable.hint,
+    iconResId: Int = R.drawable.about,
     textAlign: TextAlign = TextAlign.Start,
     color: Color = Color.Gray,
     rowAllignment: Alignment = Alignment.CenterStart

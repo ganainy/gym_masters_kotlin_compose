@@ -1,8 +1,5 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.profile
 
-import Profile
-import Stats
-import User
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,6 +57,9 @@ import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
 import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
 import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.PostStats
+import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
 
 
 @Composable
@@ -85,7 +85,8 @@ fun ProfileScreen(
         // Common UI elements
         ProfileHeader(
             user = uiState.user,
-            isOwnProfile = isOwnProfile
+            stats = uiState.stats,
+            isOwnProfile = isOwnProfile,
         )
 
         // Conditional UI elements
@@ -124,13 +125,14 @@ fun ProfileScreen(
 @Composable
 fun ProfileHeader(
     user: User,
-    isOwnProfile: Boolean
+    isOwnProfile: Boolean,
+    stats: UserStats?
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ProfileImage(
-            profilePictureUrl = user.profile.profilePictureUrl,
+            profilePictureUrl = user.profilePictureUrl,
             size = 128.dp,
             onEdit = {
                 if (isOwnProfile) {
@@ -140,10 +142,11 @@ fun ProfileHeader(
             isOwnProfile = isOwnProfile
         )
 
-        Text(user.profile.displayName)
-        Text(user.profile.bio ?: "")
+        Text(user.displayName)
+        Text(user.bio ?: "")
 
-        StatsRow(stats = user.stats)
+        if (stats != null)
+        StatsRow(stats = stats)
     }
 }
 
@@ -152,26 +155,23 @@ fun ProfileHeader(
 fun PreviewProfileHeader() {
     ProfileHeader(
         user = User(
-            profile = Profile(
-                profilePictureUrl = "https://picsum.photos/512/512",
-                displayName = "John Doe",
-                bio = "Software Engineer"
-            ),
-            stats = Stats(
-                postCount = 100,
-                workoutCount = 10,
-                exerciseCount = 15,
-                followersCount = 15000,
-                followingCount = 120
-            )
+            profilePictureUrl = "https://picsum.photos/512/512",
+            displayName = "John Doe",
+            bio = "Software Engineer"
         ),
-        isOwnProfile = true
+        isOwnProfile = true,
+        stats = UserStats(
+            postCount = 10,
+            followersCount = 100,
+            followingCount = 50,
+            workoutCount = 20
+        )
     )
 }
 
 @Composable
 fun StatsRow(
-    stats: Stats,
+    stats: UserStats,
     modifier: Modifier = Modifier,
     onStatClick: (StatType) -> Unit = {}
 ) {
@@ -317,10 +317,13 @@ fun PostsList(
                 items = posts,
                 key = { it.id }
             ) { post ->
-                PostItem(
+               /* PostItem(
                     post = post,
-                    onClick = { onPostClick(post) }
-                )
+                    onClick = { onPostClick(post) },
+                    postAuthor = TODO(),
+                    postStats = TODO(),
+                    modifier = TODO()
+                )*/
             }
         }
     }
@@ -390,6 +393,8 @@ private fun EmptyPostsState(
 @Composable
 private fun PostItem(
     post: FeedPost,
+    postAuthor: User,
+    postStats: PostStats,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -408,13 +413,13 @@ private fun PostItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ProfileImage(
-                    profilePictureUrl = post.author?.profile?.profilePictureUrl,
+                    profilePictureUrl = postAuthor.profilePictureUrl,
                     size = 40.dp
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = post.author?.profile?.displayName ?: "Unknown",
+                        text = postAuthor.displayName ,
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
@@ -432,18 +437,6 @@ private fun PostItem(
                 modifier = Modifier.padding(vertical = 12.dp)
             )
 
-            // Media Content (if any)
-            if (post.mediaUrls.isNotEmpty()) {
-                PostMediaContent(mediaUrls = post.mediaUrls)
-            }
-
-            // Linked Content (Exercise or Workout)
-            post.linkedExercise?.let { exercise ->
-                //TODO() LinkedExerciseCard(exercise = exercise)
-            }
-            post.linkedWorkout?.let { workout ->
-                //  TODO()  LinkedWorkoutCard(workout = workout)
-            }
 
             // Stats
             Row(
@@ -453,17 +446,17 @@ private fun PostItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 StatItem(
-                    count = post.stats.likes,
+                    count = postStats.likes,
                     icon = Icons.Default.Favorite,
                     label = "Likes"
                 )
                 StatItem(
-                    count = post.stats.comments,
+                    count = postStats.comments,
                     icon = Icons.Default.Comment,
                     label = "Comments"
                 )
                 StatItem(
-                    count = post.stats.shares,
+                    count = postStats.shares,
                     icon = Icons.Default.Share,
                     label = "Shares"
                 )
