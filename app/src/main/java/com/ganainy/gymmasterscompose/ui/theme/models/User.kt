@@ -4,17 +4,25 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "users")
 data class User(
-    @PrimaryKey val id: String = "",
-    @ColumnInfo(name = "display_name") val displayName: String = "",
-    @ColumnInfo(name = "username") val username: String = "",
-    @ColumnInfo(name = "email") val email: String = "",
-    @ColumnInfo(name = "join_date") val joinDate: Long = 0, // Timestamp
-    @ColumnInfo(name = "profile_picture_url") val profilePictureUrl: String? = null,
-    @ColumnInfo(name = "bio") val bio: String? = null,
-    @ColumnInfo(name = "last_active") val lastActive: Long? = null // Timestamp
+    val id: String = "",
+    val displayName: String = "",
+    val username: String = "",
+    val email: String = "",
+    val joinDate: Long = 0, // Timestamp
+    val profilePictureUrl: String? = null,
+    val bio: String? = null,
+    val lastActive: Long? = null, // Timestamp
+    val stats: UserStats = UserStats(),
+    val settings: UserSettings = UserSettings()
 )
+
+data class UserSettings(
+    val notifications: Boolean = true,
+    val privacy: String = "public", // public, private, friends
+    val language: String = "en"
+)
+
 
 @Entity(tableName = "stats")
 data class UserStats(

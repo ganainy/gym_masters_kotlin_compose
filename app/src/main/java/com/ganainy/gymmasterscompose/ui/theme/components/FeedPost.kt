@@ -23,9 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.PostStats
-import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 
 @Preview
@@ -35,20 +34,12 @@ fun PreviewFeedPostItem() {
         post = FeedPost(
             id = "123",
             content = "Hello world!",
-            linkedExerciseId = "123",
-            linkedWorkoutId = null,
-            authorId = "123",
+            postCreator = PostCreator(
+                id = "123",
+                displayName = "John Doe",
+                profilePictureUrl = "https://randomuser.me/api/portraits/women/1.jpg"
+            ),
             createdAt = System.currentTimeMillis(),
-        ),
-        postAuthor = User(
-            id = "123",
-            displayName = "John Doe",
-            profilePictureUrl = "https://randomuser.me/api/portraits/women/1.jpg"
-        ),
-        postStats = PostStats(
-            likes = 1,
-            comments = 0,
-            shares = 0
         ),
         onProfileClick = {},
         onLikeClick = {},
@@ -60,8 +51,6 @@ fun PreviewFeedPostItem() {
 @Composable
 fun FeedPostItem(
     post: FeedPost,
-    postAuthor: User?,
-    postStats: PostStats?,
     onProfileClick: () -> Unit,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -75,8 +64,8 @@ fun FeedPostItem(
             .padding(16.dp)
     ) {
         ProfileHeader(
-            postAuthor?.displayName,
-            postAuthor?.profilePictureUrl,
+            post.postCreator.displayName,
+            post.postCreator.profilePictureUrl,
             formatRelativeTime(post.createdAt)
         )
 
@@ -90,13 +79,13 @@ fun FeedPostItem(
 
         // Workout Tags/Chips using Material3 Chip
 
-        if (post.hashtags.isNotEmpty()) {
+        if (post.hashtagList.isNotEmpty()) {
             FlowRow(
                 modifier = Modifier,
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
                 verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
                 content = {
-                    post.hashtags.forEach { hashtag ->
+                    post.hashtagList.forEach { hashtag ->
                         Text(
                             text = "#${hashtag}",
                             style = MaterialTheme.typography.bodySmall,
@@ -148,10 +137,10 @@ fun FeedPostItem(
 
         // todo Like and Comment Section
         InteractionRow(
-            likeAmount = postStats?.likes ?: 0,
+            likeAmount = post.postMetrics.likes,
             onLikeClick = onLikeClick,
             isPostLikedByCurrentUser,
-            postStats?.comments ?: 0,
+            post.postMetrics.comments,
             onCommentClick = onCommentClick
         )
     }

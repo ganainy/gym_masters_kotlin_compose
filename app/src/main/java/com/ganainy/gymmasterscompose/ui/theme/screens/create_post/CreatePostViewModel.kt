@@ -2,15 +2,14 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.create_post
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.User
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
-import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,7 +36,7 @@ data class CreatePostUiData(
 
 @HiltViewModel
 class CreatePostViewModel @Inject constructor(
-    private val authRepository: IAuthRepository,
+    private val userRepository: IUserRepository,
     private val postRepository: IPostRepository
 ) : ViewModel() {
 
@@ -49,9 +48,6 @@ class CreatePostViewModel @Inject constructor(
         MutableStateFlow<CreatePostUiData>(
             CreatePostUiData(
                 feedPost = FeedPost(
-                    id = generateRandomId(
-                        Constants.POST
-                    )
                 )
             )
         )
@@ -62,7 +58,6 @@ class CreatePostViewModel @Inject constructor(
         _uiState.value = CreatePostUiState.Loading
         fetchCurrentUser()
         monitorPostContentChanges()
-        monitorUserChanges()
     }
 
 
@@ -81,39 +76,22 @@ class CreatePostViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Observes changes to the user field and updates the authorId of the feedPost
-     * based on the current user's ID.
-     */
-    private fun monitorUserChanges() {
-        createPostUiData.map { data -> data.user }
-            .distinctUntilChanged() // Only emit when the user changes
-            .onEach { user ->
-                // Update the feedPost's authorId with the current user's ID
-                _createPostUiData.update {
-                    it.copy(
-                        feedPost = it.feedPost.copy(
-                            authorId = user?.id ?: ""
-                        ),
-                    )
-                }
-            }
-            .launchIn(viewModelScope)
-    }
+
 
     private fun fetchCurrentUser() {
-        viewModelScope.launch {
-            val result = authRepository.getCurrentUser()
-            when (result) {
-                is ResultWrapper.Success -> {
-                    _createPostUiData.update { it.copy(user = result.data) }
+        viewModelScope.launch(context = viewModelScope.coroutineContext + Dispatchers.IO) {
+            userRepository.getUser(userId = null)
+                .collect { result ->
+                    when (result) {
+                        is ResultWrapper.Success -> {
+                            _createPostUiData.update { it.copy(user = result.data) }
+                        }
+                        is ResultWrapper.Error -> {
+                            // Handle the error
+                            _uiState.value = CreatePostUiState.Error(R.string.error_fetching_user)
+                        }
+                    }
                 }
-
-                is ResultWrapper.Error -> {
-                    // Handle the error
-                    _uiState.value = CreatePostUiState.Error(R.string.error_fetching_user)
-                }
-            }
         }
     }
 

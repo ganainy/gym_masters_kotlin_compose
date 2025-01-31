@@ -30,15 +30,12 @@ interface IAuthRepository {
     ): ResultWrapper<User>
 
     abstract fun isAlreadySignedIn(): Boolean
-    suspend fun getCurrentUser(): ResultWrapper<User>
 }
 
 
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val database: FirebaseDatabase,
-    private val appDatabase: AppDatabase,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : IAuthRepository {
 
 
@@ -108,54 +105,6 @@ class AuthRepository @Inject constructor(
         return auth.currentUser != null
     }
 
-    /**
-     * Retrieves the current user, using a caching approach with Room.
-     *
-     * This method first attempts to fetch the user from the local database (cache).
-     * If the user is not found in the cache, it fetches the user from the remote database (Firebase),
-     * caches it locally, and then returns the user.
-     * If an error occurs during the process, it returns the cached user if available, otherwise returns an error.
-     *
-     * @return [ResultWrapper] containing the current [User] or an error.
-     */
-    override suspend fun getCurrentUser(): ResultWrapper<User> = withContext(ioDispatcher) {
-        try {
-            // Get the current user ID
-            val userId = getCurrentUserId()
-
-            // Attempt to fetch the user from the local database (cache)
-            val cachedUser = appDatabase.userDao().getUserById(userId)
-
-            // If the user is found in the cache, return it
-            if (cachedUser != null) {
-                return@withContext ResultWrapper.Success(cachedUser)
-            }
-
-            // Fetch the user from the remote database (Firebase)
-            val user =
-                database.getReference(USERS).child(userId).get().await().getValue(User::class.java)
-
-            // If the user is found in the remote database, cache it locally and return it
-            if (user != null) {
-                appDatabase.userDao().insert(user)
-                return@withContext ResultWrapper.Success(user)
-            } else {
-                // If the user is not found in the remote database, return an error
-                return@withContext ResultWrapper.Error(Exception("User not found"))
-            }
-        } catch (e: Exception) {
-            // If an error occurs, attempt to fetch the user from the local database (cache)
-            val cachedUser = appDatabase.userDao().getUserById(getCurrentUserId())
-
-            // If the user is found in the cache, return it
-            if (cachedUser != null) {
-                ResultWrapper.Success(cachedUser)
-            } else {
-                // If the user is not found in the cache, return the error
-                ResultWrapper.Error(e)
-            }
-        }
-    }
 
     override suspend fun signInUser(email: String, password: String): ResultWrapper<FirebaseUser> {
         return try {

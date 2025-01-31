@@ -3,10 +3,9 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.profile
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
@@ -19,6 +18,30 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+
+data class ProfileUiData(
+    val user: User = User(),
+    val posts: List<FeedPost> = emptyList(),
+    val following: List<String> = emptyList(),
+    val followers: List<String> = emptyList(),
+    val stats: UserStats? = null,
+    val isFollowing: Boolean = false
+)
+
+sealed class ProfileUiState {
+    data class Success(val profileType: ProfileType) : ProfileUiState()
+    object Loading : ProfileUiState()
+    sealed class Error : ProfileUiState() {
+        data class IntError(val messageStringResource: Int) : Error()
+        data class StringError(val message: String) : Error()
+    }
+}
+
+enum class ProfileType {
+    CURRENT_USER,
+    OTHER_USER
+}
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val application: Application,
@@ -29,7 +52,10 @@ class ProfileViewModel @Inject constructor(
 
     val context = application
 
-    private val _uiState = MutableStateFlow(ProfileUiState())
+    private val _uiData = MutableStateFlow(ProfileUiData())
+    val uiData = _uiData.asStateFlow()
+
+    private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
 
@@ -48,7 +74,6 @@ class ProfileViewModel @Inject constructor(
                 socialRepository.getUserFollowing(targetUserId),
                 socialRepository.getUserFollowers(targetUserId),
                 socialRepository.isFollowing(targetUserId),
-                userRepository.getUserStats(targetUserId)
             ) { results: Array<ResultWrapper<*>> ->
 
                 val user = results[0] as ResultWrapper<User>
@@ -56,51 +81,69 @@ class ProfileViewModel @Inject constructor(
                 val following = results[2] as ResultWrapper<List<String>>
                 val followers = results[3] as ResultWrapper<List<String>>
                 val isFollowing = results[4] as ResultWrapper<Boolean>
-                val userStats = results[5] as ResultWrapper<UserStats>
 
                 // Handle each ResultWrapper to extract data or handle errors
                 val profileData = when {
                     user is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = user.exception.message) }
+                        _uiState.update {
+                            ProfileUiState.Error.StringError(
+                                user.exception.message ?: "Unknown error"
+                            )
+                        }
                         return@combine
                     }
+
                     posts is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = posts.exception.message) }
+                        _uiState.update {
+                            ProfileUiState.Error.StringError(
+                                posts.exception.message ?: "Unknown error"
+                            )
+                        }
                         return@combine
                     }
+
                     following is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = following.exception.message) }
+                        _uiState.update {
+                            ProfileUiState.Error.StringError(
+                                following.exception.message ?: "Unknown error"
+                            )
+                        }
                         return@combine
                     }
+
                     followers is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = followers.exception.message) }
+                        _uiState.update {
+                            ProfileUiState.Error.StringError(
+                                followers.exception.message ?: "Unknown error"
+                            )
+                        }
                         return@combine
                     }
+
                     isFollowing is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = isFollowing.exception.message) }
+                        _uiState.update {
+                            ProfileUiState.Error.StringError(
+                                isFollowing.exception.message ?: "Unknown error"
+                            )
+                        }
                         return@combine
                     }
-                    userStats is ResultWrapper.Error -> {
-                        _uiState.update { it.copy(error = userStats.exception.message) }
-                        return@combine
-                    }
+
                     else -> {
                         // All results are successful, safely cast and update state
-                        _uiState.update { currentState ->
+                        _uiData.update { currentState ->
                             currentState.copy(
-                                isLoggedInUser = userId == null,
                                 user = (user as ResultWrapper.Success).data,
                                 followers = (followers as ResultWrapper.Success).data,
                                 following = (following as ResultWrapper.Success).data,
                                 posts = (posts as ResultWrapper.Success).data,
                                 isFollowing = (isFollowing as ResultWrapper.Success).data,
-                                stats = (userStats as ResultWrapper.Success).data,
-                                error = null
                             )
                         }
+                        ProfileUiState.Success(if (userId == null) ProfileType.CURRENT_USER else ProfileType.OTHER_USER)
                     }
                 }
-            }.collect{}
+            }.collect {}
         }
     }
 
@@ -114,20 +157,14 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = authRepository.signOut()) {
                 is ResultWrapper.Success -> onLoggedOut()
-                is ResultWrapper.Error -> _uiState.update { it.copy(error = context.getString(R.string.error_logging_out)) }
+                is ResultWrapper.Error -> _uiState.update {
+                    ProfileUiState.Error.StringError(
+                        result.exception.message ?: "Unknown error"
+                    )
+                }
             }
         }
     }
 }
 
 
-data class ProfileUiState(
-    val isLoggedInUser: Boolean = false,
-    val user: User = User(),
-    val posts: List<FeedPost> = emptyList(),
-    val following: List<String> = emptyList(),
-    val followers: List<String> = emptyList(),
-    val error: String? = null,
-    val stats: UserStats? = null,
-    val isFollowing: Boolean = false
-)

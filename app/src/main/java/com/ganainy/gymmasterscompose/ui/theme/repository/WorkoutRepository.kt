@@ -54,7 +54,7 @@ class WorkoutRepository @Inject constructor(private val  database: FirebaseDatab
 
     override suspend fun uploadWorkout(workout: Workout): ResultWrapper<Unit> {
         return try {
-            val workoutRef = database.getReference(Constants.WORKOUTS).child(workout.workoutId)
+            val workoutRef = database.getReference(Constants.WORKOUTS).child(workout.id)
             workoutRef.setValue(workout).await()
             ResultWrapper.Success(Unit)
         } catch (e: Exception) {

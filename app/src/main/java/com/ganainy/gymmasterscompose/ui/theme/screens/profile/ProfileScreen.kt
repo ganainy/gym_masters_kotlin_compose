@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,11 +56,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
+import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
-import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.PostStats
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 
 @Composable
@@ -70,11 +73,52 @@ fun ProfileScreen(
 ) {
     val viewModel = hiltViewModel<ProfileViewModel>()
     viewModel.loadProfile(userId)
-    val currentUserId = viewModel.currentUserId // logged in user's ID
-    val isOwnProfile = userId == null || userId == currentUserId
 
+    val uiData by viewModel.uiData.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
+    when (val state = uiState) {
+        is ProfileUiState.Loading -> {
+            // Loading state
+            LoadingIndicator()
+        }
+        is ProfileUiState.Error -> {
+            // Error state
+            when (state) {
+                is ProfileUiState.Error.IntError -> {
+                    val errorMessage = stringResource(state.messageStringResource)
+                    showToast(LocalContext.current, errorMessage)
+                }
+                is ProfileUiState.Error.StringError -> {
+                    showToast(LocalContext.current, state.message)
+                }
+            }
+        }
+        is ProfileUiState.Success -> {
+            val profileType=state.profileType
+            when (profileType) {
+                ProfileType.CURRENT_USER -> {
+                    CurrentUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost)
+                }
+                ProfileType.OTHER_USER -> {
+                    // Other user profile
+                    OtherUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost)
+                }
+            }
+
+        }
+    }
+
+}
+
+@Composable
+private fun CurrentUserProfileContent(
+    uiData: ProfileUiData,
+    viewModel: ProfileViewModel,
+    navigateToLogin: () -> Unit,
+    userId: String?,
+    navigateToCreatePost: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -84,40 +128,68 @@ fun ProfileScreen(
     ) {
         // Common UI elements
         ProfileHeader(
-            user = uiState.user,
-            stats = uiState.stats,
-            isOwnProfile = isOwnProfile,
+            user = uiData.user,
+            stats = uiData.stats,
+            isOwnProfile = true,
         )
 
-        // Conditional UI elements
-        if (isOwnProfile) {
-            EditProfileButton(
-                onClick = { /* Navigate to edit profile */ }
-            )
-            LogoutButton(
-                onClick = {
-                    viewModel.logout {
-                        navigateToLogin()
-                    }
+        EditProfileButton(
+            onClick = { /* Navigate to edit profile */ }
+        )
+
+        LogoutButton(
+            onClick = {
+                viewModel.logout {
+                    navigateToLogin()
                 }
-            )
-        } else {
-            FollowButton(
-                isFollowedByLoggedUser = uiState.isFollowing,
-                onFollowClick = { viewModel.toggleFollow(userId) }
-            )
-            /* MessageButton(
-                 onClick = { *//* Navigate to chat *//* }
-            )*/
-        }
+            }
+        )
 
         // Common UI elements
         PostsList(
-            posts = uiState.posts,
+            posts = uiData.posts,
             onPostClick = { TODO() },
             onCreatePost = navigateToCreatePost,
             modifier = Modifier,
-            isOwnProfile = isOwnProfile
+            isOwnProfile = true
+        )
+    }
+}
+
+@Composable
+private fun OtherUserProfileContent(
+    uiData: ProfileUiData,
+    viewModel: ProfileViewModel,
+    navigateToLogin: () -> Unit,
+    userId: String?,
+    navigateToCreatePost: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Common UI elements
+        ProfileHeader(
+            user = uiData.user,
+            stats = uiData.stats,
+            isOwnProfile = false,
+        )
+
+        FollowButton(
+            isFollowedByLoggedUser = uiData.isFollowing,
+            onFollowClick = { viewModel.toggleFollow(userId) }
+        )
+
+        // Common UI elements
+        PostsList(
+            posts = uiData.posts,
+            onPostClick = { TODO() },
+            onCreatePost = navigateToCreatePost,
+            modifier = Modifier,
+            isOwnProfile = true
         )
     }
 }
@@ -394,7 +466,7 @@ private fun EmptyPostsState(
 private fun PostItem(
     post: FeedPost,
     postAuthor: User,
-    postStats: PostStats,
+    postStats: PostMetrics,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {

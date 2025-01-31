@@ -59,7 +59,7 @@ class DiscoverViewModel @Inject constructor(
 
             // Collect users updates
             launch {
-                userRepository.getAllUsers().collect { users ->
+                usersRepository.getAllUsers().collect { users ->
                     _allUsers.value = users
                     // Reapply current search filter when users list updates
                     applySearchFilter(currentSearchQuery)

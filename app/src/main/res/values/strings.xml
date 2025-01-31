@@ -62,4 +62,5 @@
     <string name="error_fetching_user">Error loading user account</string>
     <string name="stats_not_found">Error loading user stats</string>
     <string name="error_signing_out">Error signing out</string>
+    <string name="error_checking_like">Error checking like</string>
 </resources>

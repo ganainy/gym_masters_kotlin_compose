@@ -57,7 +57,7 @@ sealed interface UiState {
         val filteredExerciseList: List<Exercise> = emptyList(),
         val selectedExercise: WorkoutExercise? = null,
         var workout: Workout = Workout(
-            workoutId = generateRandomId(Constants.WORKOUT),
+            id = generateRandomId(Constants.WORKOUT),
             difficulty = "Beginner"
         ),
         val validationState: ValidationState = ValidationState(),
@@ -189,7 +189,7 @@ class CreateWorkoutViewModel @Inject constructor(
                         equipmentList = result.equipment,
                         exerciseList = result.exercises,
                         filteredExerciseList = result.exercises,
-                        workout = state.workout.copy(userId = authRepository.getCurrentUserId())
+                        workout = state.workout.copy(creatorId = authRepository.getCurrentUserId())
                     )
                 }
             }
@@ -377,8 +377,8 @@ class CreateWorkoutViewModel @Inject constructor(
     fun resetUiState() {
         _uiState.value = UiState.WorkoutUiState().copy(
             workout = Workout(
-                workoutId = generateRandomId(Constants.WORKOUT),
-                userId = authRepository.getCurrentUserId()
+                id = generateRandomId(Constants.WORKOUT),
+                creatorId = authRepository.getCurrentUserId()
             )
         )
         loadInitialData()

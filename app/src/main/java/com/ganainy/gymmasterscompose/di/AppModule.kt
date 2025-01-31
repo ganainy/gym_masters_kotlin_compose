@@ -111,11 +111,9 @@ object AppModule {
     fun provideAuthRepository(
         auth: FirebaseAuth,
         database: FirebaseDatabase,
-        appDatabase: AppDatabase,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher,
     ): IAuthRepository {
         return AuthRepository(
-            auth, database,appDatabase ,ioDispatcher,
+            auth, database
         )
     }
 
@@ -123,10 +121,10 @@ object AppModule {
     @Provides
     @Singleton
     fun providePostRepository(
-        auth: FirebaseAuth,
+        userRepository: IUserRepository,
         database: FirebaseDatabase
     ): IPostRepository {
-        return PostRepository(auth, database)
+        return PostRepository(userRepository, database)
     }
 
     @Provides
@@ -154,9 +152,8 @@ object AppModule {
     fun provideUsersRepository(
         auth: FirebaseAuth,
         database: FirebaseDatabase,
-        appDatabase: AppDatabase,
     ): IUsersRepository {
-        return UsersRepository(auth, database,appDatabase)
+        return UsersRepository(auth, database)
     }
 
 

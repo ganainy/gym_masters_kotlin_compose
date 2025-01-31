@@ -4,7 +4,7 @@ import Profile
 import Stats
 import User
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
-import com.ganainy.gymmasterscompose.ui.theme.models.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.Workout
 import com.ganainy.gymmasterscompose.ui.theme.repository.IDataRepository
 import kotlinx.coroutines.flow.Flow
@@ -132,7 +132,7 @@ class FakeDataRepository: IDataRepository {
                 listOf(
                     FeedPost(
                         id = "post1",
-                        authorId = "fake_user_id",
+                        creatorId = "fake_user_id",
                         content = "This is a test post",
                         linkedExerciseId = null,
                         linkedWorkoutId = null

@@ -101,7 +101,7 @@ fun WorkoutCard(workout: Workout) {
 fun WorkoutCardPreview() {
     WorkoutCard(
         Workout(
-            workoutId = "1",
+            id = "1",
             title = "Workout Title",
             description = "Workout description",
             imageUrl = "",

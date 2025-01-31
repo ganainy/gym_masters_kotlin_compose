@@ -146,16 +146,13 @@ fun FeedScreen(
 
                     FeedUiState.NonEmptyFeed -> {
                         LazyColumn(modifier = Modifier.testTag("posts_list")) {
-                            items(feedUiData.postList) { post ->
+                            items(feedUiData.postList) { feedPostWithLikeStatus ->
                                 FeedPostItem(
-                                    post = post,
-                                    onProfileClick = { navigateToProfile(post.authorId) },
-                                    onLikeClick = { viewModel.toggleReaction(post.id) },
-                                    postAuthor = feedUiData.postAuthorList.firstOrNull { it.id == post.authorId },
-                                    postStats = feedUiData.postStatsList.firstOrNull { it.postId == post.id },
+                                    post = feedPostWithLikeStatus.post,
+                                    onProfileClick = { navigateToProfile(feedPostWithLikeStatus.post.postCreator.id) },
+                                    onLikeClick = { viewModel.toggleReaction(feedPostWithLikeStatus.post.id) },
                                     onCommentClick = { /*TODO*/ },
-                                    isPostLikedByCurrentUser =
-
+                                    isPostLikedByCurrentUser = feedPostWithLikeStatus.isLiked,
                                 )
                             }
                         }
