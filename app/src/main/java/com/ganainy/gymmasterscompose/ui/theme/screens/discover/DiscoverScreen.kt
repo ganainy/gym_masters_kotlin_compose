@@ -30,7 +30,7 @@ fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
     ) {
 
         CustomSearchBar(
-            onQueryChange = { query -> viewModel.onQueryChange(query) },
+            onQueryChange = { query -> viewModel.onSearchQueryChanged(query) },
             searchQuery = discoverData.searchQuery
         )
 
@@ -40,17 +40,19 @@ fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
                     LoadingIndicator()
                 }
 
-                is DiscoverUiState.Error -> {
+                is DiscoverUiState.Error.IntError -> {
                     ErrorComponent(
-                        text = stringResource((uiState as DiscoverUiState.Error).messageStringResource)
-                    ) {
-                        // Add any action for the SnackBar if needed
-                    }
+                        text = stringResource((uiState as DiscoverUiState.Error.IntError).messageStringResource)
+                    )
                 }
 
                 is DiscoverUiState.Success -> {
                     DiscoverScreenContent(discoverData, viewModel, navigateToProfile = navigateToProfile)
                 }
+
+                is DiscoverUiState.Error.StringError ->  ErrorComponent(
+                    text = (uiState as DiscoverUiState.Error.StringError).message
+                )
             }
         }
 
@@ -66,12 +68,12 @@ private fun DiscoverScreenContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
-        items(discoverData.users) { user ->
+        items(discoverData.users) { userWithFollowState ->
             DiscoverProfile(
-                user = user,
-                onFollowClick = { user.let { viewModel.followUnfollowUser(it) } },
-                isFollowedByLoggedUser = user.let { viewModel.isFollowedByLoggedUser(it) },
-                onProfileClick = { user.let { navigateToProfile(it.id)  } }
+                user = userWithFollowState.user,
+                onFollowClick = { userWithFollowState.user.let { viewModel.followUnfollowUser(it) } },
+                isCurrentUserFollowing = userWithFollowState.isFollowing,
+                onProfileClick = { navigateToProfile(userWithFollowState.user.id) }
             )
         }
     }

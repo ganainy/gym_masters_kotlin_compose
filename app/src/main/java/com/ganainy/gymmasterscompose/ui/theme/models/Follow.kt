@@ -9,8 +9,17 @@ package com.ganainy.gymmasterscompose.ui.theme.models
  * @property timestamp The timestamp when the follow relationship was created.
  */
 data class Follow(
-    val id: String = "",
+    val id: String = "", // Will be "$followerId_$followedId"
     val followerId: String = "",
     val followedId: String = "",
     val timestamp: Long = 0
-)
+){
+    companion object {
+        fun createId(followerId: String, followedId: String) = "${followerId}_${followedId}"
+        const val FOLLOWER_ID = "followerId"
+    const val FOLLOWS = "follows" // Collection name for follows
+    }
+
+}
+
+

@@ -1,12 +1,13 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
-import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.Constants.ID
-import com.ganainy.gymmasterscompose.Constants.USERS
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_CREATOR
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
@@ -25,12 +26,13 @@ import javax.inject.Inject
 
 // User profile and relationship management
 interface IUserRepository {
+
     suspend fun createUser(email: String, password: String): ResultWrapper<String>
-    suspend fun getUser(userId: String?): Flow<ResultWrapper<User>>
     suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>>
     suspend fun updateUser(updates: Map<String, Any>): ResultWrapper<Unit>
     fun getCurrentUserId(): String
-    suspend fun getUserDetails(userId: String?): ResultWrapper<User>
+    suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> // get notified when user changes
+    suspend fun getUser(userId: String?): ResultWrapper<User> //read user only once, not notified if user changes
 }
 
 
@@ -66,7 +68,7 @@ class UserRepository @Inject constructor(
      * @param userId The ID of the user whose details are to be retrieved, if null, the currently authenticated user's details are retrieved.
      * @return A Result containing the User object if successful, or an exception if an error occurs.
      */
-    override suspend fun getUserDetails(userId: String?): ResultWrapper<User> {
+    override suspend fun getUser(userId: String?): ResultWrapper<User> {
         val userId=userId?:getCurrentUserId()
         return withContext(Dispatchers.IO) {
             try {
@@ -104,21 +106,17 @@ class UserRepository @Inject constructor(
      * @param userId The ID of the user to retrieve. If null, retrieves the currently authenticated user.
      * @return A Flow emitting ResultWrapper containing the User object or an error.
      */
-    override suspend fun getUser(userId: String?): Flow<ResultWrapper<User>> = callbackFlow {
+    override suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> = callbackFlow {
+        val currentUserId = getCurrentUserId()
         // Determine the reference to the user in the database
-        val userRef = if (userId == null) {
-            database.getReference(USERS).orderByChild(ID).equalTo(auth.uid!!).limitToFirst(1)
-        } else {
-            database.getReference(Constants.USERS).child(userId)
-        }
+       val userRef = database.getReference(USERS).child(userId ?: currentUserId)
 
         // Listener to handle data changes and errors
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 // Attempt to retrieve the user object from the snapshot
                 val user = runCatching {
-                    snapshot.children.firstOrNull()?.getValue(User::class.java)
-                        ?: snapshot.getValue(User::class.java)
+                    snapshot.getValue(User::class.java)
                 }.getOrNull()
                 if (user != null) {
                     trySend(ResultWrapper.Success(user))
@@ -140,7 +138,12 @@ class UserRepository @Inject constructor(
 
     override suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>> =
         callbackFlow {
-            val userRef = database.getReference("users").child(userId).child(Constants.POSTS)
+
+
+            val postsRef = database.getReference(POSTS)
+                .orderByChild("$POST_CREATOR/$ID")
+                .equalTo(userId)
+
 
             val listener = object : ValueEventListener {
                 override fun onDataChange(snapshot: DataSnapshot) {
@@ -155,8 +158,8 @@ class UserRepository @Inject constructor(
                 }
             }
 
-            userRef.addValueEventListener(listener)
-            awaitClose { userRef.removeEventListener(listener) }
+            postsRef.addValueEventListener(listener)
+            awaitClose { postsRef.removeEventListener(listener) }
         }
 
 
@@ -186,7 +189,7 @@ class UserRepository @Inject constructor(
     }*/
     suspend fun updateUserLastActive() {
         auth.currentUser?.uid?.let { uid ->
-            val userRef = database.getReference(Constants.USERS).child(uid)
+            val userRef = database.getReference(USERS).child(uid)
 
             userRef.child("lastActive").setValue(System.currentTimeMillis()).await()
         }

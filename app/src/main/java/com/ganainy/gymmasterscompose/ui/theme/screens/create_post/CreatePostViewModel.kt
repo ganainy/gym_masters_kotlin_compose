@@ -8,10 +8,9 @@ import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.utils.Utils.extractHashtags
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
@@ -21,18 +20,27 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed class CreatePostUiState {
-    object Success : CreatePostUiState()
-    object Loading : CreatePostUiState()
-    data class Error(val messageStringResource: Int) : CreatePostUiState()
-}
-
-data class CreatePostUiData(
+data class CreatePostUiState (
+    val isLoading: Boolean = false,
+    val error: Int? = null,
+    val isSuccess: Boolean = false,
     val user: User? = null,
-    val feedPost: FeedPost,
+    val feedPost: FeedPost = FeedPost(),
     val isPostButtonEnabled: Boolean = false
 )
 
+/**
+ * ViewModel for the CreatePost screen.
+ *
+ * This ViewModel does the following:
+ * 1. Fetches the current user when the screen is initialized.
+ * 2. Monitors the post content for changes and updates the UI state accordingly.
+ * 3. Enables the post button when the post content is not empty.
+ * 4. Publishes the post when the post button is clicked.
+ *
+ * @property userRepository The user repository for fetching the current user.
+ * @property postRepository The post repository for publishing the post.
+ */
 
 @HiltViewModel
 class CreatePostViewModel @Inject constructor(
@@ -40,74 +48,104 @@ class CreatePostViewModel @Inject constructor(
     private val postRepository: IPostRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<CreatePostUiState>(CreatePostUiState.Loading)
-    val uiState: StateFlow<CreatePostUiState> = _uiState.asStateFlow()
-
-
-    private val _createPostUiData =
-        MutableStateFlow<CreatePostUiData>(
-            CreatePostUiData(
-                feedPost = FeedPost(
-                )
-            )
-        )
-    val createPostUiData: StateFlow<CreatePostUiData> = _createPostUiData.asStateFlow()
+    private val _uiState = MutableStateFlow(CreatePostUiState())
+    val uiState = _uiState.asStateFlow()
 
 
     init {
-        _uiState.value = CreatePostUiState.Loading
+        _uiState.update { it.copy(isLoading = true) }
         fetchCurrentUser()
         monitorPostContentChanges()
     }
 
-
     /**
-     * Observes changes to the feedPost content field and updates the
-     * isPostButtonEnabled state based on whether the content is empty.
+     * Monitors changes in the post content and updates the UI state accordingly.
+     *
+     * This function observes changes in the `feedPost.content` field of the UI state.
+     * When the content changes, it updates the `feedPost` with the new content and extracted hashtags.
+     * It also enables or disables the post button based on whether the content is not empty.
      */
     private fun monitorPostContentChanges() {
-        // Observe the content of the feedPost for changes
-        createPostUiData.map { data -> data.feedPost.content }
-            .distinctUntilChanged() // Only emit when the content changes
+        _uiState
+            .map { it.feedPost.content }
+            .distinctUntilChanged()
             .onEach { content ->
-                // Enable the post button if content is not empty, disable otherwise
-                _createPostUiData.update { it.copy(isPostButtonEnabled = content.isNotEmpty()) }
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        feedPost = currentState.feedPost.copy(
+                            content = content,
+                            tags = extractHashtags(content)
+                        ),
+                        isPostButtonEnabled = content.isNotEmpty()
+                    )
+                }
             }
             .launchIn(viewModelScope)
     }
 
 
 
+    /**
+     * Fetches the current user and updates the UI state.
+     *
+     * This function launches a coroutine in the ViewModel scope to fetch the current user from the user repository.
+     * It updates the UI state to indicate loading while the user is being fetched. If the fetch is successful,
+     * it updates the UI state with the fetched user data. If there is an error, it updates the UI state with an error message.
+     */
     private fun fetchCurrentUser() {
-        viewModelScope.launch(context = viewModelScope.coroutineContext + Dispatchers.IO) {
-            userRepository.getUser(userId = null)
-                .collect { result ->
-                    when (result) {
-                        is ResultWrapper.Success -> {
-                            _createPostUiData.update { it.copy(user = result.data) }
-                        }
-                        is ResultWrapper.Error -> {
-                            // Handle the error
-                            _uiState.value = CreatePostUiState.Error(R.string.error_fetching_user)
-                        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            try {
+                when (val result = userRepository.getUser(userId = null)) {
+                    is ResultWrapper.Success -> {
+                        _uiState.update { it.copy(
+                            user = result.data,
+                            isLoading = false
+                        )}
+                    }
+                    is ResultWrapper.Error -> {
+                        _uiState.update { it.copy(
+                            error = R.string.error_fetching_user,
+                            isLoading = false
+                        )}
                     }
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    error = R.string.error_fetching_user,
+                    isLoading = false
+                )}
+            }
         }
     }
 
-
+    /**
+     * Publishes a post to the repository.
+     *
+     * This function retrieves the current `feedPost` and `user` from the UI state and launches a coroutine
+     * to create the post using the `postRepository`. It updates the UI state based on the result of the post creation.
+     * If the post creation is successful, it sets `isLoading` to false and `isSuccess` to true.
+     * If there is an error, it sets `isLoading` to false and updates the `error` field with an appropriate message.
+     */
     fun publishPost() {
-        val feedPost = createPostUiData.value.feedPost
+        val feedPost = _uiState.value.feedPost
+        val postAuthor = _uiState.value.user
         viewModelScope.launch {
-            val result = postRepository.createPost(feedPost)
+            val result = postRepository.createPost(feedPost, postAuthor)
             when (result) {
                 is ResultWrapper.Success -> {
-                    _uiState.value = CreatePostUiState.Success
+                    _uiState.update { it.copy(
+                        isLoading = false,
+                        isSuccess = true
+                    )}
                 }
 
                 is ResultWrapper.Error -> {
                     // Handle the error
-                    _uiState.value = CreatePostUiState.Error(R.string.error_creating_post)
+                    _uiState.update { it.copy(
+                        error = R.string.error_creating_post,
+                        isLoading = false
+                    )}
                 }
             }
         }
@@ -115,8 +153,6 @@ class CreatePostViewModel @Inject constructor(
 
 
     fun updatePostContent(newPostContent: String) {
-        _createPostUiData.update { it.copy(feedPost = it.feedPost.copy(content = newPostContent)) }
+        _uiState.update { it.copy(feedPost = it.feedPost.copy(content = newPostContent)) }
     }
-
-
 }

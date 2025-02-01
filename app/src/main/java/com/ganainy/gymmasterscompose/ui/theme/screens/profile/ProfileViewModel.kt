@@ -3,9 +3,8 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.profile
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.User
-import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
@@ -22,9 +21,6 @@ import javax.inject.Inject
 data class ProfileUiData(
     val user: User = User(),
     val posts: List<FeedPost> = emptyList(),
-    val following: List<String> = emptyList(),
-    val followers: List<String> = emptyList(),
-    val stats: UserStats? = null,
     val isFollowing: Boolean = false
 )
 
@@ -59,8 +55,8 @@ class ProfileViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
 
-    val currentUserId: String
-        get() = authRepository.getCurrentUserId()
+    private val currentUserId: String
+        get() = userRepository.getCurrentUserId()
 
 
     //if no userId is provided, the current user's profile is loaded otherwise the profile of the user with the provided id
@@ -69,18 +65,14 @@ class ProfileViewModel @Inject constructor(
             val targetUserId = userId ?: currentUserId
 
             combine(
-                userRepository.getUser(targetUserId),
+                userRepository.getUserFlow(targetUserId),
                 userRepository.getUserPosts(targetUserId),
-                socialRepository.getUserFollowing(targetUserId),
-                socialRepository.getUserFollowers(targetUserId),
                 socialRepository.isFollowing(targetUserId),
             ) { results: Array<ResultWrapper<*>> ->
 
                 val user = results[0] as ResultWrapper<User>
                 val posts = results[1] as ResultWrapper<List<FeedPost>>
-                val following = results[2] as ResultWrapper<List<String>>
-                val followers = results[3] as ResultWrapper<List<String>>
-                val isFollowing = results[4] as ResultWrapper<Boolean>
+                val isFollowing = results[2] as ResultWrapper<Boolean>
 
                 // Handle each ResultWrapper to extract data or handle errors
                 val profileData = when {
@@ -102,25 +94,7 @@ class ProfileViewModel @Inject constructor(
                         return@combine
                     }
 
-                    following is ResultWrapper.Error -> {
-                        _uiState.update {
-                            ProfileUiState.Error.StringError(
-                                following.exception.message ?: "Unknown error"
-                            )
-                        }
-                        return@combine
-                    }
-
-                    followers is ResultWrapper.Error -> {
-                        _uiState.update {
-                            ProfileUiState.Error.StringError(
-                                followers.exception.message ?: "Unknown error"
-                            )
-                        }
-                        return@combine
-                    }
-
-                    isFollowing is ResultWrapper.Error -> {
+                   isFollowing is ResultWrapper.Error -> {
                         _uiState.update {
                             ProfileUiState.Error.StringError(
                                 isFollowing.exception.message ?: "Unknown error"
@@ -134,20 +108,18 @@ class ProfileViewModel @Inject constructor(
                         _uiData.update { currentState ->
                             currentState.copy(
                                 user = (user as ResultWrapper.Success).data,
-                                followers = (followers as ResultWrapper.Success).data,
-                                following = (following as ResultWrapper.Success).data,
                                 posts = (posts as ResultWrapper.Success).data,
-                                isFollowing = (isFollowing as ResultWrapper.Success).data,
+                                isFollowing = (isFollowing as ResultWrapper.Success).data
                             )
                         }
-                        ProfileUiState.Success(if (userId == null) ProfileType.CURRENT_USER else ProfileType.OTHER_USER)
+                        _uiState.value= ProfileUiState.Success(if (userId == null) ProfileType.CURRENT_USER else ProfileType.OTHER_USER)
                     }
                 }
             }.collect {}
         }
     }
 
-    fun toggleFollow(userId: String?) {
+    fun toggleFollow(userIdToFollowUnfollow: String?) {
         viewModelScope.launch {
             TODO()
         }

@@ -31,7 +31,11 @@ package com.ganainy.gymmasterscompose.ui.theme.models
     val isPublic: Boolean = false,
     var workoutExerciseList: List<WorkoutExercise> = emptyList(),
     val workoutMetrics: WorkoutMetrics = WorkoutMetrics(),
-    )
+    ){
+        companion object {
+            const val WORKOUTS = "workouts"
+        }
+    }
 
     /**
      * Data class representing an exercise in a workout.

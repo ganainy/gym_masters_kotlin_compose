@@ -1,20 +1,14 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
-import com.ganainy.gymmasterscompose.Constants
-import com.ganainy.gymmasterscompose.Constants.USERS
-import com.ganainy.gymmasterscompose.di.IoDispatcher
 import com.ganainy.gymmasterscompose.ui.theme.models.User
-import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
-import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomUsername
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -82,7 +76,7 @@ class AuthRepository @Inject constructor(
                 email = email,
                 displayName = displayName,
                 joinDate = Date().time,
-                id = generateRandomId(Constants.USER),
+                id = auth.currentUser?.uid ?: throw Exception("User ID not found"),
                 profilePictureUrl = null,
                 bio = null,
                 lastActive = null,

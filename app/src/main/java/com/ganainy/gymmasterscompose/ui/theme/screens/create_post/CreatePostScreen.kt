@@ -36,8 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,16 +46,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.components.HashtagTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,7 +65,6 @@ fun CreatePostScreen(
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val uiState by viewModel.uiState.collectAsState()
-    val createPostUiData by viewModel.createPostUiData.collectAsState()
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -101,7 +96,7 @@ fun CreatePostScreen(
                             viewModel.publishPost()
                             onBack()
                         },
-                        enabled = createPostUiData.feedPost.content.isNotBlank()
+                        enabled = uiState.feedPost.content.isNotBlank()
                     ) {
                         Text(
                             "Post",
@@ -128,16 +123,16 @@ fun CreatePostScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ProfileImage(
-                    createPostUiData.user?.profilePictureUrl,
+                    uiState.user?.profilePictureUrl,
                     Modifier
                         .size(40.dp)
                         .clip(CircleShape),
-                    onClick = { /*TODO*/ }
+                    onClick = {  }
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = createPostUiData.user?.displayName ?: "",
+                    text = uiState.user?.displayName ?: "",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     )
@@ -151,25 +146,8 @@ fun CreatePostScreen(
                     .weight(1f)
             ) {
 
-                TextField(
-                    value = createPostUiData.feedPost.content,
-                    onValueChange = { viewModel.updatePostContent(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    placeholder = {
-                        Text(
-                            stringResource(R.string.what_s_on_your_mind),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    },
-                    colors = TextFieldDefaults.textFieldColors(
-                        containerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    textStyle = MaterialTheme.typography.bodyLarge
-                )
+                HashtagTextField(value =  uiState.feedPost.content, onValueChange = viewModel::updatePostContent)
+
             }
 
             // Selected Images Preview
@@ -221,6 +199,9 @@ fun CreatePostScreen(
         }
     }
 }
+
+
+
 
 @Composable
 private fun CreatePostActionButtons(imagePickerLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>) {

@@ -47,7 +47,7 @@ import java.util.Date
 fun DiscoverProfile(
     user: User,
     onFollowClick: () -> Unit,
-    isFollowedByLoggedUser: Boolean?,
+    isCurrentUserFollowing: Boolean?,
     onProfileClick: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -102,7 +102,7 @@ fun DiscoverProfile(
 
                 // Animated Follow Button
                 AnimatedFollowButton(
-                    isFollowed = isFollowedByLoggedUser,
+                    isFollowed = isCurrentUserFollowing,
                     onClick = onFollowClick
                 )
             }

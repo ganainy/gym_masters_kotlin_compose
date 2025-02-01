@@ -8,8 +8,10 @@ import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.ExerciseApi
 import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.Secrets
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ExerciseRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.HashtagRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IExerciseRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IHashtagRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
@@ -73,7 +75,7 @@ object AppModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java, "exercise-database"
-        )  .fallbackToDestructiveMigration().build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
@@ -105,7 +107,6 @@ object AppModule {
     }
 
 
-
     @Provides
     @Singleton
     fun provideAuthRepository(
@@ -122,18 +123,28 @@ object AppModule {
     @Singleton
     fun providePostRepository(
         userRepository: IUserRepository,
-        database: FirebaseDatabase
+        database: FirebaseDatabase,
+        hashtagRepository: IHashtagRepository
+
     ): IPostRepository {
-        return PostRepository(userRepository, database)
+        return PostRepository(userRepository, database, hashtagRepository)
     }
 
     @Provides
     @Singleton
     fun provideSocialRepository(
-        auth: FirebaseAuth,
+        userRepository: IUserRepository,
         database: FirebaseDatabase
     ): ISocialRepository {
-        return SocialRepository(auth, database)
+        return SocialRepository(userRepository, database)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHashtagRepository(
+        database: FirebaseDatabase
+    ): IHashtagRepository {
+        return HashtagRepository(database)
     }
 
 
@@ -160,11 +171,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideWorkoutRepository(
-        auth: FirebaseAuth,
         database: FirebaseDatabase,
-        storage: FirebaseStorage
+        storage: FirebaseStorage,
+        hashtagRepository: IHashtagRepository
     ): IWorkoutRepository {
-        return WorkoutRepository(database,storage)
+        return WorkoutRepository(database, storage, hashtagRepository)
     }
 
 

@@ -163,4 +163,12 @@ object Utils {
             null
         }
     }
+
+     fun extractHashtags(content: String): List<String> {
+        return content.split("\\s+".toRegex())
+            .filter { it.startsWith("#") && it.length > 1 }
+            .map { it.substring(1) } // Remove the # symbol
+            .distinct() // Remove duplicates
+    }
+
 }

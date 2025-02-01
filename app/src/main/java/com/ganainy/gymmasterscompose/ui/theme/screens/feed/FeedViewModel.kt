@@ -14,9 +14,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -55,13 +57,8 @@ class FeedViewModel @Inject constructor(
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
     private val _feedUiData =
-        MutableStateFlow(FeedUiData(emptySet(), emptyList(),))
+        MutableStateFlow(FeedUiData(emptySet(), emptyList()))
     val feedUiData: StateFlow<FeedUiData> = _feedUiData.asStateFlow()
-
-
-    // Represents the IDs of users whose posts we want to show
-    private val followedUsers = MutableStateFlow<Set<String>>(emptySet())
-
 
 
     init {
@@ -87,10 +84,14 @@ class FeedViewModel @Inject constructor(
                         when (result) {
                             is ResultWrapper.Success -> {
                                 // Update followed users including current user
-                                followedUsers.value = (result.data + userId).toSet()
+                                _feedUiData.update { currentState ->
+                                    currentState.copy(followingUserIds = (result.data + userId).toSet())
+                                }
                             }
+
                             is ResultWrapper.Error -> {
-                                _uiState.value = FeedUiState.Error.IntError(R.string.error_loading_feed)
+                                _uiState.value =
+                                    FeedUiState.Error.IntError(R.string.error_loading_feed)
                             }
                         }
                     }
@@ -101,38 +102,48 @@ class FeedViewModel @Inject constructor(
     }
 
 
+    /**
+     * Listens to feed posts and updates the UI state accordingly.
+     *
+     * This function observes changes in the followed user IDs and fetches the posts for those users.
+     * It also checks the like status of each post and updates the feed UI data.
+     * The UI state is updated based on the presence of posts.
+     */
     private fun listenToFeedPosts() {
         viewModelScope.launch {
-            followedUsers
+            _feedUiData.map { it.followingUserIds }
+                .distinctUntilChanged() // Ensure only distinct changes trigger updates
+                .filter { it.isNotEmpty() } // Ensure we don't fetch with empty userIds
                 .flatMapLatest { userIds ->
                     postRepository.getPostsForUsers(userIds)
                 }
-                .transform<List<FeedPost>, FeedUiState> { posts ->
+                .map { posts ->
                     // Get post IDs and check like status
                     val postIds = posts.map { it.id }.toSet()
-                    val likedPostIds = postRepository.checkPostsLikeStatus(
+                    val likedPostIds = postRepository.checkPostListLikeStatus(
                         userId = userRepository.getCurrentUserId(),
                         postIds = postIds
                     )
 
-                    // Emit the combined result
-                    emit(
-                        if (posts.isNotEmpty()) {
-                            _feedUiData.update { currentState ->
-                                currentState.copy(
-                                    postList = posts.map { post ->
-                                        FeedPostWithLikeStatus(
-                                            post = post,
-                                            isLiked = likedPostIds.contains(post.id)
-                                        )
-                                    }
-                                )
-                            }
-                            FeedUiState.NonEmptyFeed
-                        } else {
-                            FeedUiState.EmptyFeed
-                        }
-                    )
+                    // Update feed UI data
+                    val updatedPosts = posts.map { post ->
+                        FeedPostWithLikeStatus(
+                            post = post,
+                            isLiked = likedPostIds.filter { it.key == post.id }
+                                .map { it.value }.firstOrNull() ?: false
+                        )
+                    }
+
+                    // Update feed UI data
+                    _feedUiData.update { currentState ->
+                        currentState.copy(
+                            postList = updatedPosts
+                        )
+                    }
+
+                    // Determine UI state
+                    if (updatedPosts.isNotEmpty()) FeedUiState.NonEmptyFeed
+                    else FeedUiState.EmptyFeed
                 }
                 .catch { error ->
                     FeedUiState.Error.StringError(error.message ?: "Unknown error")
@@ -147,7 +158,7 @@ class FeedViewModel @Inject constructor(
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
             runCatching {
-                postRepository.togglePostReaction(userId=null,postId = postId)
+                postRepository.togglePostReaction(userId = null, postId = postId)
             }.onFailure {
                 _uiState.value = FeedUiState.Error.IntError(R.string.error_updating_reaction)
             }
@@ -156,11 +167,18 @@ class FeedViewModel @Inject constructor(
     }
 
 
-
     fun refreshFeed() {
-        _uiState.value = FeedUiState.Loading
-        loadFeed()
+        viewModelScope.launch {
+            _uiState.value = FeedUiState.Loading
+
+            // Temporarily clear followingUserIds to force refresh
+            _feedUiData.update { it.copy(followingUserIds = emptySet()) }
+
+            // Reload feed
+            loadFeed()
+        }
     }
+
 
     fun signOut(onSignedOut: () -> Unit) {
         viewModelScope.launch {

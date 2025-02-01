@@ -18,5 +18,6 @@ data class PostLike(
  {
     companion object {
         fun createId(userId: String, postId: String) = "${userId}_${postId}"
+        const val POST_LIKES = "post_likes" // Collection name for post likes
     }
 }

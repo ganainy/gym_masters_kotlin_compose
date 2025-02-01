@@ -23,16 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Comment
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.PostAdd
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -50,18 +45,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.ganainy.gymmasterscompose.ui.theme.components.AccountProfileImage
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.components.PostListItem
 import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 
@@ -119,40 +112,46 @@ private fun CurrentUserProfileContent(
     userId: String?,
     navigateToCreatePost: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Common UI elements
-        ProfileHeader(
-            user = uiData.user,
-            stats = uiData.stats,
-            isOwnProfile = true,
-        )
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AccountProfileImage(
+                user = uiData.user,
+                stats = uiData.user.stats,
+                isOwnProfile = true,
+            )
 
-        EditProfileButton(
-            onClick = { /* Navigate to edit profile */ }
-        )
+            EditProfileButton(
+                onClick = { /* Navigate to edit profile */ }
+            )
 
-        LogoutButton(
-            onClick = {
-                viewModel.logout {
-                    navigateToLogin()
+            LogoutButton(
+                onClick = {
+                    viewModel.logout {
+                        navigateToLogin()
+                    }
                 }
-            }
-        )
+            )
 
-        // Common UI elements
-        PostsList(
-            posts = uiData.posts,
-            onPostClick = { TODO() },
-            onCreatePost = navigateToCreatePost,
-            modifier = Modifier,
-            isOwnProfile = true
-        )
+            Box(
+                modifier = Modifier
+                    .height(300.dp)
+                    .fillMaxWidth()
+            ) {
+            PostsList(
+                posts = uiData.posts,
+                onPostClick = { TODO() },
+                onCreatePost = navigateToCreatePost,
+                modifier = Modifier,
+                isOwnProfile = true
+            )
+        }
+        }
     }
 }
 
@@ -167,14 +166,13 @@ private fun OtherUserProfileContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+           .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Common UI elements
-        ProfileHeader(
+        AccountProfileImage(
             user = uiData.user,
-            stats = uiData.stats,
+            stats = uiData.user.stats,
             isOwnProfile = false,
         )
 
@@ -184,6 +182,11 @@ private fun OtherUserProfileContent(
         )
 
         // Common UI elements
+        Box(
+            modifier = Modifier
+                .height(300.dp)
+                .fillMaxWidth()
+        ) {
         PostsList(
             posts = uiData.posts,
             onPostClick = { TODO() },
@@ -192,54 +195,9 @@ private fun OtherUserProfileContent(
             isOwnProfile = true
         )
     }
-}
-
-@Composable
-fun ProfileHeader(
-    user: User,
-    isOwnProfile: Boolean,
-    stats: UserStats?
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ProfileImage(
-            profilePictureUrl = user.profilePictureUrl,
-            size = 128.dp,
-            onEdit = {
-                if (isOwnProfile) {
-                    TODO()
-                } else null
-            },
-            isOwnProfile = isOwnProfile
-        )
-
-        Text(user.displayName)
-        Text(user.bio ?: "")
-
-        if (stats != null)
-        StatsRow(stats = stats)
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewProfileHeader() {
-    ProfileHeader(
-        user = User(
-            profilePictureUrl = "https://picsum.photos/512/512",
-            displayName = "John Doe",
-            bio = "Software Engineer"
-        ),
-        isOwnProfile = true,
-        stats = UserStats(
-            postCount = 10,
-            followersCount = 100,
-            followingCount = 50,
-            workoutCount = 20
-        )
-    )
-}
 
 @Composable
 fun StatsRow(
@@ -389,13 +347,10 @@ fun PostsList(
                 items = posts,
                 key = { it.id }
             ) { post ->
-               /* PostItem(
+               PostListItem(
                     post = post,
-                    onClick = { onPostClick(post) },
-                    postAuthor = TODO(),
-                    postStats = TODO(),
-                    modifier = TODO()
-                )*/
+                    onPostClick = { onPostClick(post) },
+                )
             }
         }
     }
@@ -462,80 +417,6 @@ private fun EmptyPostsState(
     }
 }
 
-@Composable
-private fun PostItem(
-    post: FeedPost,
-    postAuthor: User,
-    postStats: PostMetrics,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Author Info
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ProfileImage(
-                    profilePictureUrl = postAuthor.profilePictureUrl,
-                    size = 40.dp
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = postAuthor.displayName ,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = formatTimeAgo(post.createdAt),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-
-            // Post Content
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(vertical = 12.dp)
-            )
-
-
-            // Stats
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatItem(
-                    count = postStats.likes,
-                    icon = Icons.Default.Favorite,
-                    label = "Likes"
-                )
-                StatItem(
-                    count = postStats.comments,
-                    icon = Icons.Default.Comment,
-                    label = "Comments"
-                )
-                StatItem(
-                    count = postStats.shares,
-                    icon = Icons.Default.Share,
-                    label = "Shares"
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun StatItem(

@@ -13,14 +13,13 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
+import com.ganainy.gymmasterscompose.utils.Utils.extractHashtags
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -110,7 +109,6 @@ class CreateWorkoutViewModel @Inject constructor(
 ) : ViewModel() {
 
 
-
     /**
      * Private state flow for the UI state.
      */
@@ -119,34 +117,42 @@ class CreateWorkoutViewModel @Inject constructor(
     val uiState: StateFlow<UiState.WorkoutUiState> = _uiState.asStateFlow()
 
 
-
     init {
         loadInitialData()
-        observeFieldChanges()
-    }
-
-    private fun observeFieldChanges() {
-        // Combine the two fields into a StateFlow
-        uiState.map { state -> state.workout.title to state.workout.workoutExerciseList }
-            .distinctUntilChanged() // Only emit when the pair of values changes
-            .onEach { (field1, field2) ->
-                // Call the function whenever these fields change
-                isUploadButtonEnabled()
-            }
-            .launchIn(viewModelScope) // Replace with your scope (e.g., lifecycleScope)
+        observeWorkoutFieldChanges()
     }
 
     /**
-     * Updates the UI state to set the upload button to enabled or disabled.
+     * Observes changes in the workout fields and updates the UI state accordingly.
+     *
+     * This function monitors the `uiState` for changes. It computes whether the upload button should be enabled
+     * based on the workout title and the list of workout exercises. It also updates the workout tags by extracting
+     * hashtags from both the workout title and description. The updated values are then applied to the UI state.
      */
-    private fun isUploadButtonEnabled() {
-        if (_uiState.value.workout.workoutExerciseList.isNotEmpty() && _uiState.value.workout.title.isNotEmpty()) {
-            _uiState.update { it.copy(isUploadEnabled = true) }
-        } else {
-            _uiState.update { it.copy(isUploadEnabled = false) }
-        }
-    }
+    private fun observeWorkoutFieldChanges() {
+        uiState
+            .onEach { state ->
+                // Compute whether the upload is enabled
+                val isUploadEnabled = state.workout.title.isNotEmpty() &&
+                        state.workout.workoutExerciseList.isNotEmpty()
 
+                // Update tags by extracting hashtags from both title and description
+                val updatedWorkout = state.workout.copy(
+                    tags = (extractHashtags(state.workout.title) +
+                            extractHashtags(state.workout.description)).distinct()
+
+                )
+
+                // Update the UI state with both computed values
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isUploadEnabled = isUploadEnabled,
+                        workout = updatedWorkout
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
     // Operations Management
     private sealed class Operation {
@@ -196,9 +202,6 @@ class CreateWorkoutViewModel @Inject constructor(
             .onFailure { throw it }
     }
 
-    fun retry() {
-        loadInitialData()
-    }
 
     // Exercise Management
     inner class ExerciseManager {
@@ -310,28 +313,6 @@ class CreateWorkoutViewModel @Inject constructor(
 
     }
 
-    // Tag Management
-    inner class TagManager {
-        fun addTag() {
-            val currentTag = _uiState.value.currentTag.trim()
-            if (currentTag.isNotBlank()) {
-                updateWorkout { it.copy(tags = it.tags + currentTag) }
-                _uiState.update { it.copy(currentTag = "") }
-            }
-        }
-
-        fun removeTag(tag: String) {
-            updateWorkout { it.copy(tags = it.tags - tag) }
-        }
-
-        fun changeCurrentTagText(tag: String) {
-            _uiState.update { it.copy(currentTag = tag) }
-        }
-
-        private fun updateWorkout(update: (Workout) -> Workout) {
-            _uiState.update { it.copy(workout = update(it.workout)) }
-        }
-    }
 
     // Workout Management
     inner class WorkoutManager {
@@ -387,6 +368,5 @@ class CreateWorkoutViewModel @Inject constructor(
     // Public instance of managers
     val exerciseManager = ExerciseManager()
     val filterManager = FilterManager()
-    val tagManager = TagManager()
     val workoutManager = WorkoutManager()
 }

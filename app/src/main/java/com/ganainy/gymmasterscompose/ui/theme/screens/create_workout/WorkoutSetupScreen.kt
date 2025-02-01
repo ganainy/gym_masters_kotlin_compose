@@ -54,12 +54,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil.compose.rememberImagePainter
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.components.HashtagOutlinedTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.Workout
@@ -75,9 +77,6 @@ sealed interface WorkoutSetupScreenEvent {
     sealed interface WorkoutActions : WorkoutSetupScreenEvent {
         object Upload : WorkoutActions
         data class EditWorkout(val workout: Workout) : WorkoutActions
-        data class TagTextChange(val tag: String) : WorkoutActions
-        object TagAdd : WorkoutActions
-        data class TagRemove(val tag: String) : WorkoutActions
         data class DeleteExercise(val exercise: WorkoutExercise) : WorkoutActions
     }
 
@@ -112,16 +111,6 @@ fun WorkoutSetupScreen(
             is WorkoutSetupScreenEvent.WorkoutActions.EditWorkout -> viewModel.workoutManager.editWorkout(
                 event.workout
             )
-
-            is WorkoutSetupScreenEvent.WorkoutActions.TagTextChange -> viewModel.tagManager.changeCurrentTagText(
-                event.tag
-            )
-
-            is WorkoutSetupScreenEvent.WorkoutActions.TagAdd -> viewModel.tagManager.addTag()
-            is WorkoutSetupScreenEvent.WorkoutActions.TagRemove -> viewModel.tagManager.removeTag(
-                event.tag
-            )
-
             is WorkoutSetupScreenEvent.WorkoutActions.DeleteExercise -> viewModel.exerciseManager.deleteWorkoutExercise(
                 event.exercise
             )
@@ -214,13 +203,7 @@ private fun WorkoutSetupContent(
                 workout = uiState.workout
             )
         }
-        item {
-            WorkoutTagsSection(uiState.currentTag,
-                uiState.workout.tags,
-                { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.TagTextChange(it)) },
-                { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.TagAdd) },
-                { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.TagRemove(it)) })
-        }
+
         item {
             WorkoutAddExercisesSection(
                 onAddExercise =
@@ -350,17 +333,17 @@ fun WorkoutTagsSection(
 @Composable
 private fun WorkoutBasicInfo(workout: Workout, onEditWorkout: (Workout) -> Unit) {
     Column {
-        OutlinedTextField(
+        HashtagOutlinedTextField(
             value = workout.title,
             onValueChange = { onEditWorkout(workout.copy(title = it)) },
-            label = { Text("Workout Title") },
+            label = stringResource(R.string.workout_title),
             modifier = Modifier.fillMaxWidth()
         )
 
-        OutlinedTextField(
+        HashtagOutlinedTextField(
             value = workout.description,
             onValueChange = { onEditWorkout(workout.copy(description = it)) },
-            label = { Text("Description") },
+            label = stringResource(R.string.description),
             modifier = Modifier.fillMaxWidth(),
             minLines = 3
         )
@@ -372,7 +355,7 @@ private fun WorkoutBasicInfo(workout: Workout, onEditWorkout: (Workout) -> Unit)
                     onEditWorkout(workout.copy(workoutDuration = it))
                 }
             },
-            label = { Text("Duration (minutes)") },
+            label = { Text(stringResource(R.string.duration_minutes)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
         )

@@ -22,10 +22,10 @@ import com.ganainy.gymmasterscompose.R
 @Composable
 fun InteractionRow(
     likeAmount: Int,
-    onLikeClick: () -> Unit,
-    isLiked: Boolean,
+    onLikeClick: () -> Unit = {},
+    isLiked: Boolean = false,
     commentAmount: Int,
-    onCommentClick: () -> Unit
+    onCommentClick: () -> Unit = {}
 ) {
 
     Row(

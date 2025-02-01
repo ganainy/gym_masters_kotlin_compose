@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomChip
 import com.ganainy.gymmasterscompose.ui.theme.components.InteractionRow
-import com.ganainy.gymmasterscompose.ui.theme.components.ProfileHeader
+import com.ganainy.gymmasterscompose.ui.theme.components.AccountProfileImage
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -33,7 +33,7 @@ fun WorkoutItem() {
             .padding(16.dp)
     ) {
         // todo Profile Section (com.ganainy.gymmasterscompose.ui.theme.models.User Image, Name, and Time)
-        ProfileHeader("place holder", "","place holder")
+        AccountProfileImage("place holder", "","place holder")
 
         Spacer(modifier = Modifier.height(8.dp))
 

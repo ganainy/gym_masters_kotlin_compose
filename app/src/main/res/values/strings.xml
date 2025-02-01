@@ -63,4 +63,7 @@
     <string name="stats_not_found">Error loading user stats</string>
     <string name="error_signing_out">Error signing out</string>
     <string name="error_checking_like">Error checking like</string>
+    <string name="description">Description</string>
+    <string name="duration_minutes">Duration (minutes)</string>
+    <string name="workout_title">Workout Title</string>
 </resources>

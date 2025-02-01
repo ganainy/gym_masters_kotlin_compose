@@ -15,7 +15,17 @@ data class User(
     val lastActive: Long? = null, // Timestamp
     val stats: UserStats = UserStats(),
     val settings: UserSettings = UserSettings()
-)
+){
+    companion object {
+        const val USERS = "users"
+        const val USER_STATS = "stats"
+        const val POST_COUNT = "postCount"
+        const val FOLLOWING_COUNT = "followingCount"
+        const val FOLLOWERS_COUNT = "followersCount"
+        const val FOLLOWER_ID = "followerId"
+        const val FOLLOWED_ID = "followedId"
+    }
+}
 
 data class UserSettings(
     val notifications: Boolean = true,

@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun ProfileHeader(name: String?,imageUrl: String?, timeAgo: String) {
+fun AccountProfileImage(name: String?, imageUrl: String?, timeAgo: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
 
         ProfileImage(imageUrl, Modifier.width(40.dp)
@@ -40,5 +40,5 @@ fun ProfileHeader(name: String?,imageUrl: String?, timeAgo: String) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewProfileHeader() {
-    ProfileHeader("Amr", "","20 minutes ago")
+    AccountProfileImage("Amr", "","20 minutes ago")
 }

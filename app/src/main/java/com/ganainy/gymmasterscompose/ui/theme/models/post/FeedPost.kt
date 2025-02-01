@@ -1,6 +1,6 @@
 package com.ganainy.gymmasterscompose.ui.theme.models.post
 
-import com.ganainy.gymmasterscompose.ui.theme.models.Hashtag
+import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 
 
 /**
@@ -21,13 +21,22 @@ data class FeedPost(
     val imagePathList: List<String> = emptyList(),
     val imageUrlList: List<String> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
-    val hashtagList: List<Hashtag> = emptyList(),
+    val tags: List<String> = emptyList(),
     val postMetrics: PostMetrics = PostMetrics(),
     val postCreator: PostCreator = PostCreator()
-)
-const val POST_METRICS = "postMetrics"
-const val LIKES = "likes"
-const val POST_CREATOR = "postCreator"
+){
+    companion object {
+        const val POST = "post"
+        const val POST_METRICS = "postMetrics"
+        const val LIKES = "likes"
+        const val POST_CREATOR = "postCreator"
+        const val CREATOR_ID = "creatorId"
+        const val POST_TAGS = "tags"
+        const val POSTS = "posts" // Collection name for posts
+        fun createId(): String = generateRandomId(POST)
+    }
+    }
+
 
 /**
  * Data class representing the statistics of a post.
