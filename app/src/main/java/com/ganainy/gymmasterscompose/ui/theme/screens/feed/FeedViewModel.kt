@@ -14,15 +14,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
 
 sealed class FeedUiState {
     object EmptyFeed : FeedUiState()
@@ -38,6 +38,8 @@ sealed class FeedUiState {
 data class FeedUiData(
     val followingUserIds: Set<String>,
     val postList: List<FeedPostWithLikeStatus>,
+    var lastLoadedPostTimestamp: Long? = null // used for pagination, first most recent 20 posts are loaded then on load more older posts are loaded
+
 )
 
 data class FeedPostWithLikeStatus(
@@ -56,16 +58,13 @@ class FeedViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
 
-    private val _feedUiData =
-        MutableStateFlow(FeedUiData(emptySet(), emptyList()))
+    private val _feedUiData = MutableStateFlow(FeedUiData(emptySet(), emptyList()))
     val feedUiData: StateFlow<FeedUiData> = _feedUiData.asStateFlow()
 
-
     init {
-        loadFeed()
         listenToFeedPosts()
+        loadFeed()
     }
-
 
     private fun loadFeed() {
         viewModelScope.launch {
@@ -84,9 +83,13 @@ class FeedViewModel @Inject constructor(
                         when (result) {
                             is ResultWrapper.Success -> {
                                 // Update followed users including current user
+                                val updatedFollowingIds = (result.data + userId).toSet()
                                 _feedUiData.update { currentState ->
-                                    currentState.copy(followingUserIds = (result.data + userId).toSet())
+                                    currentState.copy(followingUserIds = updatedFollowingIds)
                                 }
+
+                                // Immediately fetch posts for the updated following list
+                                fetchPostsForUsers(updatedFollowingIds)
                             }
 
                             is ResultWrapper.Error -> {
@@ -101,59 +104,51 @@ class FeedViewModel @Inject constructor(
         }
     }
 
+    private suspend fun fetchPostsForUsers(userIds: Set<String>) {
+        try {
+            val posts = postRepository.getPostsOfCertainUsers(
+                userIds,
+                lastPostTimestamp = null
+            ).first()
+            val postIds = posts.map { it.id }.toSet()
+            val likedPostIds = postRepository.checkPostListLikeStatus(
+                userId = userRepository.getCurrentUserId(),
+                postIds = postIds
+            ).first()
 
-    /**
-     * Listens to feed posts and updates the UI state accordingly.
-     *
-     * This function observes changes in the followed user IDs and fetches the posts for those users.
-     * It also checks the like status of each post and updates the feed UI data.
-     * The UI state is updated based on the presence of posts.
-     */
-    private fun listenToFeedPosts() {
-        viewModelScope.launch {
-            _feedUiData.map { it.followingUserIds }
-                .distinctUntilChanged() // Ensure only distinct changes trigger updates
-                .filter { it.isNotEmpty() } // Ensure we don't fetch with empty userIds
-                .flatMapLatest { userIds ->
-                    postRepository.getPostsForUsers(userIds)
-                }
-                .map { posts ->
-                    // Get post IDs and check like status
-                    val postIds = posts.map { it.id }.toSet()
-                    val likedPostIds = postRepository.checkPostListLikeStatus(
-                        userId = userRepository.getCurrentUserId(),
-                        postIds = postIds
-                    )
+            val updatedPosts = posts.map { post ->
+                FeedPostWithLikeStatus(
+                    post = post,
+                    isLiked = likedPostIds[post.id] ?: false
+                )
+            }
 
-                    // Update feed UI data
-                    val updatedPosts = posts.map { post ->
-                        FeedPostWithLikeStatus(
-                            post = post,
-                            isLiked = likedPostIds.filter { it.key == post.id }
-                                .map { it.value }.firstOrNull() ?: false
-                        )
-                    }
+            _feedUiData.update { currentState ->
+                currentState.copy(postList = updatedPosts,
+                    lastLoadedPostTimestamp = posts.lastOrNull()?.createdAt)
+            }
 
-                    // Update feed UI data
-                    _feedUiData.update { currentState ->
-                        currentState.copy(
-                            postList = updatedPosts
-                        )
-                    }
-
-                    // Determine UI state
-                    if (updatedPosts.isNotEmpty()) FeedUiState.NonEmptyFeed
-                    else FeedUiState.EmptyFeed
-                }
-                .catch { error ->
-                    FeedUiState.Error.StringError(error.message ?: "Unknown error")
-                }
-                .collect { state ->
-                    _uiState.value = state
-                }
+            _uiState.value = if (updatedPosts.isNotEmpty()) {
+                FeedUiState.NonEmptyFeed
+            } else {
+                FeedUiState.EmptyFeed
+            }
+        } catch (error: Exception) {
+            _uiState.value = FeedUiState.Error.StringError(error.message ?: "Unknown error")
         }
     }
 
+    private fun listenToFeedPosts() {
+        viewModelScope.launch {
+            _feedUiData
+                .map { it.followingUserIds }
+                .distinctUntilChanged()
+                .filter { it.isNotEmpty() }
+                .collect { userIds ->
+                    fetchPostsForUsers(userIds)
+                }
+        }
+    }
 
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
@@ -179,6 +174,40 @@ class FeedViewModel @Inject constructor(
         }
     }
 
+
+    /**
+     * Loads more posts for the feed by combining the like status and the posts of the following users.
+     * updates lastLoadedPostTimestamp to be the timestamp of the last post in the new posts
+     * Updates the feed UI data with the new posts and their like status.
+     */
+    fun loadMorePosts() {
+        viewModelScope.launch {
+            combine(
+                postRepository.checkPostListLikeStatus(
+                    userId = userRepository.getCurrentUserId(),
+                    postIds = _feedUiData.value.postList.map { it.post.id }.toSet()
+                ),
+                postRepository.getPostsOfCertainUsers(
+                    userIds = _feedUiData.value.followingUserIds,
+                    lastPostTimestamp = _feedUiData.value.lastLoadedPostTimestamp
+                )
+            ) { likeMap: Map<String, Boolean>, posts: List<FeedPost> ->
+                // Update the feed UI data with the new posts and their like status
+                _feedUiData.update { currentState ->
+                    val updatedPosts = posts.map { post ->
+                        FeedPostWithLikeStatus(
+                            post = post,
+                            isLiked = likeMap[post.id] ?: false
+                        )
+                    }
+                    currentState.copy(
+                        postList = updatedPosts,
+                        lastLoadedPostTimestamp = posts.lastOrNull()?.createdAt
+                    )
+                }
+            }.collect { }
+        }
+    }
 
     fun signOut(onSignedOut: () -> Unit) {
         viewModelScope.launch {

@@ -1,18 +1,71 @@
 package com.ganainy.gymmasterscompose.ui.theme.room
 
 import androidx.room.TypeConverter
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
+
+/**
+ * A class containing type converters for Room database.
+ *
+ * This class provides methods to convert between complex data types and their
+ * JSON string representations for storing in the Room database.
+ */
 class Converters {
+
+    /**
+     * Converts a list of strings to a JSON string.
+     *
+     * @param value The list of strings to be converted.
+     * @return The JSON string representation of the list.
+     */
     @TypeConverter
-    fun fromString(value: String): List<String> {
-        val listType = object : TypeToken<List<String>>() {}.type
-        return Gson().fromJson(value, listType)
+    fun fromStringList(value: List<String>): String {
+        return Json.encodeToString(value)
     }
 
+    /**
+     * Converts a JSON string to a list of strings.
+     *
+     * @param value The JSON string to be converted.
+     * @return The list of strings represented by the JSON string.
+     */
     @TypeConverter
-    fun fromList(list: List<String>): String {
-        return Gson().toJson(list)
+    fun toStringList(value: String): List<String> {
+        return try {
+            Json.decodeFromString(value)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
+
+    /**
+     * Converts a list of WorkoutExercise objects to a JSON string.
+     *
+     * @param value The list of WorkoutExercise objects to be converted.
+     * @return The JSON string representation of the list.
+     */
+    @TypeConverter
+    fun fromWorkoutExerciseList(value: List<WorkoutExercise>): String {
+        return Json.encodeToString(value)
+    }
+
+    /**
+     * Converts a JSON string to a list of WorkoutExercise objects.
+     *
+     * @param value The JSON string to be converted.
+     * @return The list of WorkoutExercise objects represented by the JSON string.
+     */
+    @TypeConverter
+    fun toWorkoutExerciseList(value: String): List<WorkoutExercise> {
+        return try {
+            Json.decodeFromString(value)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+
 }

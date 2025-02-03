@@ -30,7 +30,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
-import com.ganainy.gymmasterscompose.ui.theme.models.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.ganainy.gymmasterscompose.utils.Utils.getBitmapFromPath
 
 enum class ExerciseListItemType {
@@ -60,7 +60,7 @@ fun ExerciseListItem(
             if (exercise != null) {
                 Text(exercise.name)
             }else if (workoutExercise != null) {
-                Text(workoutExercise.exercise.name)
+                workoutExercise.exercise?.name?.let { Text(it) }
             }
         },
         supportingContent = {
@@ -73,17 +73,17 @@ fun ExerciseListItem(
                     if (exercise != null) {
                         CustomChip(exercise.bodyPart)
                     }else if (workoutExercise != null) {
-                        CustomChip(workoutExercise.exercise.bodyPart)
+                        workoutExercise.exercise?.bodyPart?.let { CustomChip(it) }
                     }
                     if (exercise != null) {
                         CustomChip(exercise.equipment)
                     }else if (workoutExercise != null) {
-                        CustomChip(workoutExercise.exercise.equipment)
+                        workoutExercise.exercise?.equipment?.let { CustomChip(it) }
                     }
                     if (exercise != null) {
                         CustomChip(exercise.target)
                     }else if (workoutExercise != null) {
-                        CustomChip(workoutExercise.exercise.target)
+                        workoutExercise.exercise?.target?.let { CustomChip(it) }
                     }
                 }
 
@@ -131,7 +131,7 @@ fun ExerciseListItem(
                     }
                 }
             }else if (workoutExercise != null) {
-                workoutExercise.exercise.screenshotPath?.let { screenshotPath ->
+                workoutExercise.exercise?.screenshotPath?.let { screenshotPath ->
                     getBitmapFromPath(screenshotPath)?.let { bitmap ->
                         Image(
                             bitmap = bitmap.asImageBitmap(),

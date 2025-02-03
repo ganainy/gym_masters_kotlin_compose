@@ -37,7 +37,6 @@ data class FeedPost(
     }
     }
 
-
 /**
  * Data class representing the statistics of a post.
  *

@@ -14,11 +14,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
 import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 
 @Composable
-fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
+fun DiscoverScreen(navContoller: NavHostController) {
+
+
+    //navigation actions
+    fun navigateToProfile(userId: String?) {
+        navContoller.navigate("profile/$userId")
+    }
+
 
     val viewModel: DiscoverViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -47,7 +55,7 @@ fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
                 }
 
                 is DiscoverUiState.Success -> {
-                    DiscoverScreenContent(discoverData, viewModel, navigateToProfile = navigateToProfile)
+                    DiscoverScreenContent(discoverData, viewModel, navigateToProfile = {navigateToProfile(it)})
                 }
 
                 is DiscoverUiState.Error.StringError ->  ErrorComponent(

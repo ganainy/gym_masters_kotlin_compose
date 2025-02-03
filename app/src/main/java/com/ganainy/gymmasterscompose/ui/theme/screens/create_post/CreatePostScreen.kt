@@ -58,9 +58,7 @@ import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreatePostScreen(
-    onBack: () -> Unit,
-) {
+fun CreatePostScreen(onNavigateBack: () -> Boolean) {
     val viewModel = hiltViewModel<CreatePostViewModel>()
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
@@ -86,7 +84,7 @@ fun CreatePostScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {onNavigateBack()}) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -94,7 +92,7 @@ fun CreatePostScreen(
                     TextButton(
                         onClick = {
                             viewModel.publishPost()
-                            onBack()
+                            onNavigateBack()
                         },
                         enabled = uiState.feedPost.content.isNotBlank()
                     ) {
@@ -264,6 +262,6 @@ private fun ActionButton(
 @Composable
 fun PreviewCreatePostScreen() {
     CreatePostScreen(
-        onBack = {},
+        onNavigateBack = { true }
     )
 }

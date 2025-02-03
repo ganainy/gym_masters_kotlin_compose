@@ -5,7 +5,7 @@ import Stats
 import User
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.Workout
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.repository.IDataRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow

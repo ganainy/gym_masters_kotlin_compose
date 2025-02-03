@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,21 +42,46 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
 import kotlinx.coroutines.launch
 
 @Composable
 fun FeedScreen(
-    navigateToLogin: () -> Unit,
-    navigateToCreatePost: () -> Unit,
-    navigateToDiscover: () -> Unit,
-    navigateToProfile: (String?) -> Unit,
-    navigateToWorkout: (String) -> Unit,
-    navigateToExercises: () -> Unit,
-    navigateToCreateWorkout: () -> Unit
+    navController: NavController,
 ) {
+
+    //navigation actions
+    val handleLogout: () -> Unit = {
+        navController.navigate("auth") {
+            // Clear the entire back stack when logging out
+            popUpTo(0) { inclusive = true }
+        }
+        }
+
+    val handleCreatePost: () -> Unit = {
+        navController.navigate(Screen.CreatePost.route)
+    }
+
+    val handleProfile: (String?) -> Unit = { userId ->
+        navController.navigate(Screen.Main.Profile.route + "/$userId")
+    }
+
+    val handleDiscover: () -> Unit = {
+        navController.navigate(Screen.Main.Discover.route)
+    }
+
+    val handleExercises: () -> Unit = {
+        navController.navigate(Screen.Main.ExerciseList.route)
+    }
+
+    val handleCreateWorkout: () -> Unit = {
+        navController.navigate(Screen.WorkoutSetup.route)
+    }
+
     val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val feedUiData by viewModel.feedUiData.collectAsState()
@@ -70,7 +96,7 @@ fun FeedScreen(
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.discover)) },
                     selected = false,
-                    onClick = navigateToDiscover
+                    onClick = handleDiscover
                 )
                 HorizontalDivider()
                 NavigationDrawerItem(
@@ -78,8 +104,7 @@ fun FeedScreen(
                     selected = false,
                     onClick = {
                         viewModel.signOut {
-                            //onSignOut()
-                            navigateToLogin()
+                            handleLogout()
                         }
                     }
                 )
@@ -87,19 +112,19 @@ fun FeedScreen(
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.profile)) },
                     selected = false,
-                    onClick = { navigateToProfile(null) }
+                    onClick = { handleProfile(null) }
                 )
                 HorizontalDivider()
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.exercises)) },
                     selected = false,
-                    onClick = { navigateToExercises() }
+                    onClick = { handleExercises() }
                 )
                 HorizontalDivider()
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.create_workout)) },
                     selected = false,
-                    onClick = { navigateToCreateWorkout() }
+                    onClick = { handleCreateWorkout() }
                 )
             }
         }
@@ -123,7 +148,7 @@ fun FeedScreen(
             },
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = { navigateToCreatePost() },
+                    onClick =   handleCreatePost ,
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Create Post")
                 }
@@ -149,11 +174,17 @@ fun FeedScreen(
                             items(feedUiData.postList) { feedPostWithLikeStatus ->
                                 FeedPostItem(
                                     post = feedPostWithLikeStatus.post,
-                                    onProfileClick = { navigateToProfile(feedPostWithLikeStatus.post.postCreator.id) },
+                                    onProfileClick = { handleProfile(feedPostWithLikeStatus.post.postCreator.id) },
                                     onLikeClick = { viewModel.toggleReaction(feedPostWithLikeStatus.post.id) },
                                     onCommentClick = { /*TODO*/ },
                                     isPostLikedByCurrentUser = feedPostWithLikeStatus.isLiked,
                                 )
+                            }
+                            // Load more posts when the last item is visible
+                            item {
+                                LaunchedEffect(Unit) {
+                                    viewModel.loadMorePosts()
+                                }
                             }
                         }
                     }

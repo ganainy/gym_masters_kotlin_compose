@@ -20,7 +20,7 @@ import com.ganainy.gymmasterscompose.R
 
 
 @Composable
-fun InteractionRow(
+fun PostInteractionRow(
     likeAmount: Int,
     onLikeClick: () -> Unit = {},
     isLiked: Boolean = false,
@@ -35,9 +35,8 @@ fun InteractionRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                painter = painterResource(id = R.drawable.like), // Placeholder for like icon
+                painter = painterResource(id = if (isLiked) R.drawable.liked_filled else R.drawable.like_outlined ), // Placeholder for like icon
                 contentDescription = "Like Icon",
-                tint = if (isLiked) Color.Blue else Color.Gray,
                 modifier = Modifier.clickable { onLikeClick() }
 
             )
@@ -61,6 +60,6 @@ fun InteractionRow(
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewInteractionRow() {
-    InteractionRow(5, {}, false, 8, {})
+fun PreviewPostInteractionRow() {
+    PostInteractionRow(5, {}, false, 8, {})
 }

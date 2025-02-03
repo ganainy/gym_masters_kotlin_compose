@@ -74,7 +74,7 @@ fun FeedExercise() {
         Spacer(modifier = Modifier.height(16.dp))
 
         // todo Like and Comment Section
-        InteractionRow(likeAmount = 0, {}, false, 0, {})
+        PostInteractionRow(likeAmount = 0, {}, false, 0, {})
 
     }
 }

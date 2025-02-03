@@ -104,7 +104,7 @@ fun PostListItem(
         Spacer(modifier = Modifier.height(4.dp))
 
         // Interaction row (likes, comments)
-        InteractionRow(
+        PostInteractionRow(
             likeAmount = post.postMetrics.likes,
             commentAmount = post.postMetrics.comments,
         )

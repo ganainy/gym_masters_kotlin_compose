@@ -1,10 +1,14 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
+import android.net.Uri
+import android.util.Log
 import com.ganainy.gymmasterscompose.Constants.ID
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.models.CustomException
+import com.ganainy.gymmasterscompose.utils.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.PROFILE_PICTURE_URL
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_IMAGES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_CREATOR
@@ -14,6 +18,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -33,12 +38,14 @@ interface IUserRepository {
     fun getCurrentUserId(): String
     suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> // get notified when user changes
     suspend fun getUser(userId: String?): ResultWrapper<User> //read user only once, not notified if user changes
+    suspend fun updateUserProfileImage(imagePath: String): ResultWrapper<String>
 }
 
 
 class UserRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val database: FirebaseDatabase
+    private val database: FirebaseDatabase,
+    private val storage: FirebaseStorage
 ) : IUserRepository {
 
 
@@ -54,13 +61,14 @@ class UserRepository @Inject constructor(
         }
     }
 
-/**
+    /**
      * Retrieves the current user's ID.
      *
      * @return The unique identifier of the current user.
      * @throws Exception if the user is not authenticated.
      */
-    override fun getCurrentUserId(): String = _currentUser.value?.uid ?: throw Exception("User auth not found")
+    override fun getCurrentUserId(): String =
+        _currentUser.value?.uid ?: throw Exception("User auth not found")
 
     /**
      * Retrieves the details of a user from the database based on the provided user ID.
@@ -69,7 +77,7 @@ class UserRepository @Inject constructor(
      * @return A Result containing the User object if successful, or an exception if an error occurs.
      */
     override suspend fun getUser(userId: String?): ResultWrapper<User> {
-        val userId=userId?:getCurrentUserId()
+        val userId = userId ?: getCurrentUserId()
         return withContext(Dispatchers.IO) {
             try {
                 // Reference to the user in the database
@@ -109,7 +117,7 @@ class UserRepository @Inject constructor(
     override suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> = callbackFlow {
         val currentUserId = getCurrentUserId()
         // Determine the reference to the user in the database
-       val userRef = database.getReference(USERS).child(userId ?: currentUserId)
+        val userRef = database.getReference(USERS).child(userId ?: currentUserId)
 
         // Listener to handle data changes and errors
         val listener = object : ValueEventListener {
@@ -176,7 +184,45 @@ class UserRepository @Inject constructor(
             ?: ResultWrapper.Error(AuthRepository.UserNotAuthenticatedException("User is not authenticated"))
     }
 
+    /**
+     * Updates the user's profile image by uploading a new image to Firebase Storage and updating the user's profile image URL in the database.
+     *
+     * @param imagePath The local file path of the new profile image.
+     * @return A ResultWrapper containing the download URL of the uploaded image if successful, or an error if the operation fails.
+     */
 
+    override suspend fun updateUserProfileImage(imagePath: String): ResultWrapper<String> {
+        val userImageStorageRef = storage.reference
+            .child(USER_IMAGES).child(imagePath.substringAfterLast("/"))
+
+        return try {
+            // First upload the file and get the URL
+            userImageStorageRef.putFile(Uri.parse(imagePath)).await()
+            val downloadUrl = userImageStorageRef.downloadUrl.await().toString()
+
+            try {
+                // Try to update the database
+                val userImageDatabaseRef = database
+                    .getReference(USERS)
+                    .child(getCurrentUserId())
+                    .child(PROFILE_PICTURE_URL)
+
+                userImageDatabaseRef.setValue(downloadUrl).await()
+                ResultWrapper.Success(downloadUrl)
+            } catch (dbError: Exception) {
+                // If database update fails, delete the uploaded file
+                try {
+                    userImageStorageRef.delete().await()
+                } catch (deleteError: Exception) {
+                    // Log the delete error but throw the original database error
+                    Log.e("ProfileUpdate", "Failed to delete image after db error", deleteError)
+                }
+                throw dbError // Re-throw the database error to be caught by outer catch
+            }
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
+        }
+    }
 
 
     /*todo

@@ -137,6 +137,38 @@ class ProfileViewModel @Inject constructor(
             }
         }
     }
+
+    //todo
+    /*fun deleteWorkout(workoutId: String) = viewModelScope.launch {
+        try {
+            _uiState.update { it.copy(isLoading = true) }
+            workoutRepository.deleteWorkout(workoutId)
+            _uiState.update { it.copy(isLoading = false, isDeleted = true) }
+        } catch (e: Exception) {
+            _uiState.update { it.copy(isLoading = false, error = e.message) }
+        }
+    }*/
+
+
+    fun onEditProfilePicture(imagePath: String) {
+        viewModelScope.launch {
+            when (val result = userRepository.updateUserProfileImage(imagePath)) {
+                is ResultWrapper.Success -> {
+                    _uiData.update { currentState ->
+                        currentState.copy(
+                            user = currentState.user.copy(profilePictureUrl = result.data)
+                        )
+                    }
+                }
+                is ResultWrapper.Error -> _uiState.update {
+                    ProfileUiState.Error.StringError(
+                        result.exception.message ?: "Unknown error while updating profile picture"
+                    )
+                }
+            }
+        }
+
+    }
 }
 
 

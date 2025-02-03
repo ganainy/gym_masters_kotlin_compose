@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     id("kotlin-parcelize")
     id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlinx.serialization)
 }
 
 val properties = Properties()
@@ -153,6 +154,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     debugImplementation(libs.androidx.ui.tooling)
     ksp("androidx.room:room-compiler:2.5.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
 
     //Mockito  for unit tests
     testImplementation("org.mockito:mockito-core:5.4.0")

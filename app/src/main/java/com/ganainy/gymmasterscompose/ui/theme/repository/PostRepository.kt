@@ -1,6 +1,5 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
-import com.ganainy.gymmasterscompose.Constants.ID
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.POST_COUNT
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
@@ -8,8 +7,10 @@ import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_STATS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.LIKES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_CREATOR
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_METRICS
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry.Companion.CREATED_AT
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry.Companion.POSTS_BY_USER
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike.Companion.POST_LIKES
@@ -19,15 +20,15 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 // Posts and feed management
@@ -39,8 +40,8 @@ interface IPostRepository {
         postId: String
     ): Flow<ResultWrapper<Boolean>>
 
-    suspend fun checkPostListLikeStatus(postIds: Set<String>, userId: String): Map<String, Boolean>
-    suspend fun getPostsForUsers(userIds: Set<String>): Flow<List<FeedPost>>
+    suspend fun checkPostListLikeStatus(postIds: Set<String>, userId: String): Flow<Map<String, Boolean>>
+    suspend fun getPostsOfCertainUsers(userIds: Set<String>,lastPostTimestamp: Long?): Flow<List<FeedPost>>
 }
 
 
@@ -50,53 +51,72 @@ class PostRepository @Inject constructor(
 ) :
     IPostRepository {
 
+        //todo fix more posts loading same initial posts
+     // Number of posts to retrieve per page
+    private val PAGE_SIZE = 1
 
     /**
-     * Retrieves posts for a set of user IDs.
+     * Retrieves posts from a set of users and returns them as a flow of lists of `FeedPost` objects.
      *
-     * @param userIds A set of user IDs for which to retrieve posts.
-     * @return A Flow emitting lists of FeedPost objects corresponding to the user IDs.
+     * This function collects post references for each user in the provided set of user IDs,
+     * merges the post IDs, fetches the actual post data, and sends the sorted list of posts.
+     *
+     * @param userIds A set of user IDs whose posts are to be retrieved.
+     * @param lastPostTimestamp The timestamp of the last post to retrieve.
+     * @return A flow emitting lists of `FeedPost` objects.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun getPostsForUsers(userIds: Set<String>): Flow<List<FeedPost>> =
+    override suspend fun getPostsOfCertainUsers(userIds: Set<String>,lastPostTimestamp: Long?): Flow<List<FeedPost>> =
         channelFlow {
             if (userIds.isEmpty()) {
-                send(emptyList<FeedPost>())
-            } else {
-                val databaseRef = database.getReference(POSTS)
+                send(emptyList())
+                return@channelFlow
+            }
 
-                val listener = object : ValueEventListener {
-                    override fun onDataChange(dataSnapshot: DataSnapshot) {
-                        val posts = dataSnapshot.children
-                            .mapNotNull { snapshot ->
-                                snapshot.key?.let {
-                                    snapshot.getValue(FeedPost::class.java)?.copy(id = it)
-                                }
+            // Collect all user post references
+            val userPostsFlows = userIds.map { userId ->
+                callbackFlow {
+                    val userPostsRef = database.getReference("$POSTS_BY_USER/$userId")
+                    val listener = userPostsRef
+                        .orderByChild(CREATED_AT)
+                        .limitToLast(PAGE_SIZE) //  limit number of posts
+                        .apply {
+                            lastPostTimestamp?.let { timestamp ->
+                                endBefore(timestamp.toDouble())
                             }
-                            .filter { post ->
-                                userIds.contains(post.postCreator.id)
+                            }
+                        .addValueEventListener(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                // Get post IDs and timestamps
+                                val postIds = snapshot.children.mapNotNull { it.key }
+                                launch { trySend(postIds) }
                             }
 
-                        launch {
-                            send(posts)
-                        }
-                    }
+                            override fun onCancelled(error: DatabaseError) {
+                                close(error.toException())
+                            }
+                        })
 
-                    override fun onCancelled(error: DatabaseError) {
-                        close(error.toException())
-                    }
-                }
-
-                databaseRef.orderByChild("${POST_CREATOR}/$ID")
-                    .startAt(userIds.first())
-                    .endAt(userIds.last() + "\uf8ff")
-                    .addValueEventListener(listener)
-
-                awaitClose {
-                    databaseRef.removeEventListener(listener)
+                    awaitClose { userPostsRef.removeEventListener(listener) }
                 }
             }
+
+            // Merge all post IDs
+            combine(userPostsFlows) {postIdsList: Array<List<String>> ->
+                postIdsList.toList().flatten().distinct()
+            }.collect { postIds ->
+                // Fetch actual post data
+                val posts = postIds.mapNotNull { postId ->
+                    database.getReference("posts/$postId")
+                        .get()
+                        .await()
+                        .getValue(FeedPost::class.java)
+                        ?.copy(id = postId)
+                }
+
+                send(posts.sortedByDescending { it.createdAt })
+            }
         }.flowOn(Dispatchers.IO)
+
 
 
     /**
@@ -106,29 +126,28 @@ class PostRepository @Inject constructor(
      * @param userId The ID of the user whose like status is to be checked.
      * @return A map where the keys are post IDs and the values are Booleans indicating whether each post is liked by the user.
      */
-    override suspend fun checkPostListLikeStatus(
-        postIds: Set<String>,
-        userId: String
-    ): Map<String, Boolean> = withContext(Dispatchers.IO) {
-        try {
-            val likeStatuses = mutableMapOf<String, Boolean>()
+  override suspend fun checkPostListLikeStatus(
+    postIds: Set<String>,
+    userId: String
+): Flow<Map<String, Boolean>> = flow {
+    try {
+        val likeStatuses = mutableMapOf<String, Boolean>()
 
-            // Check all posts in one batch
-            postIds.forEach { postId ->
-                val likeId = PostLike.createId(userId, postId)
-                val likeDoc = database.getReference("${POST_LIKES}/$likeId")
-                    .get()
-                    .await()
+        // Check all posts in one batch
+        postIds.forEach { postId ->
+            val likeId = PostLike.createId(userId, postId)
+            val likeDoc = database.getReference("${POST_LIKES}/$likeId")
+                .get()
+                .await()
 
-                likeStatuses[postId] = likeDoc.exists()
-            }
-
-            likeStatuses
-        } catch (e: Exception) {
-            emptyMap()
+            likeStatuses[postId] = likeDoc.exists()
         }
-    }
 
+        emit(likeStatuses)
+    } catch (e: Exception) {
+        emit(emptyMap())
+    }
+}.flowOn(Dispatchers.IO)
 
     /**
      * Creates a new post in the database.
@@ -137,7 +156,7 @@ class PostRepository @Inject constructor(
      * 1. Copies the provided `FeedPost` object and assigns it a new ID, sets the post creator details,
      *    and sets the current timestamp as the creation time.
      * 2. Prepares a map of updates to be applied to the database, including the new post and incrementing
-     *    the post count for the user, updating, creating hashtags.
+     *    the post count for the user, updating, creating hashtags and creating an entry in the post by user collection.
      * 3. Updates the database with the prepared updates.
      *
      * @param feedPost The `FeedPost` object containing the details of the post to be created.
@@ -149,6 +168,7 @@ class PostRepository @Inject constructor(
             return ResultWrapper.Error(Exception("couldn't retrieve post because of missing author"))
         }
 
+        val createdAt = System.currentTimeMillis()
         val modifiedFeedPost = feedPost.copy(
             id = FeedPost.createId(),
             postCreator = PostCreator(
@@ -156,13 +176,16 @@ class PostRepository @Inject constructor(
                 displayName = postAuthor.displayName,
                 profilePictureUrl = postAuthor.profilePictureUrl ?: ""
             ),
-            createdAt = System.currentTimeMillis()
+            createdAt = createdAt
         )
 
         return try {
             val updates = hashMapOf<String, Any>(
                 "${POSTS}/${modifiedFeedPost.id}" to modifiedFeedPost,
-                "${USERS}/${postAuthor.id}/${USER_STATS}/${POST_COUNT}" to ServerValue.increment(1)
+                "${USERS}/${postAuthor.id}/${USER_STATS}/${POST_COUNT}" to ServerValue.increment(1),
+                "$POSTS_BY_USER/${modifiedFeedPost.postCreator.id}/${modifiedFeedPost.id}" to PostByUserEntry(
+                    createdAt = modifiedFeedPost.createdAt
+                )
             )
 
             // Check if the post has tags

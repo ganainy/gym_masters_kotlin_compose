@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.Constants
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.utils.Utils
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.utils.Utils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,14 +46,6 @@ class SignUpViewModel @Inject constructor(private val authRepository: AuthReposi
 
     private val _signUpFormData = MutableStateFlow(SignUpFormData())
     val signUpFormData: StateFlow<SignUpFormData> = _signUpFormData.asStateFlow()
-
-    init {
-        // Check if user is signed in already
-        if (authRepository.isAlreadySignedIn()) {
-            // com.ganainy.gymmasterscompose.ui.theme.models.User is signed already in, redirect to feed screen
-            _uiState.value = SignUpUiState.Success
-        }
-    }
 
     fun createAccount() {
         _uiState.value = SignUpUiState.Loading

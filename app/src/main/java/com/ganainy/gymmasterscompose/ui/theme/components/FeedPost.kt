@@ -111,7 +111,7 @@ fun FeedPostItem(
         Spacer(modifier = Modifier.height(16.dp))
 
         // todo Like and Comment Section
-        InteractionRow(
+        PostInteractionRow(
             likeAmount = post.postMetrics.likes,
             onLikeClick = onLikeClick,
             isPostLikedByCurrentUser,

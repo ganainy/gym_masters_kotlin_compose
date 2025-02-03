@@ -58,7 +58,7 @@ import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
-import com.ganainy.gymmasterscompose.ui.theme.models.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 import kotlinx.coroutines.launch
 
@@ -296,7 +296,7 @@ private fun ExerciseListItem(
     onModify: (WorkoutExercise) -> Unit,
     onDelete: (WorkoutExercise) -> Unit
 ) {
-    val workoutExercise = workoutExercises.find { it.exercise.id == exercise.id }
+    val workoutExercise = workoutExercises.find { it.exercise?.id == exercise.id }
 
     if (workoutExercise != null) {
         ExerciseListItem(
@@ -422,11 +422,13 @@ private fun ExerciseDialogContent(
         ) {
             // Exercise Name Header
             selectedExercise?.let { exercise ->
-                Text(
-                    text = exercise.exercise.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                exercise.exercise?.name?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }

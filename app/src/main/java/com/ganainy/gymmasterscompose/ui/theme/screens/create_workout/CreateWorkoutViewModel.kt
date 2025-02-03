@@ -7,8 +7,8 @@ import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
-import com.ganainy.gymmasterscompose.ui.theme.models.Workout
-import com.ganainy.gymmasterscompose.ui.theme.models.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
@@ -316,18 +316,16 @@ class CreateWorkoutViewModel @Inject constructor(
 
     // Workout Management
     inner class WorkoutManager {
-        fun uploadWorkout() = handleOperation(Operation.UploadWorkout) {
-            val workout = _uiState.value.workout
-            val resultImage = workoutRepository.uploadWorkoutCoverImage(workout.imagePath)
-            val workoutWithImageUrl = when (resultImage) {
-                is ResultWrapper.Success<*> -> workout.copy(imageUrl = (resultImage as ResultWrapper.Success<String>).data)
-                else -> workout
-            }
 
-            val resultWorkout = workoutRepository.uploadWorkout(workoutWithImageUrl)
-            when (resultWorkout) {
+        fun uploadWorkout() = handleOperation(Operation.UploadWorkout) {
+            val workout = _uiState.value.workout.copy(
+                dateCreated = System.currentTimeMillis()
+            )
+            val result = workoutRepository.uploadWorkoutWithImage(workout, workout.imagePath)
+
+            when (result) {
                 is ResultWrapper.Success -> resetUiState()
-                is ResultWrapper.Error -> throw resultWorkout.exception
+                is ResultWrapper.Error -> throw result.exception
                 else -> Unit
             }
         }

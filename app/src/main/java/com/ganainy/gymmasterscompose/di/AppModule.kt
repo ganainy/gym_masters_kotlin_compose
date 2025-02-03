@@ -152,9 +152,10 @@ object AppModule {
     @Singleton
     fun provideUserRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase
+        database: FirebaseDatabase,
+        storage: FirebaseStorage
     ): IUserRepository {
-        return UserRepository(auth, database)
+        return UserRepository(auth, database,storage)
     }
 
 
@@ -173,9 +174,10 @@ object AppModule {
     fun provideWorkoutRepository(
         database: FirebaseDatabase,
         storage: FirebaseStorage,
-        hashtagRepository: IHashtagRepository
+        hashtagRepository: IHashtagRepository,
+        appDatabase: AppDatabase
     ): IWorkoutRepository {
-        return WorkoutRepository(database, storage, hashtagRepository)
+        return WorkoutRepository(database, storage,appDatabase, hashtagRepository)
     }
 
 

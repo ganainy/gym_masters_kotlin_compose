@@ -1,0 +1,25 @@
+// Comment data class with embedded user info
+data class Comment(
+    val id: String = "",
+    val postId: String = "",
+    val userId: String = "",
+    val content: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val likesCount: Int = 0,
+    /*val parentId: String? = null,    // For future reply support
+    val replyCount: Int = 0,         // For future reply support*/
+    // Embedded user display data
+    val userDisplayInfo: UserDisplayInfo = UserDisplayInfo()
+)
+{
+    companion object
+    {
+     const val COMMENTS_COLLECTION_NAME = "comments"
+    }
+}
+
+// User display info data class with display name and profile image url
+data class UserDisplayInfo(
+    val displayName: String = "",
+    val profileImageUrl: String = "",
+)

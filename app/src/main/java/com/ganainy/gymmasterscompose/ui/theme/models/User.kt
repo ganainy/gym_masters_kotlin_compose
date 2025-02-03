@@ -24,6 +24,8 @@ data class User(
         const val FOLLOWERS_COUNT = "followersCount"
         const val FOLLOWER_ID = "followerId"
         const val FOLLOWED_ID = "followedId"
+        const val USER_IMAGES = "userImages"
+        const val PROFILE_PICTURE_URL = "profilePictureUrl"
     }
 }
 

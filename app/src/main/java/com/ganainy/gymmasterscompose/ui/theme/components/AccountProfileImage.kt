@@ -1,5 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.components
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,18 +17,30 @@ import com.ganainy.gymmasterscompose.ui.theme.screens.profile.StatsRow
 fun AccountProfileImage(
     user: User,
     isOwnProfile: Boolean,
-    stats: UserStats?
+    stats: UserStats?,
+    onEditProfilePicture: (String) -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
+        val launcher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent(),
+            onResult = { uri: Uri? ->
+                if (uri != null) {
+                    onEditProfilePicture(uri.toString())
+                }
+            }
+        )
+
         ProfileImage(
             profilePictureUrl = user.profilePictureUrl,
             size = 128.dp,
             onEdit = {
                 if (isOwnProfile) {
-                    TODO()
-                } else null
+                    // Open image gallery and select an image
+                    launcher.launch("image/*")
+                }
             },
             isOwnProfile = isOwnProfile
         )
@@ -35,6 +50,8 @@ fun AccountProfileImage(
 
         if (stats != null)
             StatsRow(stats = stats)
+
+
     }
 }
 

@@ -36,6 +36,7 @@ core = "1.47.0"
 coreTesting = "2.2.0"
 uiTestManifest = "1.7.6"
 androidxJunit = "1.1.5"
+kotlinSerialization = "2.0.0"
 
 
 [libraries]
@@ -90,3 +91,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization"}
+

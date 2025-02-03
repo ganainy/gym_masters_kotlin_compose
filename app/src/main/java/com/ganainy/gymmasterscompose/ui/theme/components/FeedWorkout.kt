@@ -19,7 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomChip
-import com.ganainy.gymmasterscompose.ui.theme.components.InteractionRow
+import com.ganainy.gymmasterscompose.ui.theme.components.PostInteractionRow
 import com.ganainy.gymmasterscompose.ui.theme.components.AccountProfileImage
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -74,7 +74,7 @@ fun WorkoutItem() {
         Spacer(modifier = Modifier.height(16.dp))
 
         // todo Like and Comment Section
-        InteractionRow(likeAmount = 0, {}, false, 0, {})
+        PostInteractionRow(likeAmount = 0, {}, false, 0, {})
 
     }
 }

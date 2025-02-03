@@ -31,17 +31,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.utils.Utils.showToast
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
+import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 @Composable
 fun SignUpScreen(
-    navigateToSignIn: () -> Unit,
-    navigateToFeed: () -> Unit,
-    navigateBack: () -> Unit
+    onSignUpSuccess: () -> Unit,
+    navigateToSignIn: () -> Unit
 ) {
+
     val viewModel: SignUpViewModel = hiltViewModel()
     val uiState = viewModel.uiState.collectAsState().value
     val signUpFormData = viewModel.signUpFormData.collectAsState().value
@@ -57,7 +58,6 @@ fun SignUpScreen(
         onUpdateEmail = { email -> viewModel.updateEmail(email) },
         onUpdatePassword = { password -> viewModel.updatePassword(password) },
         onUpdateDisplayName = { username -> viewModel.updateDisplayName(username) },
-        onNavigateBack = navigateBack
     )
 
     if (uiState is SignUpUiState.Loading) {
@@ -68,7 +68,7 @@ fun SignUpScreen(
             errorMessage,
         )
     } else if (uiState is SignUpUiState.Success) {
-        navigateToFeed()
+        onSignUpSuccess()
     }
 
 
@@ -85,7 +85,6 @@ fun SignUpScreenContent(
     onUpdateEmail: (String) -> Unit,
     onUpdatePassword: (String) -> Unit,
     onSignInClick: () -> Unit,
-    onNavigateBack: () -> Unit,
 ) {
 
     Surface(

@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.models
+package com.ganainy.gymmasterscompose.ui.theme.models.workout
 
 
 
@@ -15,4 +15,9 @@ data class WorkoutSave(
     val userId: String = "",
     val workoutId: String = "",
     val timestamp: Long = 0
-)
+){
+    companion object {
+        fun createId(userId: String, workoutId: String) = "${userId}_${workoutId}"
+        const val WORKOUT_SAVES = "workout_saves" // Collection name for workout saves
+    }
+}

@@ -65,10 +65,13 @@ fun ProfileScreen(
     navigateToCreatePost: () -> Unit,
 ) {
     val viewModel = hiltViewModel<ProfileViewModel>()
+
     viewModel.loadProfile(userId)
 
     val uiData by viewModel.uiData.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+
+
 
     when (val state = uiState) {
         is ProfileUiState.Loading -> {
@@ -91,7 +94,7 @@ fun ProfileScreen(
             val profileType=state.profileType
             when (profileType) {
                 ProfileType.CURRENT_USER -> {
-                    CurrentUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost)
+                    CurrentUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost,viewModel::onEditProfilePicture)
                 }
                 ProfileType.OTHER_USER -> {
                     // Other user profile
@@ -110,7 +113,8 @@ private fun CurrentUserProfileContent(
     viewModel: ProfileViewModel,
     navigateToLogin: () -> Unit,
     userId: String?,
-    navigateToCreatePost: () -> Unit
+    navigateToCreatePost: () -> Unit,
+    onEditProfilePicture: (String) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -124,6 +128,7 @@ private fun CurrentUserProfileContent(
                 user = uiData.user,
                 stats = uiData.user.stats,
                 isOwnProfile = true,
+                onEditProfilePicture = onEditProfilePicture
             )
 
             EditProfileButton(

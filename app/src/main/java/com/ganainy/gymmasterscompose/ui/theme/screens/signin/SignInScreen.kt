@@ -33,17 +33,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.utils.Utils.showToast
-
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 @Composable
 fun SignInScreen(
     navigateToSignUp: () -> Unit,
-    navigateToFeed: () -> Unit,
-    navigateBack: () -> Unit
+    onSignInSuccess: () -> Unit,
 ) {
     val viewModel: SignInViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -81,7 +79,7 @@ fun SignInScreen(
 
         is SignInUiState.Success -> {
             LaunchedEffect(Unit) {
-                navigateToFeed()
+                onSignInSuccess()
             }
         }
     }
@@ -164,10 +162,3 @@ fun SignInScreenContent(
     }
 }
 
-@Preview
-@Composable
-private fun SignUpScreenPreview() {
-    /*  SignUpScreenContent(
-
-      )*/
-}

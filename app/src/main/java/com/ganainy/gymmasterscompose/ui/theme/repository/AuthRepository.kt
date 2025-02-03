@@ -8,7 +8,12 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -22,8 +27,7 @@ interface IAuthRepository {
         email: String,
         displayName: String,
     ): ResultWrapper<User>
-
-    abstract fun isAlreadySignedIn(): Boolean
+    fun isUserLoggedIn(): Flow<Boolean>
 }
 
 
@@ -95,10 +99,15 @@ class AuthRepository @Inject constructor(
 
     }
 
-    override fun isAlreadySignedIn(): Boolean {
-        return auth.currentUser != null
-    }
 
+
+    override fun isUserLoggedIn(): Flow<Boolean> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            trySend(auth.currentUser != null)
+        }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }
 
     override suspend fun signInUser(email: String, password: String): ResultWrapper<FirebaseUser> {
         return try {
@@ -116,11 +125,13 @@ class AuthRepository @Inject constructor(
     }
 
     override suspend fun signOut(): ResultWrapper<Unit> {
-        return try {
-            auth.signOut()
-            ResultWrapper.Success(Unit)
-        } catch (e: Exception) {
-            ResultWrapper.Error(e)
+        return withContext(Dispatchers.IO) {
+             try {
+                auth.signOut()
+                ResultWrapper.Success(Unit)
+            } catch (e: Exception) {
+                ResultWrapper.Error(e)
+            }
         }
     }
 

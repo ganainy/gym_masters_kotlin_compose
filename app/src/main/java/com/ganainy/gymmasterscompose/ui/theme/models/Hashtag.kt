@@ -13,7 +13,7 @@ data class Hashtag(
     val lastUsed: Long = 0
 ){
     companion object{
-        const val HASHTAGS = "hashtags"
+        const val HASHTAGS_COLLECTION = "hashtags"
         const val TAG = "tag"
         const val HASHTAG_USE_COUNT = "useCount"
         const val HASHTAG_LAST_USED = "lastUsed"

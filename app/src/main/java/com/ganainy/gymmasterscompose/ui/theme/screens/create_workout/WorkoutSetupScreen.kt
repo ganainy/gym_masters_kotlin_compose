@@ -64,8 +64,8 @@ import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagOutlinedTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
-import com.ganainy.gymmasterscompose.ui.theme.models.Workout
-import com.ganainy.gymmasterscompose.ui.theme.models.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.UiState.DataState
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
@@ -396,7 +396,7 @@ private fun WorkoutCoverImageContent(
                     )
                 }
             } else {
-                val drawable = context.getDrawable(R.drawable.dumbell)
+                val drawable = context.getDrawable(R.drawable.dumbbell)
                 val imageBitmap = drawable?.toBitmap()?.asImageBitmap()
                 if (imageBitmap != null) {
                     Image(
@@ -513,10 +513,12 @@ private fun ExerciseCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = workoutExercise.exercise.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                workoutExercise.exercise?.name?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
 
                 IconButton(onClick = { onDeleteExercise(workoutExercise) }) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete exercise")
