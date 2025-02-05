@@ -14,12 +14,13 @@ data class Comment(
 {
     companion object
     {
-     const val COMMENTS_COLLECTION_NAME = "comments"
+     const val COMMENTS_COLLECTION = "comments"
+        const val COMMENTS_LIKES_COUNT = "likesCount"
     }
 }
 
 // User display info data class with display name and profile image url
 data class UserDisplayInfo(
     val displayName: String = "",
-    val profileImageUrl: String = "",
+    val profileImageUrl: String? = null,
 )

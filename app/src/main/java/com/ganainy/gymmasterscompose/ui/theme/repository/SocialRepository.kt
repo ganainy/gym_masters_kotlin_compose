@@ -25,7 +25,7 @@ import javax.inject.Inject
 // Social interactions (following/followers)
 interface ISocialRepository {
     fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>>
-    fun getUserFollowing(userId: String?): Flow<ResultWrapper<List<String>>>
+    fun observeFollowedUsers(userId: String?): Flow<List<String>>
     abstract fun isFollowing(userIdToCheck: String): Flow<ResultWrapper<Boolean>> // Check if the current user is following the target user, returns Boolean
     suspend fun updateFollowState(userId: String): ResultWrapper<Unit>
 }
@@ -47,13 +47,12 @@ class SocialRepository @Inject constructor(
      * Retrieves the list of user IDs that the specified user is following.
      *
      * @param userId The ID of the user whose following list is to be retrieved. If null, an error is returned.
-     * @return A Flow emitting a ResultWrapper containing a list of user IDs that the specified user is following or an error.
+     * @return A Flow emitting a list of user IDs that the specified user is following or an error.
      */
-    override fun getUserFollowing(userId: String?): Flow<ResultWrapper<List<String>>> =
+    override fun observeFollowedUsers(userId: String?): Flow<List<String>> =
         callbackFlow {
             if (userId == null) {
-                trySend(ResultWrapper.Error(Exception("logged in user id is null")))
-                close()
+                close(Exception("logged in user id is null"))
                 return@callbackFlow
             }
 
@@ -65,11 +64,10 @@ class SocialRepository @Inject constructor(
                 override fun onDataChange(snapshot: DataSnapshot) {
                     val followedIds =
                         snapshot.children.mapNotNull { it.getValue(Follow::class.java)?.followedId }
-                    trySend(ResultWrapper.Success(followedIds))
+                    trySend(followedIds)
                 }
 
                 override fun onCancelled(error: DatabaseError) {
-                    trySend(ResultWrapper.Error(error.toException()))
                     close(error.toException()) // Close the flow on error
                 }
             }
@@ -78,7 +76,6 @@ class SocialRepository @Inject constructor(
 
             awaitClose { followsRef.removeEventListener(listener) } // Cleanup when flow is closed
         }
-
 
 
     /**

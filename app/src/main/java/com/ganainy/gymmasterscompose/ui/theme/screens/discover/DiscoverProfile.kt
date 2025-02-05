@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
-import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
+import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImageSmall
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import java.util.Date
 
@@ -76,7 +76,7 @@ fun DiscoverProfile(
             ) {
                 //  Profile Image
 
-                ProfileImage(
+                ProfileImageSmall(
                     profilePictureUrl = user.profilePictureUrl,
                     modifier = Modifier
                         .padding(2.dp)

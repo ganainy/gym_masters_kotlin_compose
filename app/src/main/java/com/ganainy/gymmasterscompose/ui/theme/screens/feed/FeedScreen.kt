@@ -23,7 +23,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
@@ -44,8 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.components.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.components.post.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
 import kotlinx.coroutines.launch
 
@@ -92,34 +91,7 @@ fun FeedScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet {
-                NavigationDrawerItem(
-                    label = { Text(text = stringResource(R.string.discover)) },
-                    selected = false,
-                    onClick = handleDiscover
-                )
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text(text = stringResource(R.string.sign_out)) },
-                    selected = false,
-                    onClick = {
-                        viewModel.signOut {
-                            handleLogout()
-                        }
-                    }
-                )
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text(text = stringResource(R.string.profile)) },
-                    selected = false,
-                    onClick = { handleProfile(null) }
-                )
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text(text = stringResource(R.string.exercises)) },
-                    selected = false,
-                    onClick = { handleExercises() }
-                )
+            //todo move create workout to profile screen
                 HorizontalDivider()
                 NavigationDrawerItem(
                     label = { Text(text = stringResource(R.string.create_workout)) },
@@ -127,7 +99,6 @@ fun FeedScreen(
                     onClick = { handleCreateWorkout() }
                 )
             }
-        }
     )
     {
 
@@ -171,13 +142,13 @@ fun FeedScreen(
 
                     FeedUiState.NonEmptyFeed -> {
                         LazyColumn(modifier = Modifier.testTag("posts_list")) {
-                            items(feedUiData.postList) { feedPostWithLikeStatus ->
+                            items(feedUiData.postList) { feedPostWithLikesAndComments ->
                                 FeedPostItem(
-                                    post = feedPostWithLikeStatus.post,
-                                    onProfileClick = { handleProfile(feedPostWithLikeStatus.post.postCreator.id) },
-                                    onLikeClick = { viewModel.toggleReaction(feedPostWithLikeStatus.post.id) },
-                                    onCommentClick = { /*TODO*/ },
-                                    isPostLikedByCurrentUser = feedPostWithLikeStatus.isLiked,
+                                    feedPostWithLikesAndComments = feedPostWithLikesAndComments,
+                                    onProfileClick = { handleProfile(feedPostWithLikesAndComments.post.postCreator.id) },
+                                    onLikeIconClick = { viewModel.toggleReaction(feedPostWithLikesAndComments.post.id) },
+                                    onCommentIconClick = {viewModel.openComments(feedPostWithLikesAndComments.post.id)} ,
+                                    onCommentSubmit = {viewModel.addComment(it,feedPostWithLikesAndComments.post.id)}
                                 )
                             }
                             // Load more posts when the last item is visible

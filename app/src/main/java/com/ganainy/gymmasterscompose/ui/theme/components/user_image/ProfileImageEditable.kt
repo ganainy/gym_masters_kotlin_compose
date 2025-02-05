@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.components
+package com.ganainy.gymmasterscompose.ui.theme.components.user_image
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -34,7 +34,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,15 +41,13 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.R
 
-
 @Composable
-fun ProfileImage(
+fun ProfileImageEditable(
     profilePictureUrl: String?,
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
-    onClick: () -> Unit = {},
-    isOwnProfile: Boolean = false,
-    onEdit: (() -> Unit)? = null
+    size: Dp = 96.dp,
+    onEdit: () -> Unit,
+    isOwnProfile: Boolean = true
 ) {
     var isHovered by remember { mutableStateOf(false) }
 
@@ -78,22 +75,20 @@ fun ProfileImage(
                     ),
                     CircleShape
                 )
-                .clickable(onClick = onClick)
+                .clickable(onClick = onEdit)
         )
 
-        // Edit Overlay
+        // Edit Overlay (only shown if it's the user's own profile)
         if (isOwnProfile) {
-            onEdit?.let {
-                Modifier
+            Box(
+                modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
                     .hoverable(
                         interactionSource = remember { MutableInteractionSource() },
                         enabled = true,
                     )
-                    .clickable(
-                        onClick = it
-                    )
+                    .clickable(onClick = onEdit)
                     .background(
                         color = animateColorAsState(
                             if (isHovered) {
@@ -104,62 +99,38 @@ fun ProfileImage(
                             label = "overlayColor"
                         ).value,
                         shape = CircleShape
-                    )
-            }?.let {
-                Box(
-                    modifier = it,
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .alpha(
-                                animateFloatAsState(
-                                    if (isHovered) 1f else 0.85f,
-                                    label = "contentAlpha"
-                                ).value
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.CameraAlt,
-                            contentDescription = "Update Profile Picture",
-                            modifier = Modifier.size(size * 0.3f),
-                            tint = Color.White
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .alpha(
+                            animateFloatAsState(
+                                if (isHovered) 1f else 0.85f,
+                                label = "contentAlpha"
+                            ).value
                         )
-                        if (size >= 96.dp) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Update",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = (size.value * 0.12f).sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt,
+                        contentDescription = "Update Profile Picture",
+                        modifier = Modifier.size(size * 0.3f),
+                        tint = Color.White
+                    )
+                    if (size >= 96.dp) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Update",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = (size.value * 0.12f).sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewProfileImageEditableBig() {
-    ProfileImage(
-        "asd",
-        onClick = { },
-        onEdit = { },
-        size = 128.dp
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewProfileImageSmall() {
-    ProfileImage(
-        "asd",
-        onClick = { },
-    )
 }

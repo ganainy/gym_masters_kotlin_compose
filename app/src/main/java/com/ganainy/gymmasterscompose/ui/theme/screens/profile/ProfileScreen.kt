@@ -49,10 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.ganainy.gymmasterscompose.ui.theme.components.AccountProfileImage
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.PostListItem
+import com.ganainy.gymmasterscompose.ui.theme.components.ProfileHeader
 import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
@@ -124,7 +124,7 @@ private fun CurrentUserProfileContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AccountProfileImage(
+            ProfileHeader(
                 user = uiData.user,
                 stats = uiData.user.stats,
                 isOwnProfile = true,
@@ -175,7 +175,7 @@ private fun OtherUserProfileContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        AccountProfileImage(
+        ProfileHeader(
             user = uiData.user,
             stats = uiData.user.stats,
             isOwnProfile = false,

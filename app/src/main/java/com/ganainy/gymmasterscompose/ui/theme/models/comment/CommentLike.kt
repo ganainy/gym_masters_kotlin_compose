@@ -21,6 +21,6 @@ data class CommentLike(
         fun createId(userId: String, commentId: String, postId: String) =
             "${userId}_${commentId}_${postId}"
 
-        const val COMMENT_LIKES = "comment_likes" // Collection name for comment likes
+        const val COMMENT_LIKES_COLLECTION = "comment_likes" // Collection name for comment likes
     }
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -19,7 +20,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class WorkoutListViewModel @Inject constructor(
-private val workoutRepository: IWorkoutRepository,private val userRepository: IUserRepository
+    private val workoutRepository: IWorkoutRepository, private val userRepository: IUserRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutListUiData())
     var uiState = _uiState.asStateFlow()
@@ -27,10 +28,11 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
     init {
         loadWorkouts(_uiState.value.sortType)
 
+        // For local search filtering
         // Transform the uiState data state flow to filter workouts based on the search query.
         // If the search query is empty, return the original data. Otherwise, filter the workouts
         // whose titles contain the search query (case-insensitive).
-        uiState= _uiState.asStateFlow()
+        uiState = _uiState.asStateFlow()
             .map { data ->
                 if (data.searchQuery.isEmpty()) {
                     data
@@ -51,8 +53,20 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
                 SharingStarted.WhileSubscribed(5000),
                 WorkoutListUiData()
             )
-    }
 
+
+        // Listen for sort changes (require new firebase call)
+        viewModelScope.launch {
+            _uiState
+                .map { it.sortType }
+                .distinctUntilChanged()
+                .collect { sortType ->
+                    loadWorkouts(sortType)
+                }
+        }
+
+
+    }
 
 
     fun toggleWorkoutLike(workout: Workout) = viewModelScope.launch {
@@ -68,7 +82,6 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
     }
 
 
-
     fun toggleWorkoutSave(workout: Workout) = viewModelScope.launch {
         try {
             _uiState.update { it.copy(isLoading = true) }
@@ -76,7 +89,10 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
             val result = workoutRepository.toggleWorkoutSave(workout, userId)
 
             if (result is ResultWrapper.Success) {
-                val isSaved = workoutRepository.isWorkoutSavedByUser(workout.id, userId) as? ResultWrapper.Success
+                val isSaved = workoutRepository.isWorkoutSavedByUser(
+                    workout.id,
+                    userId
+                ) as? ResultWrapper.Success
                 if (isSaved?.data == true) {
                     workoutRepository.saveWorkoutLocally(workout)
                 } else {
@@ -101,10 +117,14 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
                     val workouts = workoutList.data
                     val userId = userRepository.getCurrentUserId()
                     val workoutWithStatusList = workouts.map { workout ->
-                        val isLikedDeferred = async { workoutRepository.isWorkoutLikedByUser(workout.id, userId) }
-                        val isSavedDeferred = async { workoutRepository.isWorkoutSavedByUser(workout.id, userId) }
-                        val isLiked = (isLikedDeferred.await() as? ResultWrapper.Success)?.data ?: false
-                        val isSaved = (isSavedDeferred.await() as? ResultWrapper.Success)?.data ?: false
+                        val isLikedDeferred =
+                            async { workoutRepository.isWorkoutLikedByUser(workout.id, userId) }
+                        val isSavedDeferred =
+                            async { workoutRepository.isWorkoutSavedByUser(workout.id, userId) }
+                        val isLiked =
+                            (isLikedDeferred.await() as? ResultWrapper.Success)?.data ?: false
+                        val isSaved =
+                            (isSavedDeferred.await() as? ResultWrapper.Success)?.data ?: false
                         WorkoutWithStatus(workout, isLiked, isSaved)
                     }
                     _uiState.update {
@@ -115,7 +135,13 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
                         )
                     }
                 } else {
-                    _uiState.update { it.copy(isLoading = false, workoutWithStatusList = emptyList(), sortType = sortType) }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            workoutWithStatusList = emptyList(),
+                            sortType = sortType
+                        )
+                    }
                 }
             }
 
@@ -134,7 +160,6 @@ private val workoutRepository: IWorkoutRepository,private val userRepository: IU
             _uiState.update { it.copy(isLoading = false, error = e.message) }
         }
     }
-
 
 
     fun loadLocalWorkouts() = viewModelScope.launch {

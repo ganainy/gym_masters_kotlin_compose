@@ -10,7 +10,7 @@ import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.PROFILE_PICT
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_IMAGES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_CREATOR
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -148,7 +148,7 @@ class UserRepository @Inject constructor(
         callbackFlow {
 
 
-            val postsRef = database.getReference(POSTS)
+            val postsRef = database.getReference(POSTS_COLLECTION)
                 .orderByChild("$POST_CREATOR/$ID")
                 .equalTo(userId)
 

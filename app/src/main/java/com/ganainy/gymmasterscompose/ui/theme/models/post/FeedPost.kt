@@ -32,7 +32,7 @@ data class FeedPost(
         const val POST_CREATOR = "postCreator"
         const val CREATOR_ID = "creatorId"
         const val POST_TAGS = "tags"
-        const val POSTS = "posts" // Collection name for posts
+        const val POSTS_COLLECTION = "posts" // Collection name for posts
         fun createId(): String = generateRandomId(POST)
     }
     }
@@ -50,7 +50,15 @@ data class PostMetrics(
     val likes: Int = 0,
     val comments: Int = 0,
     val shares: Int = 0
-)
+){
+    companion object {
+        const val POST_METRICS_LIKES = "likes"
+        const val POST_METRICS_COMMENTS = "comments"
+    }
+}
+
+
+
 
 
 /**

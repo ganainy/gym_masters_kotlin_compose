@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -25,7 +26,7 @@ fun PostInteractionRow(
     onLikeClick: () -> Unit = {},
     isLiked: Boolean = false,
     commentAmount: Int,
-    onCommentClick: () -> Unit = {}
+    onCommentClick: () -> Unit = {},
 ) {
 
     Row(
@@ -37,7 +38,7 @@ fun PostInteractionRow(
             Icon(
                 painter = painterResource(id = if (isLiked) R.drawable.liked_filled else R.drawable.like_outlined ), // Placeholder for like icon
                 contentDescription = "Like Icon",
-                modifier = Modifier.clickable { onLikeClick() }
+                modifier = Modifier.size(24.dp).clickable { onLikeClick() }
 
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -49,7 +50,7 @@ fun PostInteractionRow(
                 painter = painterResource(id = R.drawable.comment), // Placeholder for comment icon
                 contentDescription = "Comment Icon",
                 tint = Color.Gray,
-                modifier = Modifier.clickable { onCommentClick() }
+                modifier = Modifier.size(24.dp).clickable { onCommentClick() }
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(text = commentAmount.toString(), fontSize = 14.sp)
@@ -61,5 +62,5 @@ fun PostInteractionRow(
 @Preview(showBackground = true)
 @Composable
 fun PreviewPostInteractionRow() {
-    PostInteractionRow(5, {}, false, 8, {})
+    PostInteractionRow(5, {}, false, 8, {}, )
 }

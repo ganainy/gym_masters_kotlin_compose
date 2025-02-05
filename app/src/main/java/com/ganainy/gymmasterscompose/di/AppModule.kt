@@ -7,9 +7,11 @@ import com.ganainy.gymmasterscompose.Constants.FIREBASE_DATABASE_NAME
 import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.ExerciseApi
 import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.Secrets
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.CommentsRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ExerciseRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.HashtagRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ICommentsRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IExerciseRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IHashtagRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
@@ -215,6 +217,19 @@ object AppModule {
         exerciseRepository,
         ioDispatcher
     )
+
+
+    @Provides
+    @Singleton
+    fun provideCommentsRepository(
+        firebaseDatabase: FirebaseDatabase,
+        userRepository: IUserRepository,
+    ): ICommentsRepository {
+        return CommentsRepository(
+            firebaseDatabase =firebaseDatabase,
+            userRepository = userRepository
+        )
+    }
 
 }
 

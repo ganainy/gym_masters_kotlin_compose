@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagTextField
-import com.ganainy.gymmasterscompose.ui.theme.components.ProfileImage
+import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImageSmall
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +120,7 @@ fun CreatePostScreen(onNavigateBack: () -> Boolean) {
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ProfileImage(
+                ProfileImageSmall(
                     uiState.user?.profilePictureUrl,
                     Modifier
                         .size(40.dp)
