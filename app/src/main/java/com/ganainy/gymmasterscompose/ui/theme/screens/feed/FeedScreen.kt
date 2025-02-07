@@ -45,21 +45,15 @@ import androidx.navigation.NavController
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.post.FeedPostItem
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
 import kotlinx.coroutines.launch
 
 @Composable
 fun FeedScreen(
     navController: NavController,
+    navigateToDetailedPost: (post:FeedPost,isLiked: Boolean) -> Unit,
 ) {
-
-    //navigation actions
-    val handleLogout: () -> Unit = {
-        navController.navigate("auth") {
-            // Clear the entire back stack when logging out
-            popUpTo(0) { inclusive = true }
-        }
-        }
 
     val handleCreatePost: () -> Unit = {
         navController.navigate(Screen.CreatePost.route)
@@ -69,13 +63,6 @@ fun FeedScreen(
         navController.navigate(Screen.Main.Profile.route + "/$userId")
     }
 
-    val handleDiscover: () -> Unit = {
-        navController.navigate(Screen.Main.Discover.route)
-    }
-
-    val handleExercises: () -> Unit = {
-        navController.navigate(Screen.Main.ExerciseList.route)
-    }
 
     val handleCreateWorkout: () -> Unit = {
         navController.navigate(Screen.WorkoutSetup.route)
@@ -147,8 +134,7 @@ fun FeedScreen(
                                     feedPostWithLikesAndComments = feedPostWithLikesAndComments,
                                     onProfileClick = { handleProfile(feedPostWithLikesAndComments.post.postCreator.id) },
                                     onLikeIconClick = { viewModel.toggleReaction(feedPostWithLikesAndComments.post.id) },
-                                    onCommentIconClick = {viewModel.openComments(feedPostWithLikesAndComments.post.id)} ,
-                                    onCommentSubmit = {viewModel.addComment(it,feedPostWithLikesAndComments.post.id)}
+                                    onPostClick = { navigateToDetailedPost(feedPostWithLikesAndComments.post, feedPostWithLikesAndComments.isLiked) }
                                 )
                             }
                             // Load more posts when the last item is visible

@@ -3,10 +3,10 @@ package com.ganainy.gymmasterscompose.ui.theme.repository
 
 import com.ganainy.gymmasterscompose.Constants.FOLLOWING
 import com.ganainy.gymmasterscompose.ui.theme.models.Follow
-import com.ganainy.gymmasterscompose.ui.theme.models.Follow.Companion.FOLLOWS
+import com.ganainy.gymmasterscompose.ui.theme.models.Follow.Companion.FOLLOWS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.FOLLOWER_ID
-import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS_COLLECTION
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -37,7 +37,7 @@ class UsersRepository @Inject constructor(
     private val _userListFlow = MutableStateFlow<List<User>>(emptyList())
 
     override fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>> = callbackFlow {
-        val usersRef = database.getReference(USERS)
+        val usersRef = database.getReference(USERS_COLLECTION)
 
         val listener = usersRef.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -85,7 +85,7 @@ class UsersRepository @Inject constructor(
     override fun listenForFollowingUpdates(userId: String?): Flow<ResultWrapper<
             List<Follow>>> = callbackFlow {
         val userId = userId ?: currentUserId ?: return@callbackFlow
-        val followingRef = database.getReference(FOLLOWS).orderByChild(FOLLOWER_ID).equalTo(userId)
+        val followingRef = database.getReference(FOLLOWS_COLLECTION).orderByChild(FOLLOWER_ID).equalTo(userId)
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -126,7 +126,7 @@ class UsersRepository @Inject constructor(
 
     override fun getAllUsers(): Flow<List<User>> = callbackFlow {
         val currentUserId: String? = auth.uid
-        val userRef = database.getReference(USERS)
+        val userRef = database.getReference(USERS_COLLECTION)
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {

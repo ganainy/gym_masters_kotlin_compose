@@ -49,7 +49,6 @@ fun PostInteractionRow(
             Icon(
                 painter = painterResource(id = R.drawable.comment), // Placeholder for comment icon
                 contentDescription = "Comment Icon",
-                tint = Color.Gray,
                 modifier = Modifier.size(24.dp).clickable { onCommentClick() }
             )
             Spacer(modifier = Modifier.width(4.dp))

@@ -1,0 +1,38 @@
+package com.ganainy.gymmasterscompose.ui.theme.networking.retrofit
+
+import com.ganainy.gymmasterscompose.ui.theme.models.BodyPartList
+import com.ganainy.gymmasterscompose.ui.theme.models.EquipmentList
+import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import com.ganainy.gymmasterscompose.ui.theme.models.TargetList
+
+interface ExerciseApiService {
+    @GET("exercises")
+    suspend fun getExercises(
+        @Query("limit") limit: Int? = null,
+        @Query("offset") offset: Int? = null
+    ): List<Exercise>
+
+    @GET("exercises/bodyPart/{bodyPart}")
+    suspend fun getExercisesByBodyPart(@Path("bodyPart") bodyPart: String): List<Exercise>
+
+    @GET("exercises/bodyPartList")
+    suspend fun getBodyPartList(): BodyPartList
+
+    @GET("exercises/equipmentList")
+    suspend fun getEquipmentList(): EquipmentList
+
+    @GET("exercises/targetList")
+    suspend fun getTargetList(): TargetList
+
+    @GET("exercises/equipment/{type}")
+    suspend fun getExercisesByEquipment(@Path("type") type: String): List<Exercise>
+
+    @GET("exercises/target/{target}")
+    suspend fun getExercisesByTarget(@Path("target") target: String): List<Exercise>
+
+    @GET("exercises/exercise/{id}")
+    suspend fun getExerciseById(@Path("id") id: String): Exercise
+
+    @GET("exercises/name/{name}")
+    suspend fun getExercisesByName(@Path("name") name: String): List<Exercise>
+}

@@ -2,17 +2,18 @@ package com.ganainy.gymmasterscompose.ui.theme.repository
 
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.POST_COUNT
-import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_STATS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.LIKES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_METRICS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry.Companion.POSTS_BY_USER
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry.Companion.POSTS_BY_USER_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike.Companion.POST_LIKES
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike.Companion.POST_LIKES_COLLECTION
+import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -42,6 +43,8 @@ interface IPostRepository {
         userIds: Set<String>,
         lastPostTimestamp: Long?
     ): Flow<List<FeedPost>>
+
+    fun observePostMetricsUpdates(postId: String): Flow<PostMetrics>
 }
 
 
@@ -133,6 +136,28 @@ class PostRepository @Inject constructor(
         }
     }
 
+    override fun observePostMetricsUpdates(postId: String): Flow<PostMetrics> {
+        return callbackFlow {
+            val postMetricsRef = database.getReference(POSTS_COLLECTION).child(postId).child(POST_METRICS)
+            val listener = postMetricsRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    val metrics = snapshot.getValue(PostMetrics::class.java)
+                    if (metrics != null) {
+                        trySend(metrics)
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    close(error.toException())
+                }
+            })
+
+            awaitClose {
+                postMetricsRef.removeEventListener(listener)
+            }
+        }
+    }
+
 
     /**
      * Checks the like status of multiple posts for a specific user.
@@ -153,7 +178,7 @@ class PostRepository @Inject constructor(
             // Check all posts in one batch
             postIds.forEach { postId ->
                 val likeId = PostLike.createId(userId, postId)
-                val likeDoc = database.getReference("${POST_LIKES}/$likeId")
+                val likeDoc = database.getReference("${POST_LIKES_COLLECTION}/$likeId")
                     .get()
                     .await()
 
@@ -199,8 +224,8 @@ class PostRepository @Inject constructor(
         return try {
             val updates = hashMapOf<String, Any>(
                 "${POSTS_COLLECTION}/${modifiedFeedPost.id}" to modifiedFeedPost,
-                "${USERS}/${postAuthor.id}/${USER_STATS}/${POST_COUNT}" to ServerValue.increment(1),
-                "$POSTS_BY_USER/${modifiedFeedPost.postCreator.id}/${modifiedFeedPost.id}" to PostByUserEntry(
+                "${USERS_COLLECTION}/${postAuthor.id}/${USER_STATS}/${POST_COUNT}" to ServerValue.increment(1),
+                "$POSTS_BY_USER_COLLECTION/${modifiedFeedPost.postCreator.id}/${modifiedFeedPost.id}" to PostByUserEntry(
                     createdAt = modifiedFeedPost.createdAt
                 )
             )
@@ -231,19 +256,19 @@ class PostRepository @Inject constructor(
             // Determine the user ID to use
             val effectiveUserId = userId ?: userRepository.getCurrentUserId()
             val likeId = PostLike.createId(effectiveUserId, postId)
-            val postLikeRef = database.getReference("${POST_LIKES}/$likeId")
+            val postLikeRef = database.getReference("${POST_LIKES_COLLECTION}/$likeId")
 
             val updates = mutableMapOf<String, Any?>()
 
             // Check if the post is already liked by the user
             if (postLikeRef.get().await().exists()) {
                 // If liked, remove the like and decrement the like count
-                updates["${POST_LIKES}/${likeId}"] = null
+                updates["${POST_LIKES_COLLECTION}/${likeId}"] = null
                 updates["${POSTS_COLLECTION}/$postId/${POST_METRICS}/${LIKES}"] =
                     ServerValue.increment(-1)
             } else {
                 // If not liked, add the like and increment the like count
-                updates["${POST_LIKES}/${likeId}"] = PostLike(
+                updates["${POST_LIKES_COLLECTION}/${likeId}"] = PostLike(
                     id = likeId,
                     userId = effectiveUserId,
                     postId = postId,
@@ -277,7 +302,7 @@ class PostRepository @Inject constructor(
         val likeId = PostLike.createId(_userId, postId)
         try {
             // Reference to the post like in the database
-            val postLikeRef = database.getReference("${POST_LIKES}/$likeId")
+            val postLikeRef = database.getReference("${POST_LIKES_COLLECTION}/$likeId")
             // Retrieve the post like data
             val postLike = postLikeRef.get().await()
             // Emit success result with whether the post like exists

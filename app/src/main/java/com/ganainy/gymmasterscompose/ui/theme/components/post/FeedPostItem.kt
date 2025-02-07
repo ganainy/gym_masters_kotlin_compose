@@ -2,6 +2,7 @@ package com.ganainy.gymmasterscompose.ui.theme.components.post
 
 import Comment
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,20 +19,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,18 +44,18 @@ import com.ganainy.gymmasterscompose.ui.theme.components.UserInfoRow
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedPostWithLikes
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import kotlinx.coroutines.flow.Flow
 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FeedPostItem(
-    feedPostWithLikesAndComments: FeedPostWithLikesAndComments,
+    feedPostWithLikesAndComments: FeedPostWithLikes,
     onLikeIconClick: () -> Unit,
-    onCommentIconClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onCommentSubmit: (String) -> Unit
+    onPostClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -68,6 +63,7 @@ fun FeedPostItem(
             .padding(8.dp)
             .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
             .padding(16.dp)
+            .clickable { onPostClick() }
     ) {
         UserInfoRow(
             feedPostWithLikesAndComments.post.postCreator.displayName,
@@ -117,13 +113,6 @@ fun FeedPostItem(
             )
         }
 
-        if (feedPostWithLikesAndComments.showCommentSection) {
-            Spacer(modifier = Modifier.height(16.dp))
-            // Comment Section
-            PostCommentSection(feedPostWithLikesAndComments.commentList, onCommentSubmit = onCommentSubmit)
-        }
-
-
         Spacer(modifier = Modifier.height(16.dp))
 
         PostInteractionRow(
@@ -131,76 +120,16 @@ fun FeedPostItem(
             onLikeClick = onLikeIconClick,
             isLiked = feedPostWithLikesAndComments.isLiked,
             feedPostWithLikesAndComments.post.postMetrics.comments,
-            onCommentClick = onCommentIconClick,
         )
     }
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostCommentSection(
-    commentList: List<Comment>,
-    onCommentSubmit: (String) -> Unit // Callback for submitting a comment
-) {
-    var newCommentText by remember { mutableStateOf("") } // State for the new comment text
+fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Unit, isCommentLikedFlow: Flow<Boolean>,) {
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        // Display each comment
-        commentList.forEach { comment ->
-            CommentItem(comment = comment)
-            Spacer(modifier = Modifier.height(8.dp)) // Add spacing between comments
-        }
+    val isLiked by isCommentLikedFlow.collectAsState(initial = false)
 
-        // Comment Input Field
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Text Field for Comment Input
-            OutlinedTextField(
-                value = newCommentText,
-                onValueChange = { newCommentText = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp),
-                placeholder = { Text("Add a comment...") },
-                singleLine = false,
-                maxLines = 3,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                )
-            )
-
-            // Submit Button
-            IconButton(
-                onClick = {
-                    if (newCommentText.isNotBlank()) {
-                        onCommentSubmit(newCommentText) // Trigger callback with the new comment
-                        newCommentText = "" // Clear the input field
-                    }
-                },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Submit Comment",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-fun CommentItem(comment: Comment) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -247,7 +176,7 @@ fun CommentItem(comment: Comment) {
             Text(
                 text = comment.content,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = if (comment.isPending) Color.Gray else MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(4.dp)) // Spacing between comment and like button
@@ -257,17 +186,17 @@ fun CommentItem(comment: Comment) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { /* Handle like action */ },
+                    onClick = { onCommentLikeClick(comment.id) },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = if (false/*todo Check if current user liked the comment */) {
+                        imageVector = if (isLiked) {
                             Icons.Filled.Favorite // Filled heart if liked
                         } else {
                             Icons.Outlined.FavoriteBorder // Outlined heart if not liked
                         },
                         contentDescription = "Like Comment",
-                        tint = if (false/* todo Check if current user liked the comment */) {
+                        tint = if (isLiked) {
                             MaterialTheme.colorScheme.error // Red color if liked
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) // Gray color if not liked
@@ -290,7 +219,7 @@ fun CommentItem(comment: Comment) {
 @Composable
 fun PreviewFeedPostItem() {
     FeedPostItem(
-        feedPostWithLikesAndComments = FeedPostWithLikesAndComments(
+        feedPostWithLikesAndComments = FeedPostWithLikes(
             post = FeedPost(
                 content = "This is a post content",
                 postCreator = PostCreator(
@@ -317,8 +246,7 @@ fun PreviewFeedPostItem() {
             ),
         ),
         onLikeIconClick = {},
-        onCommentIconClick = { },
-        onProfileClick = {  },
-        onCommentSubmit = { }
+        onProfileClick = { },
+        onPostClick = { },
     )
 }

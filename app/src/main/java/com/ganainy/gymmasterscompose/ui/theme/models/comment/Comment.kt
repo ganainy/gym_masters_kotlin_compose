@@ -9,7 +9,9 @@ data class Comment(
     /*val parentId: String? = null,    // For future reply support
     val replyCount: Int = 0,         // For future reply support*/
     // Embedded user display data
-    val userDisplayInfo: UserDisplayInfo = UserDisplayInfo()
+    val userDisplayInfo: UserDisplayInfo = UserDisplayInfo(),
+    val isPending: Boolean = false, // True if the comment is pending (e.g. local creation) to show comment
+    // immediately greyed out until it's added to the database
 )
 {
     companion object

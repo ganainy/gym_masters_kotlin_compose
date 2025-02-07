@@ -31,6 +31,7 @@ import androidx.navigation.navigation
 import com.ganainy.gymmasterscompose.AuthUiState
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_post.CreatePostScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.CreateWorkoutViewModel
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.WorkoutExerciseListScreen
@@ -39,6 +40,7 @@ import com.ganainy.gymmasterscompose.ui.theme.screens.discover.DiscoverScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.exercise.ExerciseScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.exercise_list.ExerciseListScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.PostDetailsScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.profile.ProfileScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpScreen
@@ -71,7 +73,9 @@ sealed class Screen(val route: String, val icon: Int? = null, val label: String?
     object Exercise : Screen("exercise")
     object WorkoutSetup : Screen("workout_setup")
     object WorkoutExerciseList : Screen("workout_exercise_list")
+    object DetailedPost : Screen("detailed_post")
 }
+
 
 /*
 * Auth Graph and Main Graph are separated with different navigation() subgraphs to avoid back
@@ -136,7 +140,19 @@ fun AppNavigation(
             route = "main"
         ) {
             // FeedScreen composable
-            composable(route = Screen.Main.Feed.route) { FeedScreen(navController) }
+            composable(route = Screen.Main.Feed.route) {
+                FeedScreen(navController,
+
+                    navigateToDetailedPost = { post,isLiked ->
+                        // Encode post object to JSON and navigate to DetailedPost
+                        val postJson = Uri.encode(Gson().toJson(post))
+                        navController.navigate("${Screen.DetailedPost.route}?post=$postJson?isLiked=$isLiked")
+                    }
+
+                )
+
+
+            }
             // DiscoverScreen composable
             composable(route = Screen.Main.Discover.route) { DiscoverScreen(navController) }
             // WorkoutListScreen composable
@@ -223,6 +239,26 @@ fun AppNavigation(
                     viewModel = viewModel
                 )
             }
+
+            // DetailedPostScreen composable
+            composable(
+                "${Screen.DetailedPost.route}?post={post}?isLiked={isLiked}",
+                arguments = listOf(
+                    navArgument("post") { type = NavType.StringType },
+                    navArgument("isLiked") { type = NavType.BoolType }
+                )
+            ) { backStackEntry ->
+                val postJson = backStackEntry.arguments?.getString("post")
+                val isLiked = backStackEntry.arguments?.getBoolean("isLiked")
+                val post = Gson().fromJson(postJson, FeedPost::class.java)
+                PostDetailsScreen(
+                    post = post,
+                    isLiked = isLiked ?: false,
+                )
+            }
+
+
+
         }
     }
 }
@@ -247,11 +283,13 @@ fun MainScreen(
                     popUpTo(0) { inclusive = true }
                 }
             }
+
             AuthUiState.Unauthenticated -> {
                 navController.navigate("auth") {
                     popUpTo(0) { inclusive = true }
                 }
             }
+
             AuthUiState.Loading -> {} // Do nothing, we're already at loading screen
         }
     }

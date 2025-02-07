@@ -8,9 +8,11 @@ import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
 import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
+import com.ganainy.gymmasterscompose.ui.theme.models.comment.CommentLikeDao
+import com.ganainy.gymmasterscompose.ui.theme.models.comment.CommentLikeEntity
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutEntity
 
-@Database(entities = [Exercise::class, BodyPart::class, Equipment::class, TargetMuscle::class,  WorkoutEntity::class], version = 4)
+@Database(entities = [Exercise::class, BodyPart::class, Equipment::class, TargetMuscle::class,  WorkoutEntity::class,  CommentLikeEntity::class], version = 5)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
@@ -18,4 +20,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun equipmentDao(): EquipmentDao
     abstract fun targetDao(): TargetDao
     abstract fun workoutDao(): WorkoutDao
+    abstract fun commentLikeDao(): CommentLikeDao
 }

@@ -18,6 +18,6 @@ data class WorkoutSave(
 ){
     companion object {
         fun createId(userId: String, workoutId: String) = "${userId}_${workoutId}"
-        const val WORKOUT_SAVES = "workout_saves" // Collection name for workout saves
+        const val WORKOUT_SAVES_COLLECTION = "workout_saves" // Collection name for workout saves
     }
 }

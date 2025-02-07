@@ -2,10 +2,10 @@ package com.ganainy.gymmasterscompose.ui.theme.repository
 
 import com.ganainy.gymmasterscompose.ui.theme.models.Follow
 import com.ganainy.gymmasterscompose.ui.theme.models.Follow.Companion.FOLLOWER_ID
-import com.ganainy.gymmasterscompose.ui.theme.models.Follow.Companion.FOLLOWS
+import com.ganainy.gymmasterscompose.ui.theme.models.Follow.Companion.FOLLOWS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.FOLLOWERS_COUNT
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.FOLLOWING_COUNT
-import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_STATS
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -56,7 +56,7 @@ class SocialRepository @Inject constructor(
                 return@callbackFlow
             }
 
-            val followsRef = database.getReference(FOLLOWS)
+            val followsRef = database.getReference(FOLLOWS_COLLECTION)
                 .orderByChild(FOLLOWER_ID)
                 .equalTo(userId)
 
@@ -97,7 +97,7 @@ class SocialRepository @Inject constructor(
         }
 
         val isFollowing = database.getReference(
-            "${FOLLOWS}/${
+            "${FOLLOWS_COLLECTION}/${
                 Follow.createId(
                     followerId = currentUserUid,
                     followedId = userIdToCheck
@@ -136,21 +136,21 @@ class SocialRepository @Inject constructor(
                     val updates = if (followingResult.data) {
                         // If already following, remove follow and decrement counts
                         hashMapOf(
-                            "${FOLLOWS}/${followId}" to null,
-                            "$USERS/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(-1),
-                            "$USERS/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(-1)
+                            "${FOLLOWS_COLLECTION}/${followId}" to null,
+                            "$USERS_COLLECTION/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(-1),
+                            "$USERS_COLLECTION/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(-1)
                         )
                     } else {
                         // If not following, add follow and increment counts
                         hashMapOf(
-                            "${FOLLOWS}/${followId}" to Follow(
+                            "${FOLLOWS_COLLECTION}/${followId}" to Follow(
                                 id = followId,
                                 followerId = currentUserUid,
                                 followedId = userId,
                                 timestamp = System.currentTimeMillis()
                             ),
-                            "$USERS/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(1),
-                            "$USERS/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(1)
+                            "$USERS_COLLECTION/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(1),
+                            "$USERS_COLLECTION/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(1)
                         )
                     }
 

@@ -17,7 +17,7 @@ data class User(
     val settings: UserSettings = UserSettings()
 ){
     companion object {
-        const val USERS = "users"
+        const val USERS_COLLECTION = "users"
         const val USER_STATS = "stats"
         const val POST_COUNT = "postCount"
         const val FOLLOWING_COUNT = "followingCount"

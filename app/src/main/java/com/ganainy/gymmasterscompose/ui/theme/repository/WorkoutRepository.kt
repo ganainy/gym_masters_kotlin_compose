@@ -10,9 +10,9 @@ import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutEntity.Compa
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutEntity.Companion.WORKOUT_LIKES_COUNT
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutEntity.Companion.WORKOUT_SAVE_COUNT
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutLike
-import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutLike.Companion.WORKOUT_LIKES
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutLike.Companion.WORKOUT_LIKES_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutSave
-import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutSave.Companion.WORKOUT_SAVES
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutSave.Companion.WORKOUT_SAVES_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.toWorkout
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.toWorkoutEntity
 import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
@@ -161,8 +161,8 @@ class WorkoutRepository @Inject constructor(
             updates["$WORKOUTS_COLLECTION/$workoutId"] = null
 
             // Delete likes and saves
-            updates["$WORKOUT_LIKES/$workoutId"] = null
-            updates["$WORKOUT_SAVES/$workoutId"] = null
+            updates["$WORKOUT_LIKES_COLLECTION/$workoutId"] = null
+            updates["$WORKOUT_SAVES_COLLECTION/$workoutId"] = null
 
             // Update hashtags
             updates.putAll(hashtagRepository.deleteOrDecreaseHashtags(workout.tags))
@@ -207,7 +207,7 @@ class WorkoutRepository @Inject constructor(
     override suspend fun isWorkoutLikedByUser(workoutId: String, userId: String): ResultWrapper<Boolean> {
         return try {
             val likeSnapshot = database.reference
-                .child(WORKOUT_LIKES)
+                .child(WORKOUT_LIKES_COLLECTION)
                 .child(WorkoutLike.createId(userId, workoutId))
                 .get()
                 .await()
@@ -227,7 +227,7 @@ class WorkoutRepository @Inject constructor(
     override suspend fun isWorkoutSavedByUser(workoutId: String, userId: String): ResultWrapper<Boolean> {
         return try {
             val saveSnapshot = database.reference
-                .child(WORKOUT_SAVES)
+                .child(WORKOUT_SAVES_COLLECTION)
                 .child(WorkoutSave.createId(userId, workoutId))
                 .get()
                 .await()
@@ -257,12 +257,12 @@ class WorkoutRepository @Inject constructor(
 
             if (isLiked) {
                 // Remove like
-                updates["$WORKOUT_LIKES/$likeKey"] = null
+                updates["$WORKOUT_LIKES_COLLECTION/$likeKey"] = null
                 updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_LIKES_COUNT"] = ServerValue.increment(-1)
             } else {
                 // Add like
                 val currentTimestamp = System.currentTimeMillis()
-                updates["$WORKOUT_LIKES/$likeKey"] = WorkoutLike(id =likeKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
+                updates["$WORKOUT_LIKES_COLLECTION/$likeKey"] = WorkoutLike(id =likeKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
                 updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_LIKES_COUNT"] = ServerValue.increment(1)
             }
 
@@ -292,12 +292,12 @@ class WorkoutRepository @Inject constructor(
 
             if (isSaved) {
                 // Remove save
-                updates["$WORKOUT_SAVES/$saveKey"] = null
+                updates["$WORKOUT_SAVES_COLLECTION/$saveKey"] = null
                 updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_SAVE_COUNT"] = ServerValue.increment(-1)
             } else {
                 // Add save
                 val currentTimestamp = System.currentTimeMillis()
-                updates["$WORKOUT_SAVES/$saveKey"] = WorkoutSave(id =saveKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
+                updates["$WORKOUT_SAVES_COLLECTION/$saveKey"] = WorkoutSave(id =saveKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
                 updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_SAVE_COUNT"] =ServerValue.increment(1)
             }
 

@@ -17,7 +17,7 @@ data class Follow(
     companion object {
         fun createId(followerId: String, followedId: String) = "${followerId}_${followedId}"
         const val FOLLOWER_ID = "followerId"
-    const val FOLLOWS_COLLECTION = "follows" // Collection name for follows
+    const val FOLLOWS = "follows" // Collection name for follows
     }
 
 }

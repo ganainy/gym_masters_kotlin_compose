@@ -1,0 +1,44 @@
+import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedUiState
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+fun toggleReaction(postId: String) {
+    // Prevent duplicate operations
+    if (!ongoingOperations.add(postId)) return
+
+    // Get current state and determine new reaction state
+    val currentPosts = _feedUiData.value.postList
+    val post = currentPosts.find { it.post.id == postId } ?: return
+    val newReactionState = !post.isLiked
+
+    // Optimistically update UI
+    updatePostReactionState(postId, newReactionState)
+
+    viewModelScope.launch {
+        runCatching {
+            postRepository.togglePostReaction(userId = null, postId = postId)
+        }.onFailure { error ->
+            // Revert optimistic update on failure
+            updatePostReactionState(postId, !newReactionState)
+            _uiState.value = FeedUiState.Error.IntError(R.string.error_updating_reaction)
+        }.also {
+            // Clean up ongoing operation
+            ongoingOperations.remove(postId)
+        }
+    }
+}

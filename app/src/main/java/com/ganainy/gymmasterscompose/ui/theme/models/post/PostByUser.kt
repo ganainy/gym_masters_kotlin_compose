@@ -10,7 +10,7 @@ data class PostByUserEntry(
 )
 {
     companion object {
-        const val POSTS_BY_USER = "posts_by_user"
+        const val POSTS_BY_USER_COLLECTION = "posts_by_user"
         const val CREATED_AT = "createdAt"
 
 }

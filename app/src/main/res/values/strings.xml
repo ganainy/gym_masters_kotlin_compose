@@ -66,4 +66,5 @@
     <string name="description">Description</string>
     <string name="duration_minutes">Duration (minutes)</string>
     <string name="workout_title">Workout Title</string>
+    <string name="error_adding_comment">Error adding comment</string>
 </resources>

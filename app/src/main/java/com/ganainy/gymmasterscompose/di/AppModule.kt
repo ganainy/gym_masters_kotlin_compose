@@ -224,10 +224,12 @@ object AppModule {
     fun provideCommentsRepository(
         firebaseDatabase: FirebaseDatabase,
         userRepository: IUserRepository,
+        appDatabase: AppDatabase
     ): ICommentsRepository {
         return CommentsRepository(
             firebaseDatabase =firebaseDatabase,
-            userRepository = userRepository
+            userRepository = userRepository,
+            appDatabase = appDatabase
         )
     }
 

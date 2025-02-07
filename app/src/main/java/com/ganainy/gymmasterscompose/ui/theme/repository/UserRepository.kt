@@ -1,17 +1,18 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
+import UserDisplayInfo
 import android.net.Uri
 import android.util.Log
 import com.ganainy.gymmasterscompose.Constants.ID
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.utils.CustomException
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.PROFILE_PICTURE_URL
-import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS
+import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_IMAGES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_CREATOR
+import com.ganainy.gymmasterscompose.utils.CustomException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
@@ -39,6 +40,7 @@ interface IUserRepository {
     suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> // get notified when user changes
     suspend fun getUser(userId: String?): ResultWrapper<User> //read user only once, not notified if user changes
     suspend fun updateUserProfileImage(imagePath: String): ResultWrapper<String>
+    abstract fun getUserDisplayInfo(): UserDisplayInfo
 }
 
 
@@ -81,7 +83,7 @@ class UserRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 // Reference to the user in the database
-                val userRef = database.getReference(USERS).child(userId)
+                val userRef = database.getReference(USERS_COLLECTION).child(userId)
                 // Retrieve the user data snapshot
                 val snapshot = userRef.get().await()
                 // Get the user details from the snapshot
@@ -117,7 +119,7 @@ class UserRepository @Inject constructor(
     override suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> = callbackFlow {
         val currentUserId = getCurrentUserId()
         // Determine the reference to the user in the database
-        val userRef = database.getReference(USERS).child(userId ?: currentUserId)
+        val userRef = database.getReference(USERS_COLLECTION).child(userId ?: currentUserId)
 
         // Listener to handle data changes and errors
         val listener = object : ValueEventListener {
@@ -172,7 +174,7 @@ class UserRepository @Inject constructor(
 
 
     override suspend fun updateUser(updates: Map<String, Any>): ResultWrapper<Unit> {
-        val usersCollection = database.getReference(USERS)
+        val usersCollection = database.getReference(USERS_COLLECTION)
         return auth.currentUser?.uid?.let { uid ->
             try {
                 usersCollection.child(uid).updateChildren(updates).await()
@@ -203,7 +205,7 @@ class UserRepository @Inject constructor(
             try {
                 // Try to update the database
                 val userImageDatabaseRef = database
-                    .getReference(USERS)
+                    .getReference(USERS_COLLECTION)
                     .child(getCurrentUserId())
                     .child(PROFILE_PICTURE_URL)
 
@@ -225,6 +227,25 @@ class UserRepository @Inject constructor(
     }
 
 
+    /**
+     * Retrieves the display information of the current user.
+     *
+     * @return A UserDisplayInfo object containing the display name and profile image URL of the current user.
+     *         If the current user is null, returns a UserDisplayInfo object with default values.
+     */
+    override fun getUserDisplayInfo(): UserDisplayInfo {
+        val currentUser = _currentUser.value
+        return if (currentUser != null) {
+            UserDisplayInfo(
+                displayName = currentUser.displayName ?: "Unknown",
+                profileImageUrl = currentUser.photoUrl.toString()
+            )
+        } else {
+            UserDisplayInfo()
+        }
+    }
+
+
     /*todo
     // Update last active periodically
     viewModelScope.launch {
@@ -235,7 +256,7 @@ class UserRepository @Inject constructor(
     }*/
     suspend fun updateUserLastActive() {
         auth.currentUser?.uid?.let { uid ->
-            val userRef = database.getReference(USERS).child(uid)
+            val userRef = database.getReference(USERS_COLLECTION).child(uid)
 
             userRef.child("lastActive").setValue(System.currentTimeMillis()).await()
         }

@@ -1,12 +1,9 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.feed
 
-import Comment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.ICommentsRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
@@ -17,8 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -40,25 +35,21 @@ sealed class FeedUiState {
 
 data class FeedUiData(
     val followingUserIds: Set<String>,
-    val postList: List<FeedPostWithLikesAndComments>,
+    val postList: List<FeedPostWithLikes>,
     var lastLoadedPostTimestamp: Long? = null // used for pagination, first most recent 20 posts are loaded then on load more older posts are loaded
 
 )
 
-data class FeedPostWithLikesAndComments(
+data class FeedPostWithLikes(
     val post: FeedPost,
     val isLiked: Boolean = false, // used to show like icon as filled or empty based on if user liked the post or not
-    val commentList: List<Comment> = emptyList(),
-    val showCommentSection: Boolean = false // used to show comment section when user clicks on comment icon
 )
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
-    private val authRepository: IAuthRepository,
     private val socialRepository: ISocialRepository,
     private val userRepository: IUserRepository,
     private val postRepository: IPostRepository,
-    private val commentsRepository: ICommentsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
@@ -131,27 +122,21 @@ class FeedViewModel @Inject constructor(
             // If no posts, emit empty list immediately
             .flatMapLatest { posts ->
                 if (posts.isEmpty()) {
-                    flow { emit(emptyList<FeedPostWithLikesAndComments>()) }
+                    flow { emit(emptyList()) }
                 } else {
                     // Get the IDs of the posts
                     val postIds = posts.map { it.id }.toSet()
 
-                    // Combine the likes and comments flows
-                    combine(
-                        // Fetch the likes for the posts
-                        postRepository.observePostsLikes(postIds, userId = null),
-                        // Fetch the comments for the posts
-                        commentsRepository.observeCommentsForPosts(postIds)
-                    ) { likedPostIds, commentsMap ->
-                        // Combine the posts, likes and comments into a single list
-                        posts.map { post ->
-                            FeedPostWithLikesAndComments(
-                                post = post,
-                                isLiked = likedPostIds[post.id] ?: false,
-                                commentList = commentsMap[post.id] ?: emptyList()
-                            )
+                    // Fetch the likes for the posts
+                    postRepository.observePostsLikes(postIds, userId = null)
+                        .map { likeMap ->
+                            posts.map { post ->
+                                FeedPostWithLikes(
+                                    post = post,
+                                    isLiked = likeMap[post.id] ?: false,
+                                )
+                            }
                         }
-                    }
                 }
             }
             // Catch any error that occurs during the fetching of likes and comments
@@ -175,21 +160,6 @@ class FeedViewModel @Inject constructor(
             }
     }
 
-    /**
-     * Listens to changes in the feed posts by observing the following user IDs.
-     * When the following user IDs change, it fetches posts for the updated list of users.
-     */
-    private fun observeFollowedUsers() {
-        viewModelScope.launch {
-            _feedUiData
-                .map { it.followingUserIds }
-                .distinctUntilChanged()
-                .filter { it.isNotEmpty() }
-                .collect { userIds ->
-                    observePostsOfUsers(userIds)
-                }
-        }
-    }
 
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
@@ -238,7 +208,7 @@ class FeedViewModel @Inject constructor(
                     // Update the feed UI data with the new posts and their like status
                     _feedUiData.update { currentState ->
                         val updatedPosts = posts.map { post ->
-                            FeedPostWithLikesAndComments(
+                            FeedPostWithLikes(
                                 post = post,
                                 isLiked = likeMap[post.id] ?: false
                             )
@@ -255,28 +225,6 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    fun openComments(postId: String) {
-        _feedUiData.update { currentState ->
-            val updatedPostList = currentState.postList.map { postWithLikesAndComments ->
-                if (postWithLikesAndComments.post.id == postId) {
-                    postWithLikesAndComments.copy(showCommentSection = !postWithLikesAndComments.showCommentSection)
-                } else {
-                    postWithLikesAndComments
-                }
-            }
-            currentState.copy(postList = updatedPostList)
-        }
-    }
 
-
-    fun addComment(commentContent: String, postId: String) {
-        viewModelScope.launch {
-            try {
-                commentsRepository.addComment(postId= postId, content = commentContent)
-            } catch (e: Exception) {
-                _uiState.value = FeedUiState.Error.StringError(e.message ?: "Unknown error")
-            }
-        }
-    }
 
 }
