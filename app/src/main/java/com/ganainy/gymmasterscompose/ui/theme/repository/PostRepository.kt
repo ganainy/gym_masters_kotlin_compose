@@ -1,11 +1,11 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
+import android.net.Uri
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.POST_COUNT
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USERS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.User.Companion.USER_STATS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.LIKES
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POSTS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost.Companion.POST_METRICS
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostByUserEntry
@@ -14,14 +14,19 @@ import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostLike.Companion.POST_LIKES_COLLECTION
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
+import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.Query
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
@@ -31,13 +36,7 @@ import javax.inject.Inject
 
 // Posts and feed management
 interface IPostRepository {
-    suspend fun createPost(feedPost: FeedPost, postAuthor: User?): ResultWrapper<Unit>
-    suspend fun togglePostReaction(userId: String?, postId: String): ResultWrapper<Unit>
-    suspend fun observeIsPostLikedByUser(
-        userId: String?,
-        postId: String
-    ): Flow<ResultWrapper<Boolean>>
-
+    suspend fun createPost(feedPost: FeedPost, postAuthor: User?, selectedImages: List<Uri>): ResultWrapper<Unit>
     suspend fun observePostsLikes(postIds: Set<String>, userId: String?): Flow<Map<String, Boolean>>
     suspend fun observePostsOfUsers(
         userIds: Set<String>,
@@ -50,7 +49,8 @@ interface IPostRepository {
 
 class PostRepository @Inject constructor(
     val userRepository: IUserRepository, val database: FirebaseDatabase,
-    private val hashtagRepository: IHashtagRepository
+    private val hashtagRepository: IHashtagRepository,
+    private val storage: FirebaseStorage
 ) :
     IPostRepository {
 
@@ -191,37 +191,64 @@ class PostRepository @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+
     /**
      * Creates a new post in the database.
      *
-     * This function performs the following steps:
-     * 1. Copies the provided `FeedPost` object and assigns it a new ID, sets the post creator details,
-     *    and sets the current timestamp as the creation time.
-     * 2. Prepares a map of updates to be applied to the database, including the new post and incrementing
-     *    the post count for the user, updating, creating hashtags and creating an entry in the post by user collection.
-     * 3. Updates the database with the prepared updates.
+     * This function handles the creation of a new feed post, including uploading images,
+     * associating the post with its author, and updating relevant counters and indices.
      *
-     * @param feedPost The `FeedPost` object containing the details of the post to be created.
-     * @return A `ResultWrapper` containing `Unit` on success or an error if the operation fails.
+     * @param feedPost The [FeedPost] object containing the content of the post. This object should not contain the `id`, `postCreator`, `createdAt`, and `imageUrlList` properties.
+     *                 These properties will be generated and set within the function.
+     * @param postAuthor The [User] object representing the author of the post. If null, an error is returned.
+     * @param selectedImages A list of [Uri] objects representing the images to be included in the post.
+     *                       These images will be uploaded, and their URLs will be stored in the post.
+     *
+     * @return A [ResultWrapper] object indicating the success or failure of the operation.
+     *         - [ResultWrapper.Success] with [Unit] if the post was created successfully.
+     *         - [ResultWrapper.Error] with an [Exception] if an error occurred during post creation.
+     *           Possible error conditions include:
+     *           - `postAuthor` is null.
+     *           - Errors during image upload.
+     *           - Errors during database operations.
+     *
+     * @throws Exception if any operation within the try block fails. Exceptions are caught and wrapped in a ResultWrapper.Error.
+     *
+     * **Process:**
+     * 1. **Author Check:** Verifies that `postAuthor` is not null. If it is, returns an error.
+     * 2. **Image Upload:** Uploads the images specified in `selectedImages` to Firebase Storage.
+     *    Returns a list of download URLs for the uploaded images.
+     * 3. **Post Creation:**
+     *    - Generates a unique ID for the post using `FeedPost.createId()`.
+     *    - Creates a [PostCreator] object from the `postAuthor` information.
+     *    - Sets the creation timestamp (`createdAt`) to the current time.
+     *    - Creates a copy of the provided `feedPost` object using its copy method and fill all the missing data: `id`, `postCreator`, `createdAt` and `imageUrlList`.
      */
-    override suspend fun createPost(feedPost: FeedPost, postAuthor: User?): ResultWrapper<Unit> {
-
+    override suspend fun createPost(
+        feedPost: FeedPost,
+        postAuthor: User?,
+        selectedImages: List<Uri>
+    ): ResultWrapper<Unit> {
         if (postAuthor == null) {
             return ResultWrapper.Error(Exception("couldn't retrieve post because of missing author"))
         }
 
-        val createdAt = System.currentTimeMillis()
-        val modifiedFeedPost = feedPost.copy(
-            id = FeedPost.createId(),
-            postCreator = PostCreator(
-                id = postAuthor.id,
-                displayName = postAuthor.displayName,
-                profilePictureUrl = postAuthor.profilePictureUrl ?: ""
-            ),
-            createdAt = createdAt
-        )
-
         return try {
+            // Upload images first and get their download URLs
+            val imageUrls = uploadImages(postAuthor.id, selectedImages)
+
+            val createdAt = System.currentTimeMillis()
+            val modifiedFeedPost = feedPost.copy(
+                id = FeedPost.createId(),
+                postCreator = PostCreator(
+                    id = postAuthor.id,
+                    displayName = postAuthor.displayName,
+                    profilePictureUrl = postAuthor.profilePictureUrl ?: ""
+                ),
+                createdAt = createdAt,
+                imageUrlList = imageUrls // Add the image URLs to the post
+            )
+
             val updates = hashMapOf<String, Any>(
                 "${POSTS_COLLECTION}/${modifiedFeedPost.id}" to modifiedFeedPost,
                 "${USERS_COLLECTION}/${postAuthor.id}/${USER_STATS}/${POST_COUNT}" to ServerValue.increment(1),
@@ -230,87 +257,75 @@ class PostRepository @Inject constructor(
                 )
             )
 
-            // Check if the post has tags
-            // If tags exist, increment the use count and update the last used timestamp
-            // Otherwise, create new hashtags
             updates.putAll(hashtagRepository.updateHashtags(modifiedFeedPost.tags))
 
-
             database.reference.updateChildren(updates).await()
             ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            ResultWrapper.Error(Exception("Error creating post"))
+            ResultWrapper.Error(Exception("Error creating post: ${e.message}"))
         }
     }
 
-
     /**
-     * Toggles the reaction (like/unlike) on a post for a specific user.
+     * Uploads a list of images to Firebase Storage for a specific user.
      *
-     * @param userId The ID of the user performing the action. If null, the currently authenticated user is used.
-     * @param postId The ID of the post to toggle the reaction on.
-     * @return A ResultWrapper containing Unit on success or an error.
+     * This function takes a user ID and a list of image URIs, uploads each image
+     * to Firebase Storage under a user-specific directory, and returns a list of
+     * download URLs for the uploaded images.
+     *
+     * @param userId The ID of the user uploading the images. This is used to
+     *               organize images within the storage bucket.
+     * @param images A list of image URIs representing the images to be uploaded.
+     *               These URIs should point to local files.
+     * @return A list of strings, where each string is the download URL of an
+     *         uploaded image. The order of the URLs corresponds to the order of
+     *         the input image URIs.
+     * @throws Exception If any image fails to upload, an exception is thrown
+     *                   with a message describing the failure.
+     *
+     * Example usage:
+     * ```kotlin
+     * val userId = "user123"
+     * val imageUris = listOf(Uri.parse("file:///path/to/image1.jpg"), Uri.parse("file:///path/to/image2.png"))
+     * try {
+     *     val downloadUrls = uploadImages(userId, imageUris)
+     *     // Use the downloadUrls (e.g., store them in a database)
+     * } catch (e: Exception) {
+     *     // Handle the upload failure (e.g., show an error message)
+     *     println("Image upload failed: ${e.message}")
+     * }
+     * ```
+     *
+     * Note: This function uses coroutines for asynchronous operations. It
+     *       is designed to be called within a coroutine scope.
      */
-    override suspend fun togglePostReaction(userId: String?, postId: String): ResultWrapper<Unit> {
-        return try {
-            // Determine the user ID to use
-            val effectiveUserId = userId ?: userRepository.getCurrentUserId()
-            val likeId = PostLike.createId(effectiveUserId, postId)
-            val postLikeRef = database.getReference("${POST_LIKES_COLLECTION}/$likeId")
+    private suspend fun uploadImages(userId: String, images: List<Uri>): List<String> = coroutineScope {
+        val storageRef = storage.reference
 
-            val updates = mutableMapOf<String, Any?>()
+        images.map { imageUri ->
+            async {
+                try {
+                    // Create a unique filename for each image
+                    val filename = "${generateRandomId("image")}.jpg"
+                    val imageRef = storageRef
+                        .child(POSTS_COLLECTION)
+                        .child(userId)
+                        .child(filename)
 
-            // Check if the post is already liked by the user
-            if (postLikeRef.get().await().exists()) {
-                // If liked, remove the like and decrement the like count
-                updates["${POST_LIKES_COLLECTION}/${likeId}"] = null
-                updates["${POSTS_COLLECTION}/$postId/${POST_METRICS}/${LIKES}"] =
-                    ServerValue.increment(-1)
-            } else {
-                // If not liked, add the like and increment the like count
-                updates["${POST_LIKES_COLLECTION}/${likeId}"] = PostLike(
-                    id = likeId,
-                    userId = effectiveUserId,
-                    postId = postId,
-                    timestamp = System.currentTimeMillis()
-                )
-                updates["${POSTS_COLLECTION}/$postId/${POST_METRICS}/${LIKES}"] =
-                    ServerValue.increment(1)
+                    // Upload the image
+                    imageRef.putFile(imageUri).await()
+
+                    // Get the download URL
+                    imageRef.downloadUrl.await().toString()
+                } catch (e: Exception) {
+                    throw Exception("Failed to upload image: ${e.message}")
+                }
             }
-
-            database.reference.updateChildren(updates).await()
-            ResultWrapper.Success(Unit)
-        } catch (e: Exception) {
-            ResultWrapper.Error(e)
-        }
+        }.awaitAll() // Wait for all uploads to complete
     }
 
 
-    /**
-     * Checks if a post is liked by a specific user.
-     *
-     * @param userId The ID of the user to check. If null, the currently authenticated user is used.
-     * @param postId The ID of the post to check.
-     * @return A Flow emitting ResultWrapper containing a Boolean indicating whether the post is liked by the user or an error.
-     */
-    override suspend fun observeIsPostLikedByUser(
-        userId: String?,
-        postId: String
-    ): Flow<ResultWrapper<Boolean>> = flow {
-        // Determine the user ID to use
-        val _userId = userId ?: userRepository.getCurrentUserId()
-        val likeId = PostLike.createId(_userId, postId)
-        try {
-            // Reference to the post like in the database
-            val postLikeRef = database.getReference("${POST_LIKES_COLLECTION}/$likeId")
-            // Retrieve the post like data
-            val postLike = postLikeRef.get().await()
-            // Emit success result with whether the post like exists
-            emit(ResultWrapper.Success(postLike.exists()))
-        } catch (e: Exception) {
-            // Emit error result if an exception occurs
-            emit(ResultWrapper.Error(Exception("Error checking if post is liked")))
-        }
-    }
+
+
 
 }

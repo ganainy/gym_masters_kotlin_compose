@@ -46,26 +46,21 @@ import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkoutListScreen(navController: NavHostController) {
-
-    val navigateToWorkout: (Workout) -> Unit = { workout ->
-        //todo
-        //navController.navigate(Screen.Main.Profile.route + "/$userId")
-    }
+fun WorkoutListScreen(
+    navController: NavHostController,
+    navigateToWorkoutDetails: (Workout,isLiked: Boolean,isSaved: Boolean) -> Unit
+) {
 
 
     val viewModel: WorkoutListViewModel = hiltViewModel()
 
     val uiState by viewModel.uiState.collectAsState()
 
-    val coroutineScope = rememberCoroutineScope()
-
-
     WorkoutListContent(
         uiState = uiState,
         onQueryChange = viewModel::updateSearchQuery,
         onSortPreferenceSelected = viewModel::updateSortPreference,
-        onWorkoutClick = navigateToWorkout,
+        onWorkoutClick = navigateToWorkoutDetails,
         onRetry = viewModel::retry,
         onWorkoutLike = viewModel::toggleWorkoutLike,
         onWorkoutSave = viewModel::toggleWorkoutSave,
@@ -78,7 +73,7 @@ private fun WorkoutListContent(
     uiState: WorkoutListUiData,
     onSortPreferenceSelected: (SortType) -> Unit,
     onQueryChange: (String) -> Unit,
-    onWorkoutClick: (Workout) -> Unit,
+    onWorkoutClick: (Workout,Boolean,Boolean) -> Unit,
     onWorkoutLike: (Workout) -> Unit,
     onWorkoutSave: (Workout) -> Unit,
     onRetry: () -> Unit
@@ -118,9 +113,9 @@ private fun WorkoutListContent(
                 } else {
                     WorkoutList(
                         workoutList = uiState.workoutWithStatusList,
-                        onWorkoutClick =onWorkoutClick ,
+                        onWorkoutClick = onWorkoutClick,
                         onWorkoutLike = onWorkoutLike,
-                        onWorkoutSave =onWorkoutSave ,
+                        onWorkoutSave = onWorkoutSave,
                     )
                 }
 
@@ -134,7 +129,7 @@ private fun WorkoutListContent(
 @Composable
 private fun WorkoutList(
     workoutList: List<WorkoutWithStatus>,
-    onWorkoutClick: (Workout) -> Unit,
+    onWorkoutClick: (Workout,Boolean,Boolean) -> Unit,
     onWorkoutLike: (Workout) -> Unit,
     onWorkoutSave: (Workout) -> Unit
 ) {
@@ -144,8 +139,8 @@ private fun WorkoutList(
             WorkoutCard(
                 workoutWithStatus = workout,
                 onWorkoutClick = onWorkoutClick,
-            onWorkoutLike = onWorkoutLike,
-            onWorkoutSave = onWorkoutSave,
+                onWorkoutLike = onWorkoutLike,
+                onWorkoutSave = onWorkoutSave,
             )
         }
     }
@@ -153,7 +148,7 @@ private fun WorkoutList(
 
 
 @Composable
-private fun ErrorContent(
+fun ErrorContent(
     message: String,
     onRetry: () -> Unit
 ) {
@@ -177,7 +172,7 @@ private fun ErrorContent(
 }
 
 @Composable
-private fun EmptyContent() {
+fun EmptyContent() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -207,14 +202,13 @@ fun PreviewSearchBar() {
 }
 
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchBar(
     searchQuery: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    filterOptionList: List<String> ,
+    filterOptionList: List<String>,
     selectedFilterOption: String,
     onOptionSelected: (String) -> Unit
 

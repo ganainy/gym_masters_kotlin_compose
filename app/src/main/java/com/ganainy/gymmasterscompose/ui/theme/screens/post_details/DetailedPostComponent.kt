@@ -36,10 +36,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CenteredText
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagText
 import com.ganainy.gymmasterscompose.ui.theme.components.PostInteractionRow
@@ -49,8 +55,6 @@ import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import java.util.UUID
 
 
@@ -63,7 +67,6 @@ fun DetailedPostItem(
     isLoadingComments: Boolean = false,
     onPostLikeClick: () -> Unit,
     onCommentLikeClick: (commentId: String) -> Unit,
-    isCommentLiked: (commentId: String, postId: String) -> Flow<Boolean>
 ) {
     Column(
         modifier = Modifier
@@ -106,7 +109,20 @@ fun DetailedPostItem(
                                     .width(150.dp)
                                     .height(150.dp)
                                     .background(Color.LightGray)
+                            ){
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(url)
+                                    .crossfade(true)
+                                    .build(),
+                                placeholder = painterResource(R.drawable.loading),
+                                contentDescription = "Post Image",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .width(150.dp)
+                                    .height(150.dp)
                             )
+                        }
                         }
                     if (feedPostWithLikesAndComments.post.imageUrlList.size > 4) {
                         Text(
@@ -139,8 +155,9 @@ fun DetailedPostItem(
             PostCommentSection(
                 feedPostWithLikesAndComments.commentList,
                 onCommentLikeClick = onCommentLikeClick,
-                isCommentLiked = isCommentLiked,
-                modifier = Modifier.weight(1f).fillMaxWidth()
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             )
         }
 
@@ -149,12 +166,35 @@ fun DetailedPostItem(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+fun PostCommentSectionPreview() {
+    PostCommentSection(
+        commentList = List(5) {
+            CommentWithLikeStatus(
+                Comment(
+                    id = UUID.randomUUID().toString(),
+                    content = "This is a comment $it",
+                    userId = "user-$it",
+                    postId = "post-1",
+                    timestamp = System.currentTimeMillis(),
+                    userDisplayInfo = UserDisplayInfo(
+                        displayName = "John Doe $it",
+                        profileImageUrl = "https://www.example.com/profile.jpg"
+                    )
+                ),
+                isLiked = it % 2 == 0
+            )
+        },
+        {},
+        modifier = Modifier,
+    )
+}
 
 @Composable
 fun PostCommentSection(
-    commentList: List<Comment>,
+    commentList: List<CommentWithLikeStatus>,
     onCommentLikeClick: (commentId: String) -> Unit,
-    isCommentLiked: (commentId: String, postId: String) -> Flow<Boolean>,
     modifier: Modifier
 ) {
     Column(
@@ -164,9 +204,12 @@ fun PostCommentSection(
 
     ) {
         // Display each comment
-        commentList.forEach { comment ->
-            val isCommentLikedFlow = isCommentLiked(comment.id, comment.postId)
-            CommentItem(comment = comment,onCommentLikeClick=onCommentLikeClick,isCommentLikedFlow=isCommentLikedFlow)
+        commentList.forEach { commentWithLikeStatus ->
+
+            CommentItem(
+                commentWithLikeStatus = commentWithLikeStatus,
+                onCommentLikeClick = onCommentLikeClick,
+            )
             Spacer(modifier = Modifier.height(8.dp)) // Add spacing between comments
         }
 
@@ -177,7 +220,6 @@ fun PostCommentSection(
 
     }
 }
-
 
 
 @Composable
@@ -248,16 +290,19 @@ fun DetailedPostItemPreview() {
             ),
             isLiked = false,
             commentList = List(0) {
-                Comment(
-                    id = UUID.randomUUID().toString(),
-                    content = "This is a comment $it",
-                    userId = "user-$it",
-                    postId = "post-1",
-                    timestamp = System.currentTimeMillis(),
-                    userDisplayInfo = UserDisplayInfo(
-                        displayName = "John Doe $it",
-                        profileImageUrl = "https://www.example.com/profile.jpg"
-                    )
+                CommentWithLikeStatus(
+                    Comment(
+                        id = UUID.randomUUID().toString(),
+                        content = "This is a comment $it",
+                        userId = "user-$it",
+                        postId = "post-1",
+                        timestamp = System.currentTimeMillis(),
+                        userDisplayInfo = UserDisplayInfo(
+                            displayName = "John Doe $it",
+                            profileImageUrl = "https://www.example.com/profile.jpg"
+                        )
+                    ),
+                    isLiked = false
                 )
             }
         ),
@@ -266,7 +311,6 @@ fun DetailedPostItemPreview() {
         isLoadingComments = false,
         onPostLikeClick = {},
         onCommentLikeClick = {},
-        isCommentLiked = { commentId: String, postId: String -> flow { emit(false) } }
     )
 }
 

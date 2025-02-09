@@ -1,6 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.models.workout
 
+import android.os.Parcelable
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 
 /**
@@ -14,10 +16,11 @@ import kotlinx.serialization.Serializable
  */
 
 @Serializable
+@Parcelize
 data class WorkoutExercise(
     val exercise: Exercise? = null,
     var order: Int = 0,
     val sets: Int = 0,
     val reps: Int = 0,
     val restBetweenSets: Int = 0,
-)
+) : Parcelable

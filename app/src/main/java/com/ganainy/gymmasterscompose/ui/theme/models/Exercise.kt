@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 
 @Entity(tableName = "exercise")
 @Serializable
+@Parcelize
 data class Exercise(
     val bodyPart: String = "",
     val equipment: String= "",
@@ -18,8 +19,7 @@ data class Exercise(
     val secondaryMuscles: List<String> = emptyList(),
     val instructions: List<String>  = emptyList(),
     var screenshotPath: String? = null // the path of a screenshot of the gif on the device
-)
-
+) : Parcelable
 
 
 @Entity(tableName = "body_part_list")

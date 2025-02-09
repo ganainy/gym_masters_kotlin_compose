@@ -32,7 +32,7 @@ data class FeedPost(
     companion object {
         const val POST = "post"
         const val POST_METRICS = "postMetrics"
-        const val LIKES = "likes"
+        const val POST_LIKES = "likes"
         const val POST_CREATOR = "postCreator"
         const val CREATOR_ID = "creatorId"
         const val POST_TAGS = "tags"

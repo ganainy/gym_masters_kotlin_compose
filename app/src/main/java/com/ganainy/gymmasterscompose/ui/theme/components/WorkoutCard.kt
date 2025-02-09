@@ -32,14 +32,20 @@ fun WorkoutCard(
     workoutWithStatus: WorkoutWithStatus,
     onWorkoutLike: (Workout) -> Unit = {},
     onWorkoutSave: (Workout) -> Unit = {},
-    onWorkoutClick: (Workout) -> Unit = {}
+    onWorkoutClick: (Workout, Boolean, Boolean) -> Unit = { _, _, _ -> }
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .clickable { onWorkoutClick(workoutWithStatus.workout) },
+            .clickable {
+                onWorkoutClick(
+                    workoutWithStatus.workout,
+                    workoutWithStatus.isLiked,
+                    workoutWithStatus.isSaved
+                )
+            },
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -164,5 +170,5 @@ fun WorkoutCardPreview() {
         ),
         {},
         {},
-        {})
+        {_ , _, _ -> })
 }

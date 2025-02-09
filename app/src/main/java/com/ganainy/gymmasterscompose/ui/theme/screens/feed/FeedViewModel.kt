@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.theme.room.LikeType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +52,7 @@ class FeedViewModel @Inject constructor(
     private val socialRepository: ISocialRepository,
     private val userRepository: IUserRepository,
     private val postRepository: IPostRepository,
+    private val likeRepository: ILikeRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
@@ -107,43 +110,39 @@ class FeedViewModel @Inject constructor(
 
 
     /**
-     * Fetches posts for the given set of user IDs and updates the feed UI data.
-     * It first fetches the posts and then combines the likes and comments for those posts.
-     * If any error occurs, it updates the UI state to an error state.
+     * Observes the posts of the specified users and updates the feed UI data.
+     *
+     * @param userIds The set of user IDs whose posts are to be observed.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun observePostsOfUsers(userIds: Set<String>) {
-        // Fetch posts for the given set of user IDs
         postRepository.observePostsOfUsers(userIds, lastPostTimestamp = null)
-            // Catch any error that occurs during the fetching of posts
             .catch { error ->
                 _uiState.value = FeedUiState.Error.StringError(error.message ?: "Unknown error")
             }
-            // If no posts, emit empty list immediately
             .flatMapLatest { posts ->
                 if (posts.isEmpty()) {
                     flow { emit(emptyList()) }
                 } else {
-                    // Get the IDs of the posts
-                    val postIds = posts.map { it.id }.toSet()
-
-                    // Fetch the likes for the posts
-                    postRepository.observePostsLikes(postIds, userId = null)
-                        .map { likeMap ->
-                            posts.map { post ->
+                    // Combine latest values from all like status flows
+                    combine(
+                        posts.map { post ->
+                            likeRepository.observeLikeStatus(
+                                targetId = post.id,
+                                type = LikeType.POST
+                            ).map { isLiked ->
                                 FeedPostWithLikes(
                                     post = post,
-                                    isLiked = likeMap[post.id] ?: false,
+                                    isLiked = isLiked
                                 )
                             }
                         }
+                    ) { postWithLikes -> postWithLikes.toList() }
                 }
             }
-            // Catch any error that occurs during the fetching of likes and comments
             .catch { error ->
                 _uiState.value = FeedUiState.Error.StringError(error.message ?: "Unknown error")
             }
-            // Update the feed UI data and the UI state
             .collect { updatedPosts ->
                 _feedUiData.update { currentState ->
                     currentState.copy(
@@ -164,7 +163,11 @@ class FeedViewModel @Inject constructor(
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
             runCatching {
-                postRepository.togglePostReaction(userId = null, postId = postId)
+                likeRepository.toggleLike(
+                    userId = userRepository.getCurrentUserId(),
+                    targetId = postId,
+                    type = LikeType.POST
+                )
             }.onFailure {
                 _uiState.value = FeedUiState.Error.IntError(R.string.error_updating_reaction)
             }
@@ -224,7 +227,6 @@ class FeedViewModel @Inject constructor(
             }
         }
     }
-
 
 
 }

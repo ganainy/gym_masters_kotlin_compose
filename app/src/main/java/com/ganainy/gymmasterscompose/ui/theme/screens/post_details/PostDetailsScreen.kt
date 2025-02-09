@@ -25,7 +25,6 @@ fun PostDetailsScreen(post: FeedPost,isLiked:Boolean) {
 
 
     val postDetails by viewModel.postDetailsUiData.collectAsState()
-    val isCommentLiked = viewModel::isCommentLiked
 
     if (postDetails.loadingPost) {
         LoadingIndicator()
@@ -41,7 +40,6 @@ fun PostDetailsScreen(post: FeedPost,isLiked:Boolean) {
                         onPostLikeClick = viewModel::togglePostLike,
                         onCommentLikeClick = viewModel::toggleCommentLike,
                         onCommentSubmit = viewModel::submitComment,
-                        isCommentLiked = isCommentLiked,
                     )
             }
     }

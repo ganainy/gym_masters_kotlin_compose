@@ -1,17 +1,24 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.workout_list
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.ui.theme.room.LikeType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -20,7 +27,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class WorkoutListViewModel @Inject constructor(
-    private val workoutRepository: IWorkoutRepository, private val userRepository: IUserRepository
+    private val workoutRepository: IWorkoutRepository,
+    private val userRepository: IUserRepository,
+    private val likeRepository: ILikeRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutListUiData())
     var uiState = _uiState.asStateFlow()
@@ -71,11 +80,12 @@ class WorkoutListViewModel @Inject constructor(
 
     fun toggleWorkoutLike(workout: Workout) = viewModelScope.launch {
         try {
-            _uiState.update { it.copy(isLoading = true) }
             val userId = userRepository.getCurrentUserId()
-            workoutRepository.toggleWorkoutLike(workout, userId)
-            refreshWorkoutStatus(workout.id)
-            _uiState.update { it.copy(isLoading = false) }
+            likeRepository.toggleLike(
+                targetId = workout.id,
+                type = LikeType.WORKOUT,
+                userId = userId,
+            )
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, error = e.message) }
         }
@@ -84,7 +94,6 @@ class WorkoutListViewModel @Inject constructor(
 
     fun toggleWorkoutSave(workout: Workout) = viewModelScope.launch {
         try {
-            _uiState.update { it.copy(isLoading = true) }
             val userId = userRepository.getCurrentUserId()
             val result = workoutRepository.toggleWorkoutSave(workout, userId)
 
@@ -99,56 +108,86 @@ class WorkoutListViewModel @Inject constructor(
                     workoutRepository.deleteWorkoutLocally(workout.id)
                 }
             }
-
-            refreshWorkoutStatus(workout.id)
-            _uiState.update { it.copy(isLoading = false) }
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
 
-    fun loadWorkouts(sortType: SortType) = viewModelScope.launch {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun loadWorkouts(sortType: SortType) = viewModelScope.launch {
         try {
+            Log.d("WorkoutViewModel", "Starting workout collection")
             _uiState.update { it.copy(isLoading = true) }
-            workoutRepository.getWorkouts(sortType).collect { workoutList ->
 
-                if (workoutList is ResultWrapper.Success) {
-                    val workouts = workoutList.data
-                    val userId = userRepository.getCurrentUserId()
-                    val workoutWithStatusList = workouts.map { workout ->
-                        val isLikedDeferred =
-                            async { workoutRepository.isWorkoutLikedByUser(workout.id, userId) }
-                        val isSavedDeferred =
-                            async { workoutRepository.isWorkoutSavedByUser(workout.id, userId) }
-                        val isLiked =
-                            (isLikedDeferred.await() as? ResultWrapper.Success)?.data ?: false
-                        val isSaved =
-                            (isSavedDeferred.await() as? ResultWrapper.Success)?.data ?: false
-                        WorkoutWithStatus(workout, isLiked, isSaved)
+            // Convert the workouts flow to a StateFlow so we can combine it with other flows
+            val workoutsFlow = workoutRepository.getWorkouts(sortType)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = ResultWrapper.Success(emptyList())
+                )
+
+            // Get user ID once
+            val userId = userRepository.getCurrentUserId()
+
+            // Combine everything into a single flow
+            workoutsFlow
+                .flatMapLatest { workoutResult ->
+                    if (workoutResult !is ResultWrapper.Success) {
+                        flow {
+                            emit(emptyList<WorkoutWithStatus>())
+                        }
+                    } else {
+                        val workouts = workoutResult.data
+
+                        // Create flows for each workout's like status
+                        val statusFlows = workouts.map { workout ->
+                            val isLikedFlow = likeRepository.observeLikeStatus(
+                                targetId = workout.id,
+                                type = LikeType.WORKOUT,
+                                userId = userId
+                            )
+
+                            // Combine the like status with the current workout
+                            isLikedFlow.map { isLiked ->
+                                val currentWorkout = workouts.find { it.id == workout.id } ?: workout
+                                async {
+                                    val isSaved = (workoutRepository.isWorkoutSavedByUser(
+                                        currentWorkout.id,
+                                        userId
+                                    ) as? ResultWrapper.Success)?.data ?: false
+
+                                    WorkoutWithStatus(
+                                        workout = currentWorkout,
+                                        isLiked = isLiked,
+                                        isSaved = isSaved
+                                    )
+                                }
+                            }
+                        }
+
+                        combine(statusFlows) { deferredList ->
+                            deferredList.map { it.await() }
+                        }
                     }
+                }
+                .collect { workoutStatusList ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            workoutWithStatusList = workoutWithStatusList,
-                            sortType = sortType
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            workoutWithStatusList = emptyList(),
+                            workoutWithStatusList = workoutStatusList,
                             sortType = sortType
                         )
                     }
                 }
-            }
 
         } catch (e: Exception) {
+            Log.e("WorkoutViewModel", "Error loading workouts", e)
             _uiState.update { it.copy(isLoading = false, error = e.message) }
         }
     }
+
 
     //todo move to workoutDetails screen for when user deletes local workout
     fun deleteLocalWorkout(workoutId: String) = viewModelScope.launch {
@@ -161,7 +200,7 @@ class WorkoutListViewModel @Inject constructor(
         }
     }
 
-
+    //todo move to workoutDetails screen for when user deletes local workout
     fun loadLocalWorkouts() = viewModelScope.launch {
         try {
             _uiState.update { it.copy(isLoading = true) }
@@ -174,33 +213,6 @@ class WorkoutListViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             _uiState.update { it.copy(isLoading = false, error = e.message) }
-        }
-    }
-
-
-    private suspend fun refreshWorkoutStatus(workoutId: String) {
-        try {
-            val userId = userRepository.getCurrentUserId()
-
-            val isLiked = workoutRepository.isWorkoutLikedByUser(workoutId, userId)
-            val isSaved = workoutRepository.isWorkoutSavedByUser(workoutId, userId)
-
-            _uiState.update { state ->
-                state.copy(
-                    workoutWithStatusList = state.workoutWithStatusList.map { workoutWithStatus ->
-                        if (workoutWithStatus.workout.id == workoutId) {
-                            workoutWithStatus.copy(
-                                isLiked = (isLiked as? ResultWrapper.Success)?.data ?: false,
-                                isSaved = (isSaved as? ResultWrapper.Success)?.data ?: false
-                            )
-                        } else {
-                            workoutWithStatus
-                        }
-                    }
-                )
-            }
-        } catch (e: Exception) {
-            _uiState.update { it.copy(error = e.message) }
         }
     }
 

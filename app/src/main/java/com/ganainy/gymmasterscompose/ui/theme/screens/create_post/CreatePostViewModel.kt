@@ -1,5 +1,6 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.create_post
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
@@ -26,7 +27,8 @@ data class CreatePostUiState (
     val isSuccess: Boolean = false,
     val user: User? = null,
     val feedPost: FeedPost = FeedPost(),
-    val isPostButtonEnabled: Boolean = false
+    val isPostButtonEnabled: Boolean = false,
+    val selectedImages: List<Uri> = emptyList(),
 )
 
 /**
@@ -127,17 +129,22 @@ class CreatePostViewModel @Inject constructor(
      * If the post creation is successful, it sets `isLoading` to false and `isSuccess` to true.
      * If there is an error, it sets `isLoading` to false and updates the `error` field with an appropriate message.
      */
-    fun publishPost() {
+    fun publishPost(onNavigateBack: () -> Boolean) {
+        _uiState.update { it.copy(
+            isLoading = true,
+        )}
         val feedPost = _uiState.value.feedPost
         val postAuthor = _uiState.value.user
+        val selectedImages = _uiState.value.selectedImages
         viewModelScope.launch {
-            val result = postRepository.createPost(feedPost, postAuthor)
+            val result = postRepository.createPost(feedPost, postAuthor,selectedImages)
             when (result) {
                 is ResultWrapper.Success -> {
                     _uiState.update { it.copy(
                         isLoading = false,
                         isSuccess = true
                     )}
+                    onNavigateBack()
                 }
 
                 is ResultWrapper.Error -> {
@@ -154,5 +161,13 @@ class CreatePostViewModel @Inject constructor(
 
     fun updatePostContent(newPostContent: String) {
         _uiState.update { it.copy(feedPost = it.feedPost.copy(content = newPostContent)) }
+    }
+
+    fun onImagePicked(uris: List<Uri>) {
+        _uiState.update { it.copy(selectedImages = uris) }
+    }
+
+    fun onImageRemoved(uri: Uri) {
+        _uiState.update { it.copy(selectedImages = _uiState.value.selectedImages - uri) }
     }
 }

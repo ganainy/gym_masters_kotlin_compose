@@ -21,10 +21,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 interface ICommentsRepository {
-    suspend fun isCommentLikedByUser(userId: String, commentId: String, postId: String): Boolean
     suspend fun addComment(postId: String, content: String): Result<Comment>
     suspend fun deleteComment(comment: Comment): Result<Unit>
-    suspend fun toggleCommentLike(comment: Comment): Result<Boolean>
     fun observePostComments(postId: String): Flow<List<Comment>>
     fun observeIsCommentLikedByCurrentUser(commentId: String, postId: String):  Flow<Boolean>
 }
@@ -58,27 +56,6 @@ class CommentsRepository @Inject constructor(
         }
     }
 
-    /**
-     * Checks remotly if a comment is liked by a specific user.
-     *
-     * @param userId The ID of the user.
-     * @param commentId The ID of the comment.
-     * @param postId The ID of the post containing the comment.
-     * @return True if the comment is liked by the user, false otherwise.
-     */
-    override suspend fun isCommentLikedByUser(
-        userId: String,
-        commentId: String,
-        postId: String
-    ): Boolean {
-        val likeId = CommentLike.createId(userId, commentId, postId)
-        return try {
-            val snapshot = commentLikesRef.child(likeId).get().await()
-            snapshot.exists()
-        } catch (e: Exception) {
-            false
-        }
-    }
 
     override suspend fun addComment(postId: String, content: String): Result<Comment> {
         return try {
@@ -181,49 +158,6 @@ class CommentsRepository @Inject constructor(
         }
     }
 
-    override suspend fun toggleCommentLike(comment: Comment): Result<Boolean> {
-        return try {
-            val userId = userRepository.getCurrentUserId()
-            val likeId = CommentLike.createId(userId, comment.id, comment.postId)
-
-            //  Check local cache first
-            val isLiked = appDatabase.commentLikeDao()
-                .isCommentLiked(userId, comment.id, comment.postId).first() != null
-
-
-            val updates = HashMap<String, Any?>()
-
-            if (isLiked) {
-                // Remove like
-                updates["/${CommentLike.COMMENT_LIKES_COLLECTION}/$likeId"] = null
-                updates["/${Comment.COMMENTS_COLLECTION}/${comment.id}/${Comment.COMMENTS_LIKES_COUNT}"] =
-                    ServerValue.increment(-1)
-                //  Remove from local cache
-                appDatabase.commentLikeDao().removeLike(likeId)
-            } else {
-                // Add like
-                val commentLike = CommentLike(
-                    id = likeId,
-                    userId = userId,
-                    commentId = comment.id,
-                    postId = comment.postId,
-                    timestamp = System.currentTimeMillis()
-                )
-                updates["/${CommentLike.COMMENT_LIKES_COLLECTION}/$likeId"] = commentLike
-                updates["/${Comment.COMMENTS_COLLECTION}/${comment.id}/${Comment.COMMENTS_LIKES_COUNT}"] =
-                    ServerValue.increment(1)
-                // Save to local cache
-                appDatabase.commentLikeDao().insertLike(commentLike.toEntity())
-            }
-
-            // Perform atomic update
-            rootRef.updateChildren(updates).await()
-
-            Result.success(!isLiked)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
 
     override fun observePostComments(postId: String): Flow<List<Comment>> = callbackFlow {
         val listener = object : ValueEventListener {

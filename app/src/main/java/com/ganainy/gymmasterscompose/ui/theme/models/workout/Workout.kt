@@ -1,8 +1,10 @@
 package com.ganainy.gymmasterscompose.ui.theme.models.workout
 
+import android.os.Parcelable
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.parcelize.Parcelize
 
 /**
  * Data class representing a workout.
@@ -22,7 +24,7 @@ import androidx.room.PrimaryKey
  * @property workoutMetrics The social statistics of the workout (upvotes, downvotes, save count).
  */
 
-
+@Parcelize
 data class Workout(
     val id: String = "",
     val creatorId: String = "",
@@ -37,7 +39,7 @@ data class Workout(
     val isPublic: Boolean = false,
     var workoutExerciseList: List<WorkoutExercise> = emptyList(),
     val workoutMetrics: WorkoutMetrics = WorkoutMetrics(),
-)
+) : Parcelable
 
 
 @Entity(tableName = "workouts")

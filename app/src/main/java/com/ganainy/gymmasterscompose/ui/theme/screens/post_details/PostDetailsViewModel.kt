@@ -6,19 +6,24 @@ import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.repository.ICommentsRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.theme.room.LikeType
 import com.ganainy.gymmasterscompose.utils.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -32,11 +37,28 @@ data class PostDetailsUiData(
     val feedPostWithLikesAndComments: FeedPostWithLikesAndComments?,
 )
 
+/**
+ * Represents a feed post along with its associated likes and comments, including the user's interaction status.
+ *
+ * This data class combines a [FeedPost] with additional information about whether the current user has liked the post,
+ * whether the comment section should be displayed, and a list of comments with their respective like statuses.
+ *
+ * @property post The [FeedPost] object containing the core post information (e.g., content, author, timestamp).
+ * @property isLiked `true` if the current user has liked the post, `false` otherwise. This is used to determine whether
+ *                   to display the like icon as filled or empty.
+ * @property commentList A list of [CommentWithLikeStatus] objects, representing the comments associated with this post.
+ *                       Each comment includes information about the comment itself and whether the current user has
+ *                       liked it. Defaults to an empty list.
+ */
 data class FeedPostWithLikesAndComments(
     val post: FeedPost,
     val isLiked: Boolean = false, // used to show like icon as filled or empty based on if user liked the post or not
-    val showCommentSection: Boolean = false, // used to show comment section when user clicks on comment icon
-    val commentList: List<Comment> = emptyList()
+    val commentList: List<CommentWithLikeStatus> = emptyList()
+)
+
+data class CommentWithLikeStatus(
+    val comment: Comment,
+    val isLiked: Boolean = false
 )
 
 @HiltViewModel
@@ -44,9 +66,8 @@ class PostDetailsViewModel @Inject constructor(
     private val userRepository: IUserRepository,
     private val postRepository: IPostRepository,
     private val commentsRepository: ICommentsRepository,
+    private val likeRepository: ILikeRepository
 ) : ViewModel() {
-
-
 
 
     private val _postDetailsUiData =
@@ -84,40 +105,81 @@ class PostDetailsViewModel @Inject constructor(
     }
 
 
-    fun isCommentLiked(commentId: String, postId: String): Flow<Boolean> {
-        return commentsRepository.observeIsCommentLikedByCurrentUser(commentId, postId)
-            .stateIn(viewModelScope, SharingStarted.Lazily, false) // Default false if no data
-    }
 
-
-
+    /**
+     * Observes the comments of a specific post and updates the UI state with the fetched data.
+     *
+     * This function performs the following actions:
+     * 1. Sets the `loadingComments` flag to `true` in the UI state to indicate that comment loading is in progress.
+     * 2. Retrieves the post ID from the current `feedPostWithLikesAndComments` in the UI state.
+     * 3. Observes the comments associated with the post ID using `commentsRepository.observePostComments()`.
+     * 4. Uses `distinctUntilChanged()` to prevent redundant updates if the comment list hasn't changed.
+     * 5. Employs `flatMapLatest` to handle potential updates to the comment list efficiently.
+     *    - If the comment list is empty, it emits an empty list immediately.
+     *    - If comments exist, it uses `combine` to fetch and merge the like status for each comment.
+     *      - It calls `likeRepository.observeLikeStatus()` for each comment to determine if it's liked by the current user.
+     *      - It maps each comment and its like status to a `CommentWithLikeStatus` object.
+     *      - It combines all `CommentWithLikeStatus` objects into a list.
+     * 6. Uses `catch` to handle potential errors during the observation process.
+     *    - If an error occurs, it updates the UI state by setting `loadingComments` to `false` and populating the `error` field with the error message.
+     * 7. Uses `collectLatest` to collect the final stream of `List<CommentWithLikeStatus>` objects.
+     *    - Updates the UI state by setting `loadingComments` to `false` and updating the `commentList` within the `feedPostWithLikesAndComments` object.
+     * 8. A global `try-catch` block handles potential errors at the top level, updating the UI state accordingly if exceptions occur outside the flow */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observePostComments() {
-        _postDetailsUiData.update {
-            _postDetailsUiData.value.copy(
-                loadingComments = true
-            )
-        }
         viewModelScope.launch {
             try {
-                _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.let {
-                    commentsRepository.observePostComments(it.id)
+                _postDetailsUiData.update { it.copy(loadingComments = true) }
+
+                _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.let { post ->
+                    commentsRepository.observePostComments(post.id)
                         .distinctUntilChanged()
-                        .collectLatest { comments ->
-                            _postDetailsUiData.update {
-                                _postDetailsUiData.value.copy(
+                        .flatMapLatest { comments ->
+                            // If no comments, emit empty list immediately
+                            if (comments.isEmpty()) {
+                                flow { emit(emptyList()) }
+                            } else {
+                                // Combine like status for each comment
+                                combine(
+                                    comments.map { comment ->
+                                        likeRepository.observeLikeStatus(
+                                            targetId = comment.id,
+                                            type = LikeType.COMMENT,
+                                            postId = post.id
+                                        ).map { isLiked ->
+                                            CommentWithLikeStatus(
+                                                comment = comment,
+                                                isLiked = isLiked
+                                            )
+                                        }
+                                    }
+                                ) { commentsWithLikes -> commentsWithLikes.toList() }
+                            }
+                        }
+                        .catch { error ->
+                            _postDetailsUiData.update { currentState ->
+                                currentState.copy(
                                     loadingComments = false,
-                                    feedPostWithLikesAndComments = _postDetailsUiData.value.feedPostWithLikesAndComments?.copy(
-                                        commentList = comments,
+                                    error = UiText.String(error.message ?: "Unknown error")
+                                )
+                            }
+                        }
+                        .collectLatest { commentsWithLikes ->
+                            _postDetailsUiData.update { currentState ->
+                                currentState.copy(
+                                    loadingComments = false,
+                                    feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                        commentList = commentsWithLikes
                                     )
                                 )
                             }
                         }
                 }
             } catch (e: Exception) {
-                _postDetailsUiData.update {
-                    _postDetailsUiData.value.copy(
+                _postDetailsUiData.update { currentState ->
+                    currentState.copy(
                         loadingComments = false,
-                        error = e.message?.let { errorMessage -> UiText.String(errorMessage) }
+                        error = UiText.String(e.message ?: "Unknown error")
                     )
                 }
             }
@@ -128,8 +190,10 @@ class PostDetailsViewModel @Inject constructor(
     fun observePostMetricsUpdates() {
         viewModelScope.launch {
             try {
-                postRepository.observePostMetricsUpdates(_postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id?:
-                throw IllegalStateException("Cannot observePostMetrics without a post ID"))
+                postRepository.observePostMetricsUpdates(
+                    _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
+                        ?: throw IllegalStateException("Cannot observePostMetrics without a post ID")
+                )
                     .distinctUntilChanged()
                     .collectLatest { metrics ->
                         _postDetailsUiData.update {
@@ -161,7 +225,14 @@ class PostDetailsViewModel @Inject constructor(
             ?: throw IllegalStateException("Cannot toggle post like without a post ID")
         viewModelScope.launch {
             runCatching {
-                postRepository.togglePostReaction(userId = null, postId = postId)
+                likeRepository.toggleLike(
+                    userId = userRepository.getCurrentUserId(),
+                    targetId = postId,
+                    type = LikeType.POST
+                )
+                setLikeStatus(
+                    !(_postDetailsUiData.value.feedPostWithLikesAndComments?.isLiked ?: false)
+                )
             }.onFailure {
                 _postDetailsUiData.update { currentState ->
                     currentState.copy(
@@ -175,12 +246,14 @@ class PostDetailsViewModel @Inject constructor(
 
 
     fun toggleCommentLike(commentId: String) {
-        val comment = _postDetailsUiData.value.feedPostWithLikesAndComments?.commentList?.find { it.id == commentId }
-            ?: throw IllegalStateException("Cannot toggle comment like without a comment ID")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                commentsRepository.toggleCommentLike(comment)
-            }.onFailure {
+                likeRepository.toggleLike(
+                    targetId = commentId,
+                    type = LikeType.COMMENT,
+                    postId = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
+                )
+            }.onFailure { error ->
                 _postDetailsUiData.update { currentState ->
                     currentState.copy(
                         error = UiText.StringResource(R.string.error_updating_reaction)
@@ -197,11 +270,13 @@ class PostDetailsViewModel @Inject constructor(
             ?: throw IllegalStateException("Cannot submit comment without a post ID")
 
         // Update UI immediately with local new comment
-        val tempComment = Comment(
-            id = UUID.randomUUID().toString(), // Fake ID
-            content = commentContent,
-            isPending = true,
-            userDisplayInfo = userRepository.getUserDisplayInfo()
+        val tempComment = CommentWithLikeStatus(
+            Comment(
+                id = UUID.randomUUID().toString(), // Fake ID
+                content = commentContent,
+                isPending = true,
+                userDisplayInfo = userRepository.getUserDisplayInfo()
+            )
         )
 
         viewModelScope.launch {

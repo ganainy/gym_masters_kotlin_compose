@@ -14,11 +14,13 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ICommentsRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IExerciseRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IHashtagRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUsersRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.LikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.PostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.SocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.UserRepository
@@ -126,10 +128,11 @@ object AppModule {
     fun providePostRepository(
         userRepository: IUserRepository,
         database: FirebaseDatabase,
-        hashtagRepository: IHashtagRepository
+        hashtagRepository: IHashtagRepository,
+        storage: FirebaseStorage
 
     ): IPostRepository {
-        return PostRepository(userRepository, database, hashtagRepository)
+        return PostRepository(userRepository, database, hashtagRepository,storage)
     }
 
     @Provides
@@ -232,6 +235,24 @@ object AppModule {
             appDatabase = appDatabase
         )
     }
+
+
+    @Provides
+    @Singleton
+    fun provideLikeRepository(
+        firebaseDatabase: FirebaseDatabase,
+        userRepository: IUserRepository,
+        appDatabase: AppDatabase
+    ): ILikeRepository {
+        return LikeRepository(
+            database = firebaseDatabase,
+            userRepository = userRepository,
+            appDatabase = appDatabase
+        )
+    }
+
+
+
 
 }
 

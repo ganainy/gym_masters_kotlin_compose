@@ -63,6 +63,8 @@ fun ProfileScreen(
     userId: String?,
     navigateToLogin: () -> Unit,
     navigateToCreatePost: () -> Unit,
+    navigateToWorkoutSetup: () -> Unit
+
 ) {
     val viewModel = hiltViewModel<ProfileViewModel>()
 
@@ -83,10 +85,10 @@ fun ProfileScreen(
             when (state) {
                 is ProfileUiState.Error.IntError -> {
                     val errorMessage = stringResource(state.messageStringResource)
-                    showToast(LocalContext.current, errorMessage)
+                    showToast(context = LocalContext.current, message = errorMessage)
                 }
                 is ProfileUiState.Error.StringError -> {
-                    showToast(LocalContext.current, state.message)
+                    showToast(context = LocalContext.current, message = state.message)
                 }
             }
         }
@@ -94,11 +96,24 @@ fun ProfileScreen(
             val profileType=state.profileType
             when (profileType) {
                 ProfileType.CURRENT_USER -> {
-                    CurrentUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost,viewModel::onEditProfilePicture)
+                    CurrentUserProfileContent(
+                        uiData = uiData,
+                        viewModel = viewModel,
+                        navigateToLogin = navigateToLogin,
+                        userId = userId,
+                        navigateToCreatePost = navigateToCreatePost,
+                        onEditProfilePicture = viewModel::onEditProfilePicture,
+                        navigateToWorkoutSetup = navigateToWorkoutSetup
+                    )
                 }
                 ProfileType.OTHER_USER -> {
                     // Other user profile
-                    OtherUserProfileContent(uiData, viewModel, navigateToLogin, userId, navigateToCreatePost)
+                    OtherUserProfileContent(
+                        uiData = uiData,
+                        viewModel = viewModel,
+                        userId = userId,
+                        navigateToCreatePost = navigateToCreatePost
+                    )
                 }
             }
 
@@ -114,7 +129,8 @@ private fun CurrentUserProfileContent(
     navigateToLogin: () -> Unit,
     userId: String?,
     navigateToCreatePost: () -> Unit,
-    onEditProfilePicture: (String) -> Unit
+    onEditProfilePicture: (String) -> Unit,
+    navigateToWorkoutSetup: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -131,9 +147,18 @@ private fun CurrentUserProfileContent(
                 onEditProfilePicture = onEditProfilePicture
             )
 
+            Button(
+                onClick = { navigateToWorkoutSetup() },
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+            ) {
+                Text("Create Workout")
+            }
+
             EditProfileButton(
-                onClick = { /* Navigate to edit profile */ }
+                onClick = { /*TODO Navigate to edit profile */ }
             )
+
 
             LogoutButton(
                 onClick = {
@@ -164,7 +189,6 @@ private fun CurrentUserProfileContent(
 private fun OtherUserProfileContent(
     uiData: ProfileUiData,
     viewModel: ProfileViewModel,
-    navigateToLogin: () -> Unit,
     userId: String?,
     navigateToCreatePost: () -> Unit
 ) {

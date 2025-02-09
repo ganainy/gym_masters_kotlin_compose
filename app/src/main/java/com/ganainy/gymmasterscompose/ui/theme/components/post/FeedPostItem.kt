@@ -1,10 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.components.post
 
-import Comment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -25,18 +23,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagText
 import com.ganainy.gymmasterscompose.ui.theme.components.PostInteractionRow
@@ -45,8 +44,8 @@ import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedPostWithLikes
+import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.CommentWithLikeStatus
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
-import kotlinx.coroutines.flow.Flow
 
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -88,17 +87,23 @@ fun FeedPostItem(
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(150.dp),
+                   ,
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
                 verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
                 content = {
                     feedPostWithLikesAndComments.post.imageUrlList.take(4)
                         .forEachIndexed { index, url ->
-                            Box(
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(url)
+                                    .crossfade(true)
+                                    .build(),
+                                placeholder = painterResource(R.drawable.loading),
+                                contentDescription = "Post Image",
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .width(150.dp)
                                     .height(150.dp)
-                                    .background(Color.LightGray)
                             )
                         }
                     if (feedPostWithLikesAndComments.post.imageUrlList.size > 4) {
@@ -126,9 +131,8 @@ fun FeedPostItem(
 
 
 @Composable
-fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Unit, isCommentLikedFlow: Flow<Boolean>,) {
+fun CommentItem(commentWithLikeStatus: CommentWithLikeStatus, onCommentLikeClick: (commentId: String) -> Unit) {
 
-    val isLiked by isCommentLikedFlow.collectAsState(initial = false)
 
     Row(
         modifier = Modifier
@@ -138,7 +142,7 @@ fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Uni
     ) {
         // User profile image
         AsyncImage(
-            model = comment.userDisplayInfo.profileImageUrl,
+            model = commentWithLikeStatus.comment.userDisplayInfo.profileImageUrl,
             contentDescription = "Profile Image",
             modifier = Modifier
                 .size(40.dp)
@@ -158,13 +162,13 @@ fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Uni
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = comment.userDisplayInfo.displayName,
+                    text = commentWithLikeStatus.comment.userDisplayInfo.displayName,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(4.dp)) // Spacing between name and timestamp
                 Text(
-                    text = formatRelativeTime(comment.timestamp),
+                    text = formatRelativeTime(commentWithLikeStatus.comment.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -174,9 +178,9 @@ fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Uni
 
             // Comment content
             Text(
-                text = comment.content,
+                text = commentWithLikeStatus.comment.content,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (comment.isPending) Color.Gray else MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Spacer(modifier = Modifier.height(4.dp)) // Spacing between comment and like button
@@ -186,17 +190,17 @@ fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Uni
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { onCommentLikeClick(comment.id) },
+                    onClick = { onCommentLikeClick(commentWithLikeStatus.comment.id) },
                     modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
-                        imageVector = if (isLiked) {
+                        imageVector = if (commentWithLikeStatus.isLiked) {
                             Icons.Filled.Favorite // Filled heart if liked
                         } else {
                             Icons.Outlined.FavoriteBorder // Outlined heart if not liked
                         },
                         contentDescription = "Like Comment",
-                        tint = if (isLiked) {
+                        tint = if (commentWithLikeStatus.isLiked) {
                             MaterialTheme.colorScheme.error // Red color if liked
                         } else {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) // Gray color if not liked
@@ -205,7 +209,7 @@ fun CommentItem(comment: Comment, onCommentLikeClick: (commentId: String) -> Uni
                 }
                 Spacer(modifier = Modifier.width(4.dp)) // Spacing between icon and likes count
                 Text(
-                    text = "${comment.likesCount} likes",
+                    text = "${commentWithLikeStatus.comment.likesCount} likes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

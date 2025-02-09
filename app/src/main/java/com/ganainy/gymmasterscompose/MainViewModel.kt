@@ -3,6 +3,7 @@ package com.ganainy.gymmasterscompose
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +18,8 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val likeRepository: ILikeRepository,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Loading)
@@ -33,6 +35,8 @@ class MainViewModel @Inject constructor(
                     AuthUiState.Unauthenticated
                 }
             }
+            // Sync pending likes (local and remote) when app first starts
+            likeRepository.syncPendingLikes()
         }
     }
 }

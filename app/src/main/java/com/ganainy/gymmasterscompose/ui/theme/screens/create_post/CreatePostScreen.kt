@@ -40,9 +40,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,15 +57,15 @@ import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImage
 @Composable
 fun CreatePostScreen(onNavigateBack: () -> Boolean) {
     val viewModel = hiltViewModel<CreatePostViewModel>()
-    var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
 
     val uiState by viewModel.uiState.collectAsState()
+    val selectedImages = uiState.selectedImages
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
-        selectedImages = uris
+        viewModel.onImagePicked(uris)
     }
 
 
@@ -91,8 +88,7 @@ fun CreatePostScreen(onNavigateBack: () -> Boolean) {
                 actions = {
                     TextButton(
                         onClick = {
-                            viewModel.publishPost()
-                            onNavigateBack()
+                            viewModel.publishPost(onNavigateBack)
                         },
                         enabled = uiState.feedPost.content.isNotBlank()
                     ) {
@@ -169,7 +165,7 @@ fun CreatePostScreen(onNavigateBack: () -> Boolean) {
                             )
                             IconButton(
                                 onClick = {
-                                    selectedImages = selectedImages.filter { it != uri }
+                                    viewModel.onImageRemoved(uri)
                                 },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)

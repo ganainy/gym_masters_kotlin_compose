@@ -19,12 +19,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -37,12 +34,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.post.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
@@ -52,7 +47,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun FeedScreen(
     navController: NavController,
-    navigateToDetailedPost: (post:FeedPost,isLiked: Boolean) -> Unit,
+    navigateToDetailedPost: (post: FeedPost, isLiked: Boolean) -> Unit,
 ) {
 
     val handleCreatePost: () -> Unit = {
@@ -64,10 +59,6 @@ fun FeedScreen(
     }
 
 
-    val handleCreateWorkout: () -> Unit = {
-        navController.navigate(Screen.WorkoutSetup.route)
-    }
-
     val viewModel: FeedViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     val feedUiData by viewModel.feedUiData.collectAsState()
@@ -75,80 +66,75 @@ fun FeedScreen(
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            //todo move create workout to profile screen
-                HorizontalDivider()
-                NavigationDrawerItem(
-                    label = { Text(text = stringResource(R.string.create_workout)) },
-                    selected = false,
-                    onClick = { handleCreateWorkout() }
-                )
-            }
-    )
-    {
 
-        Scaffold(
-            topBar = {
-                FeedTopBar(
-                    onRefresh = { viewModel.refreshFeed() },
-                    openMenu = {
-                        scope.launch {
-                            if (drawerState.isOpen) {
-                                drawerState.close()
-                            } else {
-                                drawerState.open()
-                            }
+    Scaffold(
+        topBar = {
+            FeedTopBar(
+                onRefresh = { viewModel.refreshFeed() },
+                openMenu = {
+                    scope.launch {
+                        if (drawerState.isOpen) {
+                            drawerState.close()
+                        } else {
+                            drawerState.open()
                         }
                     }
-                )
-            },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick =   handleCreatePost ,
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Create Post")
                 }
-            }
-        ) { paddingValues ->
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = handleCreatePost,
             ) {
-                when (uiState) {
-                    FeedUiState.Loading -> {
-                        LoadingIndicator()
-                    }
+                Icon(Icons.Default.Add, contentDescription = "Create Post")
+            }
+        }
+    ) { paddingValues ->
 
-                    FeedUiState.EmptyFeed -> {
-                        EmptyFeedMessage()
-                    }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when (uiState) {
+                FeedUiState.Loading -> {
+                    LoadingIndicator()
+                }
 
-                    FeedUiState.NonEmptyFeed -> {
-                        LazyColumn(modifier = Modifier.testTag("posts_list")) {
-                            items(feedUiData.postList) { feedPostWithLikesAndComments ->
-                                FeedPostItem(
-                                    feedPostWithLikesAndComments = feedPostWithLikesAndComments,
-                                    onProfileClick = { handleProfile(feedPostWithLikesAndComments.post.postCreator.id) },
-                                    onLikeIconClick = { viewModel.toggleReaction(feedPostWithLikesAndComments.post.id) },
-                                    onPostClick = { navigateToDetailedPost(feedPostWithLikesAndComments.post, feedPostWithLikesAndComments.isLiked) }
-                                )
-                            }
-                            // Load more posts when the last item is visible
-                            item {
-                                LaunchedEffect(Unit) {
-                                    viewModel.loadMorePosts()
+                FeedUiState.EmptyFeed -> {
+                    EmptyFeedMessage()
+                }
+
+                FeedUiState.NonEmptyFeed -> {
+                    LazyColumn(modifier = Modifier.testTag("posts_list")) {
+                        items(feedUiData.postList) { feedPostWithLikesAndComments ->
+                            FeedPostItem(
+                                feedPostWithLikesAndComments = feedPostWithLikesAndComments,
+                                onProfileClick = { handleProfile(feedPostWithLikesAndComments.post.postCreator.id) },
+                                onLikeIconClick = {
+                                    viewModel.toggleReaction(
+                                        feedPostWithLikesAndComments.post.id
+                                    )
+                                },
+                                onPostClick = {
+                                    navigateToDetailedPost(
+                                        feedPostWithLikesAndComments.post,
+                                        feedPostWithLikesAndComments.isLiked
+                                    )
                                 }
+                            )
+                        }
+                        // Load more posts when the last item is visible
+                        item {
+                            LaunchedEffect(Unit) {
+                                viewModel.loadMorePosts()
                             }
                         }
                     }
-
-                    is FeedUiState.Error -> ErrorMessage("Error loading feed") { viewModel.refreshFeed() }
-
                 }
+
+                is FeedUiState.Error -> ErrorMessage("Error loading feed") { viewModel.refreshFeed() }
+
             }
         }
     }

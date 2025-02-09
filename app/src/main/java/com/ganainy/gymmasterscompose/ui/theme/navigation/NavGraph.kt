@@ -32,6 +32,7 @@ import com.ganainy.gymmasterscompose.AuthUiState
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_post.CreatePostScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.CreateWorkoutViewModel
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.WorkoutExerciseListScreen
@@ -44,6 +45,7 @@ import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.PostDetailsSc
 import com.ganainy.gymmasterscompose.ui.theme.screens.profile.ProfileScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signin.SignInScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.signup.SignUpScreen
+import com.ganainy.gymmasterscompose.ui.theme.screens.workout_details.WorkoutDetailsScreen
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutListScreen
 import com.google.gson.Gson
 
@@ -74,6 +76,7 @@ sealed class Screen(val route: String, val icon: Int? = null, val label: String?
     object WorkoutSetup : Screen("workout_setup")
     object WorkoutExerciseList : Screen("workout_exercise_list")
     object DetailedPost : Screen("detailed_post")
+    object DetailedWorkout : Screen("detailed_workout")
 }
 
 
@@ -156,7 +159,14 @@ fun AppNavigation(
             // DiscoverScreen composable
             composable(route = Screen.Main.Discover.route) { DiscoverScreen(navController) }
             // WorkoutListScreen composable
-            composable(route = Screen.Main.WorkoutList.route) { WorkoutListScreen(navController) }
+            composable(route = Screen.Main.WorkoutList.route) { WorkoutListScreen(navController
+            ,navigateToWorkoutDetails = { workout,isLiked,isSaved ->
+                    // Encode exercise object to JSON and navigate to ExerciseScreen
+                    val workoutJson = Uri.encode(Gson().toJson(workout))
+                    navController.navigate("${Screen.DetailedWorkout.route}?workout=$workoutJson?isLiked=$isLiked?isSaved=$isSaved")
+                }
+
+            ) }
             // ExerciseListScreen composable
             composable(route = Screen.Main.ExerciseList.route) {
                 ExerciseListScreen(
@@ -191,6 +201,11 @@ fun AppNavigation(
                     navigateToCreatePost = {
                         // Navigate to CreatePostScreen
                         navController.navigate(Screen.CreatePost.route)
+                    },
+                    navigateToWorkoutSetup = {
+                        // Navigate to WorkoutSetupScreen
+                        navController.navigate(Screen.WorkoutSetup.route)
+
                     }
                 )
             }
@@ -254,6 +269,31 @@ fun AppNavigation(
                 PostDetailsScreen(
                     post = post,
                     isLiked = isLiked ?: false,
+                )
+            }
+
+            // DetailedWorkoutScreen composable
+            composable(
+                "${Screen.DetailedWorkout.route}?workout={workout}?isLiked={isLiked}?isSaved={isSaved}",
+                arguments = listOf(
+                    navArgument("workout") { type = NavType.StringType },
+                    navArgument("isLiked") { type = NavType.BoolType },
+                    navArgument("isSaved") { type = NavType.BoolType },
+                )
+            ) { backStackEntry ->
+                val workoutJson = backStackEntry.arguments?.getString("workout")
+                val isLiked = backStackEntry.arguments?.getBoolean("isLiked")
+                val isSaved = backStackEntry.arguments?.getBoolean("isSaved")
+                val workout = Gson().fromJson(workoutJson, Workout::class.java)
+                WorkoutDetailsScreen(
+                    workout = workout,
+                    isLiked = isLiked ?: false,
+                    isSaved = isSaved ?: false,
+                    navigateToExerciseDetails = { exercise ->
+                        // Encode exercise object to JSON and navigate to ExerciseScreen
+                        val exerciseJson = Uri.encode(Gson().toJson(exercise))
+                        navController.navigate("${Screen.Exercise.route}?exercise=$exerciseJson")
+                    }
                 )
             }
 

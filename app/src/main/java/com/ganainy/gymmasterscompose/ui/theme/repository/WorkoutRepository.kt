@@ -37,13 +37,13 @@ interface IWorkoutRepository {
     suspend fun deleteWorkout(workoutId: String): ResultWrapper<Unit>
     suspend fun isWorkoutLikedByUser(workoutId: String, userId: String): ResultWrapper<Boolean>
     suspend fun isWorkoutSavedByUser(workoutId: String, userId: String): ResultWrapper<Boolean>
-    suspend fun toggleWorkoutLike(workout: Workout, userId: String): ResultWrapper<Unit>
     suspend fun toggleWorkoutSave(workout: Workout, userId: String): ResultWrapper<Unit>
     suspend fun getWorkouts(sortType: SortType, limit: Int = 10): Flow<ResultWrapper<List<Workout>>>
     suspend fun deleteWorkoutCoverImage(imageUrl: String): ResultWrapper<Unit>
     suspend fun saveWorkoutLocally(workout: Workout): ResultWrapper<Unit>
     suspend fun deleteWorkoutLocally(workoutId: String): ResultWrapper<Unit>
     suspend fun getLocalWorkouts(): ResultWrapper<List<Workout>>
+    fun getWorkoutFlow(workoutId: String): Flow<ResultWrapper<Workout?>>
 }
 
 class WorkoutRepository @Inject constructor(
@@ -76,6 +76,38 @@ class WorkoutRepository @Inject constructor(
             Log.e("DataRepository", "Error fetching workout: ${e.message}")
             null
         }
+    }
+
+
+
+    /**
+     * Fetches a workout from the Firebase database and listens to updates.
+     *
+     * This function retrieves a workout by its ID from the Firebase database and listens to updates.
+     * If the workout exists, it emits the workout object; otherwise, it emits null. If the workout is
+     * updated, it emits the updated workout object.
+     *
+     * @param workoutId The ID of the workout to be fetched.
+     * @return A Flow emitting the workout object if it exists, or null if it does not exist. The Flow
+     * will keep emitting the updated workout object as long as the workout is updated.
+     */
+    override fun getWorkoutFlow(workoutId: String): Flow<ResultWrapper<Workout?>> = callbackFlow {
+        val workoutRef = database.getReference(WORKOUTS_COLLECTION).child(workoutId)
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    trySend(ResultWrapper.Success(snapshot.getValue(Workout::class.java)))
+                } else {
+                    trySend(ResultWrapper.Success(null))
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                trySend(ResultWrapper.Error(Exception(error.message)))
+            }
+        }
+        workoutRef.addValueEventListener(listener)
+        awaitClose { workoutRef.removeEventListener(listener) }
     }
 
     /**
@@ -239,39 +271,6 @@ class WorkoutRepository @Inject constructor(
     }
 
 
-    /**
-     * Toggles the like status of a workout for a specific user
-     * @param workout The workout to toggle like status for
-     * @param userId The ID of the user
-     * @return ResultWrapper indicating success or failure
-     */
-    override suspend fun toggleWorkoutLike(workout: Workout, userId: String): ResultWrapper<Unit> {
-        return try {
-            val isLiked = when (val result = isWorkoutLikedByUser(workout.id, userId)) {
-                is ResultWrapper.Success -> result.data
-                else -> return ResultWrapper.Error(Exception("Failed to check like status"))
-            }
-
-            val updates = mutableMapOf<String, Any?>()
-            val likeKey = WorkoutLike.createId(userId, workout.id)
-
-            if (isLiked) {
-                // Remove like
-                updates["$WORKOUT_LIKES_COLLECTION/$likeKey"] = null
-                updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_LIKES_COUNT"] = ServerValue.increment(-1)
-            } else {
-                // Add like
-                val currentTimestamp = System.currentTimeMillis()
-                updates["$WORKOUT_LIKES_COLLECTION/$likeKey"] = WorkoutLike(id =likeKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
-                updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_LIKES_COUNT"] = ServerValue.increment(1)
-            }
-
-            database.reference.updateChildren(updates).await()
-            ResultWrapper.Success(Unit)
-        } catch (e: Exception) {
-            ResultWrapper.Error(e)
-        }
-    }
 
 
     /**
@@ -371,20 +370,18 @@ class WorkoutRepository @Inject constructor(
             }
         }
 
-        // Define a listener to handle data changes
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                // Map the snapshot data to a list of Workout objects
+                Log.d("WorkoutRepository", "Data changed, emitting new workouts") // Add logging
                 val workouts = snapshot.children.mapNotNull {
                     it.getValue(Workout::class.java)
                 }.reversed()
 
-                // Send the list of workouts as a success result
                 trySend(ResultWrapper.Success(workouts))
             }
 
             override fun onCancelled(error: DatabaseError) {
-                // Send an error result if the query is cancelled
+                Log.e("WorkoutRepository", "Query cancelled: ${error.message}")
                 trySend(ResultWrapper.Error(Exception(error.message)))
             }
         }
@@ -393,7 +390,9 @@ class WorkoutRepository @Inject constructor(
         query.addValueEventListener(listener)
 
         // Remove the listener when the flow is closed
-        awaitClose { query.removeEventListener(listener) }
+        awaitClose {
+            Log.d("WorkoutRepository", "Removing listener")
+            query.removeEventListener(listener) }
     }
 
 
