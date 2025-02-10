@@ -18,7 +18,8 @@ data class Exercise(
     val target: String= "",
     val secondaryMuscles: List<String> = emptyList(),
     val instructions: List<String>  = emptyList(),
-    var screenshotPath: String? = null // the path of a screenshot of the gif on the device
+    var screenshotPath: String? = null, // the path of a screenshot of the gif on the device
+    var isSavedLocally: Boolean = false // if the user saved this exercise locally
 ) : Parcelable
 
 

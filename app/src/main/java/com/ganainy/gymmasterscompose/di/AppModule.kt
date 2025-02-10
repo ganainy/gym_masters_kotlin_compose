@@ -27,7 +27,9 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.UserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.UsersRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.WorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
+import com.ganainy.gymmasterscompose.utils.AndroidImageProcessor
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
+import com.ganainy.gymmasterscompose.utils.IImageProcessor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -185,6 +187,17 @@ object AppModule {
         return WorkoutRepository(database, storage,appDatabase, hashtagRepository)
     }
 
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context {
+        return context
+    }
+
+    @Provides
+    @Singleton
+    fun provideImageProcessor(context: Context): IImageProcessor {
+        return AndroidImageProcessor(context)
+    }
 
     @Provides
     @Singleton
@@ -192,10 +205,12 @@ object AppModule {
         exerciseApi: ExerciseApi,
         appDatabase: AppDatabase,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
+        imageProcessor: IImageProcessor
     ): IExerciseRepository {
         return ExerciseRepository(
             appDatabase, exerciseApi,
-            ioDispatcher = ioDispatcher
+            ioDispatcher = ioDispatcher,
+            imageProcessor = imageProcessor
         )
     }
 

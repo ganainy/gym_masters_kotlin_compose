@@ -119,27 +119,24 @@ fun ExerciseContent(exercise: Exercise) {
 }
 
 
-
-
-
 @Preview(showBackground = true)
 @Composable
 private fun ExerciseContentPreview() {
     ExerciseContent(
-        Exercise(
-            bodyPart = "Legs",
-            equipment = "Machine",
-            gifUrl = "url_to_squat_machine_gif",
-            screenshotPath = "path_to_squat_machine_screenshot",
-            id = "1",
-            name = "Squat (Machine)",
-            target = "Quadriceps",
-            secondaryMuscles = listOf("Glutes", "Hamstrings"),
-            instructions = listOf(
-                "Set the machine to your height.",
-                "Place your shoulders under the pads.",
-                "Push through your heels to lift."
-            )
-        ),
+            Exercise(
+                bodyPart = "Legs",
+                equipment = "Machine",
+                gifUrl = "url_to_squat_machine_gif",
+                screenshotPath = "path_to_squat_machine_screenshot",
+                id = "1",
+                name = "Squat (Machine)",
+                target = "Quadriceps",
+                secondaryMuscles = listOf("Glutes", "Hamstrings"),
+                instructions = listOf(
+                    "Set the machine to your height.",
+                    "Place your shoulders under the pads.",
+                    "Push through your heels to lift."
+                )
+        )
     )
 }

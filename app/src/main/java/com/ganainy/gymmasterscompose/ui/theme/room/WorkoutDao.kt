@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutEntity
+import kotlinx.coroutines.flow.Flow
 
 // Room DAO for WorkoutEntity
 @Dao
@@ -14,6 +15,9 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workouts")
     suspend fun getAllWorkouts(): List<WorkoutEntity>
+
+    @Query("SELECT * FROM workouts")
+     fun getAllWorkoutsFlow(): Flow<List<WorkoutEntity>>
 
     @Query("DELETE FROM workouts WHERE id = :workoutId")
     suspend fun deleteWorkoutById(workoutId: String)

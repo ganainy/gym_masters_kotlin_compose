@@ -49,12 +49,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemType
+import com.ganainy.gymmasterscompose.ui.theme.components.ExpandableContent
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.PostListItem
 import com.ganainy.gymmasterscompose.ui.theme.components.ProfileHeader
+import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutListItem
+import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutWithStatus
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 
@@ -63,8 +69,10 @@ fun ProfileScreen(
     userId: String?,
     navigateToLogin: () -> Unit,
     navigateToCreatePost: () -> Unit,
-    navigateToWorkoutSetup: () -> Unit
-
+    navigateToWorkoutSetup: () -> Unit,
+    navigateToWorkoutDetails: (WorkoutWithStatus) -> Unit,
+    navigateToExercisesList: () -> Unit,
+    navigateToExerciseDetails: (Exercise) -> Unit
 ) {
     val viewModel = hiltViewModel<ProfileViewModel>()
 
@@ -80,6 +88,7 @@ fun ProfileScreen(
             // Loading state
             LoadingIndicator()
         }
+
         is ProfileUiState.Error -> {
             // Error state
             when (state) {
@@ -87,25 +96,30 @@ fun ProfileScreen(
                     val errorMessage = stringResource(state.messageStringResource)
                     showToast(context = LocalContext.current, message = errorMessage)
                 }
+
                 is ProfileUiState.Error.StringError -> {
                     showToast(context = LocalContext.current, message = state.message)
                 }
             }
         }
+
         is ProfileUiState.Success -> {
-            val profileType=state.profileType
+            val profileType = state.profileType
             when (profileType) {
                 ProfileType.CURRENT_USER -> {
                     CurrentUserProfileContent(
                         uiData = uiData,
                         viewModel = viewModel,
                         navigateToLogin = navigateToLogin,
-                        userId = userId,
                         navigateToCreatePost = navigateToCreatePost,
                         onEditProfilePicture = viewModel::onEditProfilePicture,
-                        navigateToWorkoutSetup = navigateToWorkoutSetup
+                        navigateToWorkoutSetup = navigateToWorkoutSetup,
+                        navigateToWorkoutDetails = navigateToWorkoutDetails,
+                        navigateToExercisesList = navigateToExercisesList,
+                        navigateToExerciseDetails = navigateToExerciseDetails
                     )
                 }
+
                 ProfileType.OTHER_USER -> {
                     // Other user profile
                     OtherUserProfileContent(
@@ -127,10 +141,12 @@ private fun CurrentUserProfileContent(
     uiData: ProfileUiData,
     viewModel: ProfileViewModel,
     navigateToLogin: () -> Unit,
-    userId: String?,
     navigateToCreatePost: () -> Unit,
     onEditProfilePicture: (String) -> Unit,
-    navigateToWorkoutSetup: () -> Unit
+    navigateToWorkoutSetup: () -> Unit,
+    navigateToWorkoutDetails: (WorkoutWithStatus) -> Unit,
+    navigateToExercisesList: () -> Unit,
+    navigateToExerciseDetails: (Exercise) -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -168,19 +184,85 @@ private fun CurrentUserProfileContent(
                 }
             )
 
-            Box(
+            ExpandableContent(
                 modifier = Modifier
-                    .height(300.dp)
-                    .fillMaxWidth()
-            ) {
-            PostsList(
-                posts = uiData.posts,
-                onPostClick = { TODO() },
-                onCreatePost = navigateToCreatePost,
-                modifier = Modifier,
-                isOwnProfile = true
+                    .padding(8.dp),
+                header = {
+                    Text(
+                        text = "Posts",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .height(300.dp)
+                            .fillMaxWidth()
+                    ) {
+                        PostsList(
+                            posts = uiData.posts,
+                            onPostClick = { TODO() },
+                            onCreatePost = navigateToCreatePost,
+                            modifier = Modifier,
+                            isOwnProfile = uiData.isOwnProfile
+                        )
+                    }
+                }
             )
-        }
+
+
+
+            ExpandableContent(
+                modifier = Modifier
+                    .padding(8.dp),
+                header = {
+                    Text(
+                        text = "Saved workouts",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .height(300.dp)
+                            .fillMaxWidth()
+                    ) {
+                        WorkoutList(
+                            workouts = uiData.workouts,
+                            onAddWorkoutClick = navigateToWorkoutSetup,
+                            onWorkoutClick = navigateToWorkoutDetails,
+                            isOwnProfile = uiData.isOwnProfile,
+                        )
+                    }
+                }
+            )
+
+            ExpandableContent(
+                modifier = Modifier
+                    .padding(8.dp),
+                header = {
+                    Text(
+                        text = "Saved exercises",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .height(300.dp)
+                            .fillMaxWidth()
+                    ) {
+                        ExerciseList(
+                            exerciseList = uiData.exerciseList,
+                            onExploreExercisesClick = navigateToExercisesList,
+                            onExerciseClick = navigateToExerciseDetails,
+                            isOwnProfile = uiData.isOwnProfile,
+                        )
+                    }
+                }
+            )
+
+
         }
     }
 }
@@ -195,7 +277,7 @@ private fun OtherUserProfileContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-           .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -216,14 +298,14 @@ private fun OtherUserProfileContent(
                 .height(300.dp)
                 .fillMaxWidth()
         ) {
-        PostsList(
-            posts = uiData.posts,
-            onPostClick = { TODO() },
-            onCreatePost = navigateToCreatePost,
-            modifier = Modifier,
-            isOwnProfile = true
-        )
-    }
+            PostsList(
+                posts = uiData.posts,
+                onPostClick = { TODO() },
+                onCreatePost = navigateToCreatePost,
+                modifier = Modifier,
+                isOwnProfile = true
+            )
+        }
     }
 }
 
@@ -362,9 +444,10 @@ fun PostsList(
     isOwnProfile: Boolean = false
 ) {
     if (posts.isEmpty()) {
-        EmptyPostsState(
+        EmptyState(
             isOwnProfile = isOwnProfile,
-            onCreatePost = onCreatePost
+            onAction = onCreatePost,
+            actionType = EmptyStateActionType.CREATE_POST_ACTION,
         )
     } else {
         LazyColumn(
@@ -376,7 +459,7 @@ fun PostsList(
                 items = posts,
                 key = { it.id }
             ) { post ->
-               PostListItem(
+                PostListItem(
                     post = post,
                     onPostClick = { onPostClick(post) },
                 )
@@ -386,11 +469,132 @@ fun PostsList(
 }
 
 @Composable
-private fun EmptyPostsState(
+fun WorkoutList(
+    workouts: List<WorkoutWithStatus>,
+    onAddWorkoutClick: () -> Unit,
+    isOwnProfile: Boolean = false,
+    modifier: Modifier = Modifier,
+    onWorkoutClick: (WorkoutWithStatus) -> Unit,
+) {
+
+    if (workouts.isEmpty()) {
+        EmptyState(
+            isOwnProfile = isOwnProfile,
+            onAction = onAddWorkoutClick,
+            actionType = EmptyStateActionType.CREATE_WORKOUT_ACTION,
+        )
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(
+                items = workouts,
+                key = { it.workout.id }
+            ) { workoutWithStatus ->
+                WorkoutListItem(
+                    workoutWithStatus = workoutWithStatus,
+                    onWorkoutClick = onWorkoutClick ,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExerciseList(
+    exerciseList: List<Exercise>,
+    onExploreExercisesClick: () -> Unit,
+    onExerciseClick: (Exercise) -> Unit,
     isOwnProfile: Boolean,
-    onCreatePost: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
+    if (exerciseList.isEmpty()) {
+        EmptyState(
+            isOwnProfile = isOwnProfile,
+            onAction = onExploreExercisesClick,
+            actionType = EmptyStateActionType.EXPLORE_EXERCISE_LIST_ACTION,
+        )
+    } else {
+        LazyColumn(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(
+                items = exerciseList,
+                key = { it.id }
+            ) { exercise ->
+                ExerciseListItem(
+                    exercise = exercise,
+                    type = ExerciseListItemType.EXERCISE,
+                    onClick = { onExerciseClick(exercise) },
+                )
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+private fun EmptyState(
+    isOwnProfile: Boolean,
+    onAction: () -> Unit,
+    actionType: EmptyStateActionType,
+    modifier: Modifier = Modifier
+) {
+    var titleText = ""
+    var bodyText = ""
+    var buttonText = ""
+
+    when (actionType) {
+        EmptyStateActionType.CREATE_POST_ACTION -> {
+            titleText = if (isOwnProfile) {
+                "Share Your Fitness Journey"
+            } else {
+                "No Posts Yet"
+            }
+            bodyText = if (isOwnProfile) {
+                "Start sharing your workouts, progress, and inspire others!"
+            } else {
+                "This user hasn't posted anything yet"
+            }
+            buttonText =  "Create First Post"
+        }
+
+        EmptyStateActionType.CREATE_WORKOUT_ACTION -> {
+            titleText = if (isOwnProfile) {
+                "Create Your First Workout"
+            } else {
+                "No Workouts Yet"
+            }
+            bodyText = if (isOwnProfile) {
+                "Start creating your first workout and share it with the community!"
+            } else {
+                "This user hasn't created any workouts yet"
+            }
+            buttonText =  "Create First Workout"
+        }
+
+        EmptyStateActionType.EXPLORE_EXERCISE_LIST_ACTION -> {
+            titleText = if (isOwnProfile) {
+                "Explore More Exercises"
+            } else {
+                "No Exercises Saved Yet"
+            }
+            bodyText = if (isOwnProfile) {
+                "Explore more exercises and add them to your workout routines!"
+            } else {
+                "This user hasn't saved any exercises yet"
+            }
+            buttonText =  "Explore Exercises"
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -408,21 +612,13 @@ private fun EmptyPostsState(
         )
 
         Text(
-            text = if (isOwnProfile) {
-                "Share Your Fitness Journey"
-            } else {
-                "No Posts Yet"
-            },
+            text = titleText,
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center
         )
 
         Text(
-            text = if (isOwnProfile) {
-                "Start sharing your workouts, progress, and inspire others!"
-            } else {
-                "This user hasn't posted anything yet"
-            },
+            text = bodyText,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
@@ -431,7 +627,7 @@ private fun EmptyPostsState(
 
         if (isOwnProfile) {
             Button(
-                onClick = onCreatePost,
+                onClick = onAction,
                 modifier = Modifier.padding(top = 16.dp)
             ) {
                 Icon(
@@ -440,10 +636,16 @@ private fun EmptyPostsState(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Create First Post")
+                Text(buttonText)
             }
         }
     }
+}
+
+enum class EmptyStateActionType {
+    CREATE_POST_ACTION,
+    CREATE_WORKOUT_ACTION,
+    EXPLORE_EXERCISE_LIST_ACTION
 }
 
 

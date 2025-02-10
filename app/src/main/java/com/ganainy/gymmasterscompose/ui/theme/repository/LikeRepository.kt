@@ -42,6 +42,8 @@ interface ILikeRepository {
         postId: String? = null,
         userId: String? = null
     ): Flow<Boolean>
+
+    suspend fun observeTypeLikes(type: LikeType, userId: String?): Flow<List<CachedLike?>>
 }
 
 
@@ -218,5 +220,13 @@ class LikeRepository @Inject constructor(
         cachedLikeDao.observeLike(effectiveUserId, targetId, type, postId)
             .map { it?.isLiked ?: false }
             .collect { emit(it) }
+    }
+
+    override suspend fun observeTypeLikes(
+        type: LikeType,
+        userId: String?
+    ): Flow<List<CachedLike?>> {
+        val effectiveUserId = userId ?: userRepository.getCurrentUserId()
+        return cachedLikeDao.observeTypeLikes(effectiveUserId, type)
     }
 }

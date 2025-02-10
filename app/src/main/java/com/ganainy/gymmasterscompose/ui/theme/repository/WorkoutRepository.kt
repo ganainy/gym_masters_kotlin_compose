@@ -27,6 +27,7 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -43,6 +44,7 @@ interface IWorkoutRepository {
     suspend fun saveWorkoutLocally(workout: Workout): ResultWrapper<Unit>
     suspend fun deleteWorkoutLocally(workoutId: String): ResultWrapper<Unit>
     suspend fun getLocalWorkouts(): ResultWrapper<List<Workout>>
+    suspend fun getLocalWorkoutsFlow(): Flow<ResultWrapper<List<Workout>>>
     fun getWorkoutFlow(workoutId: String): Flow<ResultWrapper<Workout?>>
 }
 
@@ -336,6 +338,17 @@ class WorkoutRepository @Inject constructor(
         }
     }
 
+    override suspend fun getLocalWorkoutsFlow(): Flow<ResultWrapper<List<Workout>>> = callbackFlow {
+        try {
+            appDatabase.workoutDao().getAllWorkoutsFlow().collectLatest { workoutEntities ->
+                workoutEntities.map { workoutEntity -> workoutEntity.toWorkout() }.also {
+                    send(ResultWrapper.Success(it))
+                }
+            }
+        } catch (e: Exception) {
+            send(ResultWrapper.Error(e))
+        }
+    }
 
     /**
      * Retrieves a list of workouts from the Firebase database based on the specified sort type and limit.

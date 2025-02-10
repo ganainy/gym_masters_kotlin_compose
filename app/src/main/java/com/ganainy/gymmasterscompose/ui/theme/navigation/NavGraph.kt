@@ -206,7 +206,21 @@ fun AppNavigation(
                         // Navigate to WorkoutSetupScreen
                         navController.navigate(Screen.WorkoutSetup.route)
 
-                    }
+                    },
+                    navigateToWorkoutDetails = { workoutWithStatus ->
+                        // Encode workout object to JSON and navigate to Detailed Workout Screen
+                        val workoutJson = Uri.encode(Gson().toJson(workoutWithStatus.workout))
+                        navController.navigate("${Screen.DetailedWorkout.route}?workout=$workoutJson?isLiked=${workoutWithStatus.isLiked}?isSaved=${workoutWithStatus.isSaved}")
+                    },
+                    navigateToExercisesList = {
+                        // Navigate to ExerciseListScreen
+                        navController.navigate(Screen.Main.ExerciseList.route)
+                    },
+                    navigateToExerciseDetails = { exercise ->
+                        // Encode exercise object to JSON and navigate to ExerciseScreen
+                        val exerciseJson = Uri.encode(Gson().toJson(exercise))
+                        navController.navigate("${Screen.Exercise.route}?exercise=$exerciseJson")
+                    },
                 )
             }
 

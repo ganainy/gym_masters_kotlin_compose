@@ -5,18 +5,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.EmptyComponent
 import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseContent
@@ -29,28 +31,33 @@ fun ExerciseScreen(exercise: Exercise, navigateBack: () -> Unit) {
 
     val viewModel = hiltViewModel<ExerciseViewModel>()
 
-    viewModel.setExercise(exercise)
+    LaunchedEffect(Unit) {
+        viewModel.setExercise(exercise)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
 
 
-        // Main Screen Content
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            ExercisesContent(uiState,viewModel::saveExercise, navigateBack)
-
-        }
+    // Main Screen Content
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        ExercisesContent(uiState, viewModel::toggleExerciseSave, navigateBack)
+    }
 }
 
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun ExercisesContent(
-    uiState: ExerciseUiState,
+    uiState: ExerciseViewModel.ExerciseUiState,
     onSaveExercise: () -> Unit,
     navigateBack: () -> Unit,
 ) {
+
+    val exerciseWithSaveState = uiState.exercise
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -61,26 +68,24 @@ private fun ExercisesContent(
                 }
             },
             actions = {
-                IconButton(onClick = onSaveExercise ) {
+                IconButton(onClick = onSaveExercise) {
                     Icon(
-                        imageVector = Icons.Default.Save,
+                        painter = if (exerciseWithSaveState?.isSavedLocally == true) painterResource(id = R.drawable.save_filled) else painterResource(id = R.drawable.save_outlined),
                         contentDescription = "Save"
                     )
                 }
             }
         )
 
-        val exercise = uiState.exercise
 
 
         if (uiState.isLoading) {
             LoadingIndicator()
-        }
-        else if (uiState.error != null) {
+        } else if (uiState.error != null) {
             ErrorComponent(text = uiState.error)
-        } else if (exercise != null) {
+        } else if (exerciseWithSaveState != null) {
             ExerciseContent(
-                exercise,
+                exerciseWithSaveState,
             )
         } else {
             EmptyComponent("No exercises found")

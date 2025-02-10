@@ -8,7 +8,10 @@ import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
 import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.ExerciseApi
 import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
+import com.ganainy.gymmasterscompose.utils.IImageProcessor
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -24,13 +27,17 @@ interface IExerciseRepository {
     suspend fun getExercisesByTarget(target: TargetMuscle): ResultWrapper<List<Exercise>>
     suspend fun getExerciseById(id: String): ResultWrapper<Exercise>
     suspend fun getExercisesByName(name: String): ResultWrapper<List<Exercise>>
+    suspend fun toggleExerciseSaveLocally(exercise: Exercise): ResultWrapper<Unit>
+    suspend fun observeExercise(exerciseId: String):  Flow<ResultWrapper<Exercise?>>
+    suspend fun observeSavedExercises(): Flow<ResultWrapper<List<Exercise>?>>
 }
 
 
 class ExerciseRepository @Inject constructor(
     private val appDatabase: AppDatabase,
     private val exerciseApi: ExerciseApi,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val imageProcessor: IImageProcessor
 ) : IExerciseRepository {
 
     // Generic function to handle API calls with caching
@@ -51,6 +58,15 @@ class ExerciseRepository @Inject constructor(
 
             // Otherwise fetch from network
             val networkResult = networkCall()
+
+            // Process images for exercises
+            if (networkResult is List<*>) {
+                networkResult.filterIsInstance<Exercise>().forEach { exercise ->
+                    imageProcessor.getImagePathFromGif(exercise.gifUrl)?.let { imagePath ->
+                        exercise.screenshotPath = imagePath
+                    }
+                }
+            }
 
             // Save network result to cache if not null
             if (networkResult != null) {
@@ -137,6 +153,40 @@ class ExerciseRepository @Inject constructor(
             networkCall = { exerciseApi.getExercisesByName(name) },
             saveCallResult = { appDatabase.exerciseDao().insertAll(it) }
         )
+
+    override suspend fun toggleExerciseSaveLocally(exercise: Exercise): ResultWrapper<Unit> {
+        exercise.isSavedLocally = !exercise.isSavedLocally
+        return try {
+            appDatabase.exerciseDao().update(exercise)
+            ResultWrapper.Success(Unit)
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
+        }
+    }
+
+    override suspend fun observeExercise(exerciseId: String): Flow<ResultWrapper<Exercise?>> {
+        return flow {
+            try {
+                appDatabase.exerciseDao().observeExerciseById(exerciseId).collect { exercise ->
+                    emit(ResultWrapper.Success(exercise))
+                }
+            } catch (e: Exception) {
+                emit(ResultWrapper.Error(e))
+            }
+        }
+    }
+
+    override suspend fun observeSavedExercises(): Flow<ResultWrapper<List<Exercise>?>> {
+        return flow {
+            try {
+                appDatabase.exerciseDao().observeSavedExercises().collect { exercises ->
+                    emit(ResultWrapper.Success(exercises))
+                }
+            } catch (e: Exception) {
+                emit(ResultWrapper.Error(e))
+            }
+        }
+    }
 
     companion object {
         private const val CACHE_TIMEOUT = 24 * 60 * 60 * 1000L // 24 hours

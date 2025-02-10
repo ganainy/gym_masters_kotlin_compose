@@ -3,16 +3,26 @@ package com.ganainy.gymmasterscompose.ui.theme.screens.profile
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.repository.IAuthRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IExerciseRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.theme.repository.IWorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.ui.theme.room.CachedLike
+import com.ganainy.gymmasterscompose.ui.theme.room.LikeType
+import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutWithStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,8 +31,12 @@ import javax.inject.Inject
 data class ProfileUiData(
     val user: User = User(),
     val posts: List<FeedPost> = emptyList(),
-    val isFollowing: Boolean = false
-)
+    val isFollowing: Boolean = false,
+    val workouts: List<WorkoutWithStatus> = emptyList(),
+    val isOwnProfile: Boolean = false,
+    val exerciseList: List<Exercise> = emptyList()
+) {
+}
 
 sealed class ProfileUiState {
     data class Success(val profileType: ProfileType) : ProfileUiState()
@@ -44,6 +58,9 @@ class ProfileViewModel @Inject constructor(
     private val userRepository: IUserRepository,
     private val authRepository: IAuthRepository,
     private val socialRepository: ISocialRepository,
+    private val workoutRepository: IWorkoutRepository,
+    private val likeRepository: ILikeRepository,
+    private val exerciseRepository: IExerciseRepository
 ) : ViewModel() {
 
     val context = application
@@ -64,60 +81,97 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             val targetUserId = userId ?: currentUserId
 
+            _uiData.update {
+                it.copy(isOwnProfile = currentUserId == userId)
+            }
+
             combine(
                 userRepository.getUserFlow(targetUserId),
                 userRepository.getUserPosts(targetUserId),
                 socialRepository.isFollowing(targetUserId),
-            ) { results: Array<ResultWrapper<*>> ->
-
-                val user = results[0] as ResultWrapper<User>
-                val posts = results[1] as ResultWrapper<List<FeedPost>>
-                val isFollowing = results[2] as ResultWrapper<Boolean>
-
-                // Handle each ResultWrapper to extract data or handle errors
-                val profileData = when {
-                    user is ResultWrapper.Error -> {
-                        _uiState.update {
-                            ProfileUiState.Error.StringError(
-                                user.exception.message ?: "Unknown error"
-                            )
-                        }
-                        return@combine
-                    }
-
-                    posts is ResultWrapper.Error -> {
-                        _uiState.update {
-                            ProfileUiState.Error.StringError(
-                                posts.exception.message ?: "Unknown error"
-                            )
-                        }
-                        return@combine
-                    }
-
-                   isFollowing is ResultWrapper.Error -> {
-                        _uiState.update {
-                            ProfileUiState.Error.StringError(
-                                isFollowing.exception.message ?: "Unknown error"
-                            )
-                        }
-                        return@combine
-                    }
+                workoutRepository.getLocalWorkoutsFlow(),
+                likeRepository.observeTypeLikes(type = LikeType.WORKOUT, userId = targetUserId),
+                exerciseRepository.observeSavedExercises()
+            ) { results ->
+                when {
+                    results[0] is ResultWrapper.Error -> ResultWrapper.Error((results[0] as ResultWrapper.Error).exception)
+                    results[1] is ResultWrapper.Error -> ResultWrapper.Error((results[1] as ResultWrapper.Error).exception)
+                    results[2] is ResultWrapper.Error -> ResultWrapper.Error((results[2] as ResultWrapper.Error).exception)
+                    results[3] is ResultWrapper.Error -> ResultWrapper.Error((results[3] as ResultWrapper.Error).exception)
+                    results[4] is ResultWrapper.Error -> ResultWrapper.Error((results[4] as ResultWrapper.Error).exception)
+                    results[5] is ResultWrapper.Error -> ResultWrapper.Error((results[5] as ResultWrapper.Error).exception)
 
                     else -> {
-                        // All results are successful, safely cast and update state
-                        _uiData.update { currentState ->
-                            currentState.copy(
-                                user = (user as ResultWrapper.Success).data,
-                                posts = (posts as ResultWrapper.Success).data,
-                                isFollowing = (isFollowing as ResultWrapper.Success).data
+                        try {
+                            val user = (results[0] as ResultWrapper.Success<User>).data
+                            val posts = (results[1] as ResultWrapper.Success<List<FeedPost>>).data
+                            val isFollowing = (results[2] as ResultWrapper.Success<Boolean>).data
+                            val localWorkouts = (results[3] as ResultWrapper.Success<List<Workout>>).data
+                            val workoutLikes = results[4] as List<CachedLike?>
+                            val exerciseList = (results[5] as ResultWrapper.Success<List<Exercise>>).data
+
+                            val processedData = ProcessedProfileData(
+                                user = user,
+                                posts = posts,
+                                isFollowing = isFollowing,
+                                exerciseList = exerciseList,
+                                workouts = localWorkouts.map { workout ->
+                                    WorkoutWithStatus(
+                                        workout = workout,
+                                        isLiked = workoutLikes.any { like ->
+                                            like?.targetId == workout.id && like.isLiked
+                                        },
+                                        isSaved = true
+                                    )
+                                }
                             )
+                            ResultWrapper.Success(processedData)
+                        } catch (e: Exception) {
+                            ResultWrapper.Error(e)
                         }
-                        _uiState.value= ProfileUiState.Success(if (userId == null) ProfileType.CURRENT_USER else ProfileType.OTHER_USER)
                     }
                 }
-            }.collect {}
+            }
+                .onEach { result ->
+                    when (result) {
+                        is ResultWrapper.Success -> {
+                            _uiData.update { currentState ->
+                                currentState.copy(
+                                    user = result.data.user,
+                                    posts = result.data.posts,
+                                    isFollowing = result.data.isFollowing,
+                                    exerciseList = result.data.exerciseList,
+                                    workouts = result.data.workouts
+                                )
+                            }
+                            _uiState.value = ProfileUiState.Success(
+                                if (userId == null) ProfileType.CURRENT_USER else ProfileType.OTHER_USER
+                            )
+                        }
+                        is ResultWrapper.Error -> {
+                            _uiState.value = ProfileUiState.Error.StringError(
+                                result.exception.message ?: "Unknown error"
+                            )
+                        }
+                    }
+                }
+                .catch { throwable ->
+                    _uiState.value = ProfileUiState.Error.StringError(
+                        throwable.message ?: "Unknown error"
+                    )
+                }
+                .collect {}
         }
     }
+
+
+    private data class ProcessedProfileData(
+        val user: User,
+        val posts: List<FeedPost>,
+        val isFollowing: Boolean,
+        val exerciseList: List<Exercise>,
+        val workouts: List<WorkoutWithStatus>
+    )
 
     fun toggleFollow(userIdToFollowUnfollow: String?) {
         viewModelScope.launch {
@@ -160,6 +214,7 @@ class ProfileViewModel @Inject constructor(
                         )
                     }
                 }
+
                 is ResultWrapper.Error -> _uiState.update {
                     ProfileUiState.Error.StringError(
                         result.exception.message ?: "Unknown error while updating profile picture"

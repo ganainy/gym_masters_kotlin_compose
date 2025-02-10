@@ -25,4 +25,7 @@ interface CachedLikeDao {
 
     @Query("SELECT * FROM cached_likes WHERE isPending = 1")
     suspend fun getPendingLikes(): List<CachedLike>
+
+    @Query("SELECT * FROM cached_likes WHERE userId = :userId AND likeType = :type AND (postId = :postId OR postId IS NULL)")
+    fun observeTypeLikes(userId: String, type: LikeType, postId: String? = null): Flow<List<CachedLike?>>
 }

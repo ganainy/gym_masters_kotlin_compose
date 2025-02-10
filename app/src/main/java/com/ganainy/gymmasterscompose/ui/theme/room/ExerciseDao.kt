@@ -5,7 +5,9 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExerciseDao {
@@ -27,9 +29,18 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercise WHERE id LIKE :id")
     abstract fun getExerciseById(id: String): Exercise?
 
+    @Query("SELECT * FROM exercise WHERE id LIKE :id")
+    abstract fun observeExerciseById(id: String): Flow<Exercise?>
+
     @Query("SELECT * FROM exercise WHERE bodyPart LIKE :bodyPart")
     abstract fun getExercisesByBodyPart(bodyPart: String): List<Exercise>?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(exercise: Exercise)
+    suspend fun insert(exercise: Exercise)
+
+    @Update
+    suspend fun update(exercise: Exercise)
+
+    @Query("SELECT * FROM exercise WHERE isSavedLocally = 1")
+    abstract fun observeSavedExercises(): Flow<List<Exercise>?>
 }
