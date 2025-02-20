@@ -1,15 +1,24 @@
 package com.ganainy.gymmasterscompose.ui.theme.components
 
+import AnimatedLikeCounter
+import AnimatedSaveCounter
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +39,7 @@ import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutWithSt
 import kotlinx.coroutines.launch
 
 @Composable
-fun WorkoutMetricsRow(
+fun WorkoutMetricsRow22(
     workoutWithStatus: WorkoutWithStatus,
     onLikeClick: (Workout) -> Unit = {},
     onSaveClick: (Workout) -> Unit = {},
@@ -104,6 +113,60 @@ fun WorkoutMetricsRow(
     }
 
 }
+
+
+@Composable
+fun WorkoutMetricsRow(
+    workoutWithStatus: WorkoutWithStatus,
+    onLikeClick: (Workout) -> Unit = {},
+    onSaveClick: (Workout) -> Unit = {},
+) {
+
+    Column {
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = 1.dp
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            //Like icon and counter
+            AnimatedLikeCounter(isLiked = workoutWithStatus.isLiked,
+                count = workoutWithStatus.workout.workoutMetrics.likesCount,
+                onLikeClick = {onLikeClick(workoutWithStatus.workout)},
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(1.dp, 24.dp)
+                    .padding(horizontal = 8.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            ){
+                VerticalDivider(
+                    thickness = 1.dp
+                )
+            }
+
+            //Save icon and counter
+            AnimatedSaveCounter(
+                count = workoutWithStatus.workout.workoutMetrics.saveCount,
+                isSaved = workoutWithStatus.isSaved,
+                onSaveClick = {onSaveClick(workoutWithStatus.workout)},
+            )
+
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = 1.dp
+        )
+    }
+}
+
 
 @Preview(showBackground = true)
 @Composable

@@ -9,6 +9,7 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.IUserRepository
 import com.ganainy.gymmasterscompose.ui.theme.room.LikeType
+import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,15 +38,11 @@ sealed class FeedUiState {
 
 data class FeedUiData(
     val followingUserIds: Set<String>,
-    val postList: List<FeedPostWithLikes>,
+    val postList: List<FeedPostWithLikesAndComments>,
     var lastLoadedPostTimestamp: Long? = null // used for pagination, first most recent 20 posts are loaded then on load more older posts are loaded
 
 )
 
-data class FeedPostWithLikes(
-    val post: FeedPost,
-    val isLiked: Boolean = false, // used to show like icon as filled or empty based on if user liked the post or not
-)
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
@@ -131,7 +128,7 @@ class FeedViewModel @Inject constructor(
                                 targetId = post.id,
                                 type = LikeType.POST
                             ).map { isLiked ->
-                                FeedPostWithLikes(
+                                FeedPostWithLikesAndComments(
                                     post = post,
                                     isLiked = isLiked
                                 )
@@ -211,7 +208,7 @@ class FeedViewModel @Inject constructor(
                     // Update the feed UI data with the new posts and their like status
                     _feedUiData.update { currentState ->
                         val updatedPosts = posts.map { post ->
-                            FeedPostWithLikes(
+                            FeedPostWithLikesAndComments(
                                 post = post,
                                 isLiked = likeMap[post.id] ?: false
                             )

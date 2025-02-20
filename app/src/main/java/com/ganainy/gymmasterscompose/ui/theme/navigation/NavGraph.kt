@@ -159,8 +159,7 @@ fun AppNavigation(
             // DiscoverScreen composable
             composable(route = Screen.Main.Discover.route) { DiscoverScreen(navController) }
             // WorkoutListScreen composable
-            composable(route = Screen.Main.WorkoutList.route) { WorkoutListScreen(navController
-            ,navigateToWorkoutDetails = { workout,isLiked,isSaved ->
+            composable(route = Screen.Main.WorkoutList.route) { WorkoutListScreen(navigateToWorkoutDetails = { workout,isLiked,isSaved ->
                     // Encode exercise object to JSON and navigate to ExerciseScreen
                     val workoutJson = Uri.encode(Gson().toJson(workout))
                     navController.navigate("${Screen.DetailedWorkout.route}?workout=$workoutJson?isLiked=$isLiked?isSaved=$isSaved")

@@ -31,17 +31,17 @@ class WorkoutListViewModel @Inject constructor(
     private val userRepository: IUserRepository,
     private val likeRepository: ILikeRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(WorkoutListUiData())
-    var uiState = _uiState.asStateFlow()
+    private val _uiData = MutableStateFlow(WorkoutListUiData())
+    var uiData = _uiData.asStateFlow()
 
     init {
-        loadWorkouts(_uiState.value.sortType)
+        loadWorkouts(_uiData.value.sortType)
 
         // For local search filtering
         // Transform the uiState data state flow to filter workouts based on the search query.
         // If the search query is empty, return the original data. Otherwise, filter the workouts
         // whose titles contain the search query (case-insensitive).
-        uiState = _uiState.asStateFlow()
+        uiData = _uiData.asStateFlow()
             .map { data ->
                 if (data.searchQuery.isEmpty()) {
                     data
@@ -66,7 +66,7 @@ class WorkoutListViewModel @Inject constructor(
 
         // Listen for sort changes (require new firebase call)
         viewModelScope.launch {
-            _uiState
+            _uiData
                 .map { it.sortType }
                 .distinctUntilChanged()
                 .collect { sortType ->
@@ -87,7 +87,7 @@ class WorkoutListViewModel @Inject constructor(
                 userId = userId,
             )
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = e.message) }
+            _uiData.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
@@ -109,7 +109,7 @@ class WorkoutListViewModel @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = e.message) }
+            _uiData.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
@@ -118,7 +118,7 @@ class WorkoutListViewModel @Inject constructor(
     private fun loadWorkouts(sortType: SortType) = viewModelScope.launch {
         try {
             Log.d("WorkoutViewModel", "Starting workout collection")
-            _uiState.update { it.copy(isLoading = true) }
+            _uiData.update { it.copy(isLoading = true) }
 
             // Convert the workouts flow to a StateFlow so we can combine it with other flows
             val workoutsFlow = workoutRepository.getWorkouts(sortType)
@@ -173,7 +173,7 @@ class WorkoutListViewModel @Inject constructor(
                     }
                 }
                 .collect { workoutStatusList ->
-                    _uiState.update {
+                    _uiData.update {
                         it.copy(
                             isLoading = false,
                             workoutWithStatusList = workoutStatusList,
@@ -184,7 +184,7 @@ class WorkoutListViewModel @Inject constructor(
 
         } catch (e: Exception) {
             Log.e("WorkoutViewModel", "Error loading workouts", e)
-            _uiState.update { it.copy(isLoading = false, error = e.message) }
+            _uiData.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
@@ -192,42 +192,42 @@ class WorkoutListViewModel @Inject constructor(
     //todo move to workoutDetails screen for when user deletes local workout
     fun deleteLocalWorkout(workoutId: String) = viewModelScope.launch {
         try {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiData.update { it.copy(isLoading = true) }
             workoutRepository.deleteWorkoutLocally(workoutId)
             loadLocalWorkouts() // Refresh local workouts after deletion
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = e.message) }
+            _uiData.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
     //todo move to workoutDetails screen for when user deletes local workout
     fun loadLocalWorkouts() = viewModelScope.launch {
         try {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiData.update { it.copy(isLoading = true) }
             val workouts = workoutRepository.getLocalWorkouts()
-            _uiState.update {
+            _uiData.update {
                 it.copy(
                     isLoading = false,
                     localWorkouts = (workouts as? ResultWrapper.Success)?.data ?: emptyList()
                 )
             }
         } catch (e: Exception) {
-            _uiState.update { it.copy(isLoading = false, error = e.message) }
+            _uiData.update { it.copy(isLoading = false, error = e.message) }
         }
     }
 
 
     fun updateSearchQuery(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
+        _uiData.update { it.copy(searchQuery = query) }
     }
 
 
     fun retry() {
-        loadWorkouts(_uiState.value.sortType)
+        loadWorkouts(_uiData.value.sortType)
     }
 
     fun updateSortPreference(sortType: SortType) {
-        _uiState.update { it.copy(sortType = sortType) }
+        _uiData.update { it.copy(sortType = sortType) }
     }
 }
 

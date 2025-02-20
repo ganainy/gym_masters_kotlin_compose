@@ -30,7 +30,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "RAPID_API_KEY", properties.getProperty("RAPID_API_KEY"))
+        //buildConfigField("String", "RAPID_API_KEY", properties.getProperty("RAPID_API_KEY"))
 
 
     }
@@ -109,6 +109,7 @@ dependencies {
     implementation(libs.hilt.android.testing)
     implementation(libs.core)
     implementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.ui.text.google.fonts)
     androidTestImplementation(libs.androidx.core.testing)
     androidTestImplementation(libs.ext.junit)
     kapt(libs.dagger.hilt.android.compiler)
@@ -116,9 +117,6 @@ dependencies {
 
     //time ago
     implementation (libs.timeago)
-
-    //pull to refresh
-    implementation(libs.androidx.material)
 
     //  testing
     androidTestImplementation(libs.ui.test.junit4)

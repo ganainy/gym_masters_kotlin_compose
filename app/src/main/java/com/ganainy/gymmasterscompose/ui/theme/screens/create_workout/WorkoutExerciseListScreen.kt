@@ -14,14 +14,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ModalBottomSheetLayout
-import androidx.compose.material.ModalBottomSheetState
-import androidx.compose.material.ModalBottomSheetValue
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,11 +27,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -92,7 +92,7 @@ fun WorkoutExerciseListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(initialValue = ModalBottomSheetValue.Hidden)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Event handler
     val handleEvent: (ExerciseListScreenEvent) -> Unit = { event ->
@@ -163,18 +163,19 @@ fun WorkoutExerciseListScreen(
 @Composable
 private fun WorkoutExerciseListScreenContent(
     uiState: UiState.WorkoutUiState,
-    sheetState: ModalBottomSheetState,
+    sheetState: SheetState,
     onEvent: (ExerciseListScreenEvent) -> Unit
 ) {
-    ModalBottomSheetLayout(
-        sheetState = sheetState,
-        sheetContent = {
-            FilterSheet(
-                uiState = uiState,
-                onEvent = onEvent
-            )
-        }
+    val coroutineScope = rememberCoroutineScope()
+    ModalBottomSheet(
+        onDismissRequest = { coroutineScope.launch { sheetState.hide() } },
+        sheetState = sheetState
     ) {
+        FilterSheet(
+            uiState = uiState,
+            onEvent = onEvent
+        )
+    }
         Box(modifier = Modifier.fillMaxSize()) {
             when (uiState.exerciseListState) {
                 is UiState.DataState.Loading -> LoadingIndicator()
@@ -196,9 +197,7 @@ private fun WorkoutExerciseListScreenContent(
             }
         }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainContent(
     uiState: UiState.WorkoutUiState,

@@ -1,5 +1,5 @@
 [versions]
-agp = "8.8.0"
+agp = "8.8.1"
 coilCompose = "2.7.0"
 composeVersion = "1.7.6"
 firebaseAuth = "23.0.0"
@@ -37,6 +37,7 @@ coreTesting = "2.2.0"
 uiTestManifest = "1.7.6"
 androidxJunit = "1.1.5"
 kotlinSerialization = "2.0.0"
+uiTextGoogleFonts = "1.7.8"
 
 
 [libraries]
@@ -85,6 +86,7 @@ androidx-core-testing = { group = "androidx.arch.core", name = "core-testing", v
 ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "uiTestJunit4" }
 ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "uiTestManifest" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "uiTextGoogleFonts" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

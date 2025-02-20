@@ -1,57 +1,43 @@
 package com.ganainy.gymmasterscompose.ui.theme.components.post
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.animation.LocalShimmerTheme
+import com.ganainy.gymmasterscompose.animation.shimmerPlaceholder
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagText
 import com.ganainy.gymmasterscompose.ui.theme.components.PostInteractionRow
 import com.ganainy.gymmasterscompose.ui.theme.components.UserInfoRow
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.screens.feed.FeedPostWithLikes
-import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.CommentWithLikeStatus
+import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FeedPostItem(
-    feedPostWithLikesAndComments: FeedPostWithLikes,
+    feedPostWithLikesAndComments: FeedPostWithLikesAndComments,
     onLikeIconClick: () -> Unit,
     onProfileClick: () -> Unit,
     onPostClick: () -> Unit
@@ -60,8 +46,6 @@ fun FeedPostItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-            .padding(16.dp)
             .clickable { onPostClick() }
     ) {
         UserInfoRow(
@@ -71,51 +55,89 @@ fun FeedPostItem(
             onProfileClick = onProfileClick
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Post content
         HashtagText(
             text = feedPostWithLikesAndComments.post.content,
             onHashtagClick = {}, // TODO: Add hashtag click handler
             modifier = Modifier.padding(vertical = 4.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         if (feedPostWithLikesAndComments.post.imageUrlList.isNotEmpty()) {
-            // Post Image (Placeholder)
-            FlowRow(
+            val imageUrls = feedPostWithLikesAndComments.post.imageUrlList.take(4)
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                   ,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start),
-                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Top),
-                content = {
-                    feedPostWithLikesAndComments.post.imageUrlList.take(4)
-                        .forEachIndexed { index, url ->
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(url)
-                                    .crossfade(true)
-                                    .build(),
-                                placeholder = painterResource(R.drawable.loading),
-                                contentDescription = "Post Image",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .width(150.dp)
-                                    .height(150.dp)
-                            )
-                        }
-                    if (feedPostWithLikesAndComments.post.imageUrlList.size > 4) {
-                        Text(
-                            "+${feedPostWithLikesAndComments.post.imageUrlList.size - 4}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 8.dp)
+                    .padding(vertical = 4.dp)
+            ) {
+                when (imageUrls.size) {
+                    1 -> {
+                        // Single image takes full width
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageUrls[0])
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Post Image 1",
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1.5f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .shimmerPlaceholder(
+                                    visible = true,
+                                    shimmerTheme = LocalShimmerTheme.current,
+                                )
                         )
                     }
+                    else -> {
+                        // Multiple images in a grid
+                        val rows = (imageUrls.size + 1) / 2
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (row in 0 until rows) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val startIndex = row * 2
+                                    for (i in startIndex until minOf(startIndex + 2, imageUrls.size)) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(imageUrls[i])
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "Post Image ${i + 1}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .aspectRatio(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .shimmerPlaceholder(
+                                                    visible = true,
+                                                    shimmerTheme = LocalShimmerTheme.current,
+                                                )
+                                        )
+                                    }
+                                    // If odd number of images in the row, add a spacer
+                                    if (startIndex + 2 > imageUrls.size && imageUrls.size % 2 != 0) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            )
+            }
+
+            if (feedPostWithLikesAndComments.post.imageUrlList.size > 4) {
+                Text(
+                    text = "+${feedPostWithLikesAndComments.post.imageUrlList.size - 4} more",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -126,104 +148,17 @@ fun FeedPostItem(
             isLiked = feedPostWithLikesAndComments.isLiked,
             feedPostWithLikesAndComments.post.postMetrics.comments,
         )
+
     }
 }
 
 
-@Composable
-fun CommentItem(commentWithLikeStatus: CommentWithLikeStatus, onCommentLikeClick: (commentId: String) -> Unit) {
 
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // User profile image
-        AsyncImage(
-            model = commentWithLikeStatus.comment.userDisplayInfo.profileImageUrl,
-            contentDescription = "Profile Image",
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape),
-            placeholder = painterResource(id = R.drawable.profile), // Placeholder for missing image
-            error = painterResource(id = R.drawable.profile) // Fallback for error
-        )
-
-        Spacer(modifier = Modifier.width(8.dp)) // Spacing between image and content
-
-        // Comment content and metadata
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            // User name and timestamp
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = commentWithLikeStatus.comment.userDisplayInfo.displayName,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.width(4.dp)) // Spacing between name and timestamp
-                Text(
-                    text = formatRelativeTime(commentWithLikeStatus.comment.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp)) // Spacing between name and comment
-
-            // Comment content
-            Text(
-                text = commentWithLikeStatus.comment.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp)) // Spacing between comment and like button
-
-            // Like button and likes count
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onCommentLikeClick(commentWithLikeStatus.comment.id) },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = if (commentWithLikeStatus.isLiked) {
-                            Icons.Filled.Favorite // Filled heart if liked
-                        } else {
-                            Icons.Outlined.FavoriteBorder // Outlined heart if not liked
-                        },
-                        contentDescription = "Like Comment",
-                        tint = if (commentWithLikeStatus.isLiked) {
-                            MaterialTheme.colorScheme.error // Red color if liked
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) // Gray color if not liked
-                        }
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp)) // Spacing between icon and likes count
-                Text(
-                    text = "${commentWithLikeStatus.comment.likesCount} likes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-        }
-    }
-}
-
-
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun PreviewFeedPostItem() {
     FeedPostItem(
-        feedPostWithLikesAndComments = FeedPostWithLikes(
+        feedPostWithLikesAndComments = FeedPostWithLikesAndComments(
             post = FeedPost(
                 content = "This is a post content",
                 postCreator = PostCreator(

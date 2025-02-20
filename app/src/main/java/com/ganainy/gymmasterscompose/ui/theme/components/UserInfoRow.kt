@@ -20,8 +20,7 @@ import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImage
 fun UserInfoRow(name: String?, imageUrl: String?, timeAgo: String, onProfileClick: () -> Unit = {}) {
     Row(verticalAlignment = Alignment.CenterVertically) {
 
-        ProfileImageSmall(imageUrl, Modifier.width(40.dp)
-            ,onClick=onProfileClick)
+        ProfileImageSmall(imageUrl,onClick=onProfileClick)
         Spacer(modifier = Modifier.width(8.dp))
 
         Column {

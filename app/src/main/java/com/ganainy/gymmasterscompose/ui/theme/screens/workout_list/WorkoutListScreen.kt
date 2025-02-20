@@ -31,7 +31,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,44 +38,47 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutCard
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutListScreen(
-    navController: NavHostController,
-    navigateToWorkoutDetails: (Workout,isLiked: Boolean,isSaved: Boolean) -> Unit
+    navigateToWorkoutDetails: (Workout, isLiked: Boolean, isSaved: Boolean) -> Unit
 ) {
 
 
     val viewModel: WorkoutListViewModel = hiltViewModel()
 
-    val uiState by viewModel.uiState.collectAsState()
+    val uiData by viewModel.uiData.collectAsState()
 
     WorkoutListContent(
-        uiState = uiState,
-        onQueryChange = viewModel::updateSearchQuery,
-        onSortPreferenceSelected = viewModel::updateSortPreference,
-        onWorkoutClick = navigateToWorkoutDetails,
-        onRetry = viewModel::retry,
-        onWorkoutLike = viewModel::toggleWorkoutLike,
-        onWorkoutSave = viewModel::toggleWorkoutSave,
+        uiData = uiData,
+        onAction = { action ->
+            when (action) {
+                is WorkoutListScreenAction.OnSortPreferenceSelected -> viewModel.updateSortPreference(
+                    action.sortType
+                )
+
+                is WorkoutListScreenAction.OnQueryChange -> viewModel.updateSearchQuery(action.query)
+                is WorkoutListScreenAction.OnWorkoutClick -> navigateToWorkoutDetails(
+                    action.workout,
+                    action.isLiked,
+                    action.isSaved
+                )
+
+                is WorkoutListScreenAction.OnWorkoutLike -> viewModel.toggleWorkoutLike(action.workout)
+                is WorkoutListScreenAction.OnWorkoutSave -> viewModel.toggleWorkoutSave(action.workout)
+                WorkoutListScreenAction.OnRetry -> viewModel.retry()
+            }
+        },
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkoutListContent(
-    uiState: WorkoutListUiData,
-    onSortPreferenceSelected: (SortType) -> Unit,
-    onQueryChange: (String) -> Unit,
-    onWorkoutClick: (Workout,Boolean,Boolean) -> Unit,
-    onWorkoutLike: (Workout) -> Unit,
-    onWorkoutSave: (Workout) -> Unit,
-    onRetry: () -> Unit
+    uiData: WorkoutListUiData,
+    onAction: (WorkoutListScreenAction) -> Unit
 ) {
     Scaffold(
 
@@ -86,36 +88,48 @@ private fun WorkoutListContent(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            SearchBar(
-                searchQuery = uiState.searchQuery,
-                onQueryChange = onQueryChange,
+            SearchBar(searchQuery = uiData.searchQuery,
+                onQueryChange = {onAction(WorkoutListScreenAction.OnQueryChange(it))},
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxWidth(),
                 filterOptionList = SortType.entries.map { it.name },
-                selectedFilterOption = uiState.sortType.name,
-                onOptionSelected = { onSortPreferenceSelected(SortType.valueOf(it)) }
+                selectedFilterOption = uiData.sortType.name,
+                onOptionSelected = { onAction(WorkoutListScreenAction.OnSortPreferenceSelected(SortType.valueOf(it))) }
 
             )
 
-            if (uiState.isLoading) {
+            if (uiData.isLoading) {
                 LoadingIndicator()
             }
-            if (uiState.error != null) {
+            if (uiData.error != null) {
                 ErrorContent(
-                    message = uiState.error,
-                    onRetry = onRetry
+                    message = uiData.error, onRetry = {
+                        onAction(WorkoutListScreenAction.OnRetry)
+                    }
                 )
             } else {
-                if (uiState.workoutWithStatusList.isEmpty()) {
+                if (uiData.workoutWithStatusList.isEmpty()) {
                     EmptyContent(
                     )
                 } else {
                     WorkoutList(
-                        workoutList = uiState.workoutWithStatusList,
-                        onWorkoutClick = onWorkoutClick,
-                        onWorkoutLike = onWorkoutLike,
-                        onWorkoutSave = onWorkoutSave,
+                        workoutList = uiData.workoutWithStatusList,
+                        onWorkoutClick = { workout,isLiked,isSaved ->
+                            onAction(
+                                WorkoutListScreenAction.OnWorkoutClick(
+                                    workout = workout,
+                                    isLiked = isLiked,
+                                    isSaved = isSaved
+                                )
+                            )
+                        },
+                        onWorkoutLike = {
+                            onAction(WorkoutListScreenAction.OnWorkoutLike(it))
+                        },
+                        onWorkoutSave = {
+                            onAction(WorkoutListScreenAction.OnWorkoutSave(it))
+                        },
                     )
                 }
 
@@ -129,13 +143,12 @@ private fun WorkoutListContent(
 @Composable
 private fun WorkoutList(
     workoutList: List<WorkoutWithStatus>,
-    onWorkoutClick: (Workout,Boolean,Boolean) -> Unit,
+    onWorkoutClick: (Workout, Boolean, Boolean) -> Unit,
     onWorkoutLike: (Workout) -> Unit,
     onWorkoutSave: (Workout) -> Unit
 ) {
     LazyColumn {
-        items(workoutList,
-            key = { it.workout.id }) { workout ->
+        items(workoutList, key = { it.workout.id }) { workout ->
             WorkoutCard(
                 workoutWithStatus = workout,
                 onWorkoutClick = onWorkoutClick,
@@ -149,8 +162,7 @@ private fun WorkoutList(
 
 @Composable
 fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit
+    message: String, onRetry: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -160,9 +172,7 @@ fun ErrorContent(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
+            text = message, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRetry) {
@@ -189,17 +199,6 @@ fun EmptyContent() {
 }
 
 
-@Preview
-@Composable
-fun PreviewSearchBar() {
-    SearchBar(
-        searchQuery = "",
-        onQueryChange = {},
-        filterOptionList = listOf("Option 1", "Option 2", "Option 3"),
-        selectedFilterOption = "Option 1",
-        onOptionSelected = {}
-    )
-}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -214,8 +213,7 @@ private fun SearchBar(
 
 ) {
     Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier, verticalAlignment = Alignment.CenterVertically
     ) {
         OutlinedTextField(
             value = searchQuery,
@@ -240,9 +238,7 @@ private fun SearchBar(
 
 @Composable
 fun FilterMenu(
-    options: List<String>,
-    selectedOption: String,
-    onOptionSelected: (String) -> Unit
+    options: List<String>, selectedOption: String, onOptionSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -251,19 +247,55 @@ fun FilterMenu(
             Icon(imageVector = Icons.Default.FilterList, contentDescription = "Filter")
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = {
-                        onOptionSelected(option)
-                        expanded = false
-                    }
-                )
+                DropdownMenuItem(text = { Text(option) }, onClick = {
+                    onOptionSelected(option)
+                    expanded = false
+                })
             }
         }
     }
 }
+
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewWorkoutListScreen() {
+    WorkoutListContent(
+        uiData = WorkoutListUiData(
+            workoutWithStatusList = List(2) { index ->
+                WorkoutWithStatus(
+                    workout = Workout(
+                        id = index.toString(),
+                        title = "Workout $index",
+                        description = "This is a workout",
+                        imageUrl = "",
+                        workoutExerciseList = emptyList()
+                    ),
+                    isLiked = false,
+                    isSaved = false
+                )
+            }
+        ),
+        onAction = {}
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewWorkoutListEmptyScreen() {
+    WorkoutListContent(
+        uiData = WorkoutListUiData(
+            workoutWithStatusList = emptyList(),
+            isLoading = false,
+            error = null,
+            searchQuery = "",
+            sortType = SortType.NEWEST
+        ),
+        onAction = {}
+    )
+}
+
+
+
