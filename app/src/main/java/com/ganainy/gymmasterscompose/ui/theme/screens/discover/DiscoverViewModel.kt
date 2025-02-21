@@ -186,4 +186,8 @@ class DiscoverViewModel @Inject constructor(
             }
         }
     }
+
+    fun refresh() {
+        loadDiscoverContent()
+    }
 }

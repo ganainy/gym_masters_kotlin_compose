@@ -1,23 +1,14 @@
 package com.ganainy.gymmasterscompose.utils
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.text.TextUtils
 import android.util.Patterns
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.github.marlonlom.utilities.timeago.TimeAgo
 import com.github.marlonlom.utilities.timeago.TimeAgoMessages
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import kotlin.random.Random
 
 object Utils {
@@ -53,15 +44,6 @@ object Utils {
         return "$color$word$number"
     }
 
-
-
-    //extension function for the map to remove by value instead of key
-    fun removeByValue(map: MutableMap<String, String>, valueToRemove: String) {
-        val entriesToRemove = map.entries.filter { it.value == valueToRemove }
-        entriesToRemove.forEach { map.remove(it.key) }
-    }
-
-
     //TimeAgo library
     @Composable
     fun formatRelativeTime(timestamp: Long): String {
@@ -88,17 +70,6 @@ object Utils {
         Toast.makeText(context, message, duration).show()
     }
 
-
-
-    // Function to get a bitmap from a file path
-    fun getBitmapFromPath(path: String): Bitmap? {
-        return try {
-            android.graphics.BitmapFactory.decodeFile(path)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
 
      fun extractHashtags(content: String): List<String> {
         return content.split("\\s+".toRegex())

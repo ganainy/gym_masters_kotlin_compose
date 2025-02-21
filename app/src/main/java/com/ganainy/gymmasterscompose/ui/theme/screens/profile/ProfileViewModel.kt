@@ -32,7 +32,7 @@ data class ProfileUiData(
     val user: User = User(),
     val posts: List<FeedPost> = emptyList(),
     val isFollowing: Boolean = false,
-    val workouts: List<WorkoutWithStatus> = emptyList(),
+    val workoutWithStatusList: List<WorkoutWithStatus> = emptyList(),
     val isOwnProfile: Boolean = false,
     val exerciseList: List<Exercise> = emptyList()
 ) {
@@ -141,7 +141,7 @@ class ProfileViewModel @Inject constructor(
                                     posts = result.data.posts,
                                     isFollowing = result.data.isFollowing,
                                     exerciseList = result.data.exerciseList,
-                                    workouts = result.data.workouts
+                                    workoutWithStatusList = result.data.workouts
                                 )
                             }
                             _uiState.value = ProfileUiState.Success(

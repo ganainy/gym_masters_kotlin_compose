@@ -27,9 +27,7 @@ import com.ganainy.gymmasterscompose.ui.theme.repository.UserRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.UsersRepository
 import com.ganainy.gymmasterscompose.ui.theme.repository.WorkoutRepository
 import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
-import com.ganainy.gymmasterscompose.utils.AndroidImageProcessor
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
-import com.ganainy.gymmasterscompose.utils.IImageProcessor
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -47,6 +45,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Qualifier
 import javax.inject.Singleton
+
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -134,7 +133,7 @@ object AppModule {
         storage: FirebaseStorage
 
     ): IPostRepository {
-        return PostRepository(userRepository, database, hashtagRepository,storage)
+        return PostRepository(userRepository, database, hashtagRepository, storage)
     }
 
     @Provides
@@ -162,7 +161,7 @@ object AppModule {
         database: FirebaseDatabase,
         storage: FirebaseStorage
     ): IUserRepository {
-        return UserRepository(auth, database,storage)
+        return UserRepository(auth, database, storage)
     }
 
 
@@ -184,7 +183,7 @@ object AppModule {
         hashtagRepository: IHashtagRepository,
         appDatabase: AppDatabase
     ): IWorkoutRepository {
-        return WorkoutRepository(database, storage,appDatabase, hashtagRepository)
+        return WorkoutRepository(database, storage, appDatabase, hashtagRepository)
     }
 
     @Provides
@@ -193,11 +192,7 @@ object AppModule {
         return context
     }
 
-    @Provides
-    @Singleton
-    fun provideImageProcessor(context: Context): IImageProcessor {
-        return AndroidImageProcessor(context)
-    }
+
 
     @Provides
     @Singleton
@@ -205,15 +200,14 @@ object AppModule {
         exerciseApi: ExerciseApi,
         appDatabase: AppDatabase,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
-        imageProcessor: IImageProcessor
+        context: Context
     ): IExerciseRepository {
         return ExerciseRepository(
             appDatabase, exerciseApi,
             ioDispatcher = ioDispatcher,
-            imageProcessor = imageProcessor
+            context = context
         )
     }
-
 
     @Provides
     @Singleton
@@ -245,7 +239,7 @@ object AppModule {
         appDatabase: AppDatabase
     ): ICommentsRepository {
         return CommentsRepository(
-            firebaseDatabase =firebaseDatabase,
+            firebaseDatabase = firebaseDatabase,
             userRepository = userRepository,
             appDatabase = appDatabase
         )
@@ -265,8 +259,6 @@ object AppModule {
             appDatabase = appDatabase
         )
     }
-
-
 
 
 }

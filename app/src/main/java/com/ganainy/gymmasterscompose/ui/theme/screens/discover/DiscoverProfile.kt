@@ -1,24 +1,27 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,16 +32,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
-import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 import java.util.Date
 
 //todo open user profile on click
@@ -47,120 +52,186 @@ import java.util.Date
 fun DiscoverProfile(
     user: User,
     onFollowClick: () -> Unit,
-    isCurrentUserFollowing: Boolean?,
+    isFollowedByLocalUser: Boolean?,
     onProfileClick: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
+    // Animation states
     var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(
-                onClick = { onProfileClick(user.id) }),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
+    // Animated color for the follow button
+    val buttonColor by animateColorAsState(
+        targetValue = if (isFollowedByLocalUser == true)
+            MaterialTheme.colorScheme.surfaceVariant
+        else
+            MaterialTheme.colorScheme.primary,
+        label = "buttonColor"
+    )
+
+
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
+                .clickable { onProfileClick(user.id) },
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                //  Profile Image
-
+                // Profile Image
                 ProfileImageSmall(
                     profilePictureUrl = user.profilePictureUrl,
                     modifier = Modifier
-                        .padding(2.dp)
-                        .clip(CircleShape),
+                        .size(56.dp)
+                        .clip(CircleShape)
                 )
 
+                // User Info Column
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // User Name with Custom Style
+                    // Display Name
                     Text(
                         text = user.displayName,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        )
                     )
 
+                    // Stats
 
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        // Followers Count
+                        AnimatedStatsCounter(
+                            count = user.stats.followersCount,
+                            label = "followers"
+                        )
+
+                        Icon(
+                            imageVector = Icons.Filled.FiberManualRecord,
+                            contentDescription = null,
+                            modifier = Modifier.size(8.dp)
+                                .align(Alignment.CenterVertically)
+                        )
+
+                        // Following Count
+                        AnimatedStatsCounter(
+                            count = user.stats.followingCount,
+                            label = "following"
+                        )
+                    }
+
+                    // Join Date
+                    Text(
+                        text = "Joined ${formatRelativeTime(user.joinDate)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                // Animated Follow Button
-                AnimatedFollowButton(
-                    isFollowed = isCurrentUserFollowing,
-                    onClick = onFollowClick
+                // Follow Button
+                AnimatedFollowIconButton(
+                    isFollowed = isFollowedByLocalUser,
+                    onClick = onFollowClick,
+                    modifier = Modifier.padding(start = 8.dp)
                 )
             }
+        }
+}
+
+@Composable
+fun AnimatedFollowIconButton(
+    isFollowed: Boolean?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+
+    // Scale animation for press effect
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.8f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        finishedListener = { isPressed = false }
+    )
+
+    // Color animation for icon
+    val iconTint by animateColorAsState(
+        targetValue = if (isFollowed == true)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.onSurface,
+        label = "iconTint"
+    )
+
+    IconButton(
+        onClick = {
+            isPressed = true
+            onClick()
+        },
+        modifier = modifier
+            .scale(scale)
+            .size(48.dp)
+    ) {
+        AnimatedContent(
+            targetState = isFollowed,
+            label = "followIcon"
+        ) { followed ->
+            Icon(
+                imageVector = ImageVector.vectorResource(
+                    id = if (followed == true)
+                        R.drawable.person_check_24px
+                    else
+                        R.drawable.person_add_24px
+                ),
+                contentDescription = if (followed == true) "Following" else "Follow",
+                tint = iconTint,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
 
-
-
 @Composable
-private fun StatItem(
-    icon: ImageVector,
+private fun AnimatedStatsCounter(
     count: Int,
     label: String,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier
-                .width(16.dp)
-                .height(16.dp),
-            tint = MaterialTheme.colorScheme.primary
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "$count $label",
+            text = label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
-@Composable
-private fun JoinDateItem(joinDate: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.clock),
-            contentDescription = null,
-            modifier = Modifier
-                .width(16.dp)
-                .height(16.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = joinDate,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
 
 @Composable
 private fun AnimatedFollowButton(

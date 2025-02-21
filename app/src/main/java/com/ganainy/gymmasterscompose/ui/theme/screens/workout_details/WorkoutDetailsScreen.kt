@@ -5,11 +5,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.EmptyContent
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.ErrorContent
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.DetailedOnlyParams
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutComposable
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutViewType
 
 @Composable
 fun WorkoutDetailsScreen(workout: Workout,
@@ -37,19 +40,33 @@ fun WorkoutDetailsScreen(workout: Workout,
     if (uiState.error != null) {
         ErrorContent(
             message = uiState.error!!,
-            onRetry = {}
+            onRetry = {},
         )
     } else {
         if (uiState.workoutWithStatus ==null) {
             EmptyContent(
             )
         } else {
-            WorkoutDetailsContent(
+         /*   WorkoutDetailsContent(
                workoutWithStatus = uiState.workoutWithStatus,
                 onWorkoutLike = viewModel::toggleWorkoutLike,
                 onWorkoutSave =viewModel::toggleWorkoutSave ,
                 navigateToExerciseDetails = navigateToExerciseDetails
-            )
+            )*/
+
+            val workoutWithStatus = uiState.workoutWithStatus
+
+            if (workoutWithStatus != null) {
+                WorkoutComposable(
+                    workoutWithStatus =  workoutWithStatus,
+                    workoutViewType = WorkoutViewType.DETAILED,
+                    detailedOnlyParams = DetailedOnlyParams(
+                        onExerciseClick = navigateToExerciseDetails,
+                    ),
+
+                )
+            }
+
         }
 
 
