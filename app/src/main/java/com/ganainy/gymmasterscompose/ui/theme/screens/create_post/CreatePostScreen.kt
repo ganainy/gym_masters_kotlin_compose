@@ -50,8 +50,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.ganainy.gymmasterscompose.ui.theme.components.HashtagTextField
-import com.ganainy.gymmasterscompose.ui.theme.components.user_image.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagOutlinedTextField
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.user_image.ProfileImageSmall
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,7 +140,7 @@ fun CreatePostScreen(onNavigateBack: () -> Boolean) {
                     .weight(1f)
             ) {
 
-                HashtagTextField(value =  uiState.feedPost.content, onValueChange = viewModel::updatePostContent)
+                HashtagOutlinedTextField(value =  uiState.feedPost.content, onValueChange = viewModel::updatePostContent)
 
             }
 

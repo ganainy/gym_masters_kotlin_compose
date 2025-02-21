@@ -1,13 +1,22 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.discover
 
 import CustomSearchBar
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -17,9 +26,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ErrorComponent
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 
 @Composable
 fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
@@ -35,6 +44,7 @@ fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
         is DiscoverScreenAction.NavigateToProfile -> navigateToProfile(action.userId)
         is DiscoverScreenAction.UpdateSearchQuery -> viewModel.onSearchQueryChanged(action.searchQuery)
         is DiscoverScreenAction.ToggleFollowUser -> viewModel.followUnfollowUser(action.user)
+        is DiscoverScreenAction.Refresh -> viewModel.refresh()
     }
     })
 
@@ -48,8 +58,10 @@ private fun DiscoverUserList(
     onAction: (DiscoverScreenAction) -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().systemBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        DiscoverTopBar(onRefresh = { onAction(DiscoverScreenAction.Refresh) })
 
         CustomSearchBar(
             hint = stringResource(id = R.string.search_for_a_user),
@@ -83,6 +95,22 @@ private fun DiscoverUserList(
 
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DiscoverTopBar(onRefresh: () -> Unit,) {
+    TopAppBar(
+        title = { Text("Discover") },
+        navigationIcon = {
+        },
+        actions = {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        }
+    )
+}
+
 
 @Preview(showBackground = true)
 @Composable
@@ -132,6 +160,7 @@ private fun DiscoverUserList(
                 isFollowedByLocalUser = userWithFollowState.isFollowing,
                 onProfileClick = { onAction(DiscoverScreenAction.NavigateToProfile(userWithFollowState.user.id)) }
             )
+            if (discoverData.users.last() != userWithFollowState)
             HorizontalDivider()
         }
     }

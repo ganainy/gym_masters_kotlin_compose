@@ -38,10 +38,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.PreviewOnlyParams
-import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutComposable
-import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutViewType
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.PreviewOnlyParams
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutComposable
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutViewType
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 
 @Composable

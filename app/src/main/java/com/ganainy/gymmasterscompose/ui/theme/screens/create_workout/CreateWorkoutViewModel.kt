@@ -232,8 +232,13 @@ class CreateWorkoutViewModel @Inject constructor(
         fun deleteWorkoutExercise(workoutExercise: WorkoutExercise) =
             _uiState.update { state ->
                 state.copy(
+                    // delete exercise and update the order of the remaining exercises
                     workout = state.workout.copy(
-                        workoutExerciseList = state.workout.workoutExerciseList - workoutExercise
+                        workoutExerciseList = state.workout.workoutExerciseList
+                            .filter { it != workoutExercise }
+                            .mapIndexed { index, exercise ->
+                                exercise.copy(order = index + 1)
+                            }
                     ),
                     selectedExercise = if (state.selectedExercise == workoutExercise) null else state.selectedExercise
                 )
@@ -325,14 +330,17 @@ class CreateWorkoutViewModel @Inject constructor(
     // Workout Management
     inner class WorkoutManager {
 
-        fun uploadWorkout() = handleOperation(Operation.UploadWorkout) {
+        fun uploadWorkout(onSuccess: () -> Unit) = handleOperation(Operation.UploadWorkout) {
             val workout = _uiState.value.workout.copy(
                 dateCreated = System.currentTimeMillis()
             )
             val result = workoutRepository.uploadWorkoutWithImage(workout, workout.imagePath)
 
             when (result) {
-                is ResultWrapper.Success -> resetUiState()
+                is ResultWrapper.Success -> {
+                    resetUiState()
+                    onSuccess()
+                }
                 is ResultWrapper.Error -> throw result.exception
                 else -> Unit
             }

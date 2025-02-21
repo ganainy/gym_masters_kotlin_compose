@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -270,6 +273,7 @@ private fun NavGraphBuilder.mainGraph(navigator: AppNavigator) {
             val userId = backStackEntry.arguments?.getString(NavigationArgs.USER_ID)
             ProfileScreen(
                 userId = userId,
+                navigateBack = navigator::navigateBack,
                 navigateToLogin = navigator::navigateToAuth,
                 navigateToCreatePost = { navigator.navigate(Screen.CreatePost.route) },
                 navigateToWorkoutSetup = { navigator.navigate(Screen.WorkoutSetup.route) },
@@ -423,9 +427,9 @@ fun MainScreen(authState: AuthUiState) {
                 BottomNavBar(navController)
             }
         }
-    ) { paddingValues ->
+    ) { _ ->
         // Box layout to handle padding values
-        Box(modifier = Modifier.padding(paddingValues)) {
+        Box() {
             // App navigation setup
             AppNavigation(
                 modifier = Modifier.fillMaxSize(),

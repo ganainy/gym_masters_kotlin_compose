@@ -31,9 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
-import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomPasswordTextField
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTextField
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 @Composable

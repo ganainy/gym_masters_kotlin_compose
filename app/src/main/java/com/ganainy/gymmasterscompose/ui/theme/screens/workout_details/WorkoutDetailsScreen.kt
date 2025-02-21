@@ -5,10 +5,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ganainy.gymmasterscompose.ui.theme.components.DetailedOnlyParams
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutComposable
-import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutViewType
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.DetailedOnlyParams
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutComposable
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutViewType
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.EmptyContent

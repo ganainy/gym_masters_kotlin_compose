@@ -45,10 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItem
-import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemData
-import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemType
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemData
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemType
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise

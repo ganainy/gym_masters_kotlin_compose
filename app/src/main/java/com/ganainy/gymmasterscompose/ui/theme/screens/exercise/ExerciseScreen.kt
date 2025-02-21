@@ -19,10 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.theme.components.EmptyComponent
-import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
-import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseContent
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.EmptyComponent
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ErrorComponent
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -68,4 +68,7 @@
     <string name="workout_title">Workout Title</string>
     <string name="error_adding_comment">Error adding comment</string>
     <string name="search_exercises">Search exercises</string>
+    <string name="workout_uploaded_successfully">Workout uploaded successfully</string>
+    <string name="back_button">Back button</string>
+    <string name="no_bio">No bio</string>
 </resources>

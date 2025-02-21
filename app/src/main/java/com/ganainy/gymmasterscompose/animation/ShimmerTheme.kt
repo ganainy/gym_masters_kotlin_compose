@@ -6,6 +6,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -28,9 +29,10 @@ data class ShimmerTheme(
 
 val LocalShimmerTheme = compositionLocalOf { ShimmerTheme() }
 
+@Composable
 fun Modifier.shimmerPlaceholder(
     visible: Boolean,
-    shimmerTheme: ShimmerTheme,
+    shimmerTheme: ShimmerTheme = LocalShimmerTheme.current,
 ) = composed {
     if (visible) {
         var width by remember { mutableFloatStateOf(0f) }

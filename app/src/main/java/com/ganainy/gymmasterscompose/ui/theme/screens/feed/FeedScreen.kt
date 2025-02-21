@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Feed
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerState
@@ -40,12 +39,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.post.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.post.FeedPostItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -167,15 +166,6 @@ private fun FeedScreenContent(
         topBar = {
             FeedTopBar(
                 onRefresh = { onAction(FeedScreenAction.RefreshFeed)  },
-                openMenu = {
-                    scope.launch {
-                        if (drawerState.isOpen) {
-                            drawerState.close()
-                        } else {
-                            drawerState.open()
-                        }
-                    }
-                }
             )
         },
         floatingActionButton = {
@@ -236,13 +226,11 @@ private fun FeedScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FeedTopBar(onRefresh: () -> Unit, openMenu: () -> Unit) {
+private fun FeedTopBar(onRefresh: () -> Unit) {
     TopAppBar(
         title = { Text("Feed") },
         navigationIcon = {
-            IconButton(onClick = openMenu) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu")
-            }
+
         },
         actions = {
             IconButton(onClick = onRefresh) {
