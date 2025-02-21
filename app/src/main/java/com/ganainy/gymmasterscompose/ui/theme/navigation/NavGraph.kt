@@ -5,11 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -427,18 +424,18 @@ fun MainScreen(authState: AuthUiState) {
                 BottomNavBar(navController)
             }
         }
-    ) { _ ->
+    ) { paddingValues ->
         // Box layout to handle padding values
-        Box() {
+        Box(modifier = Modifier.fillMaxSize().padding(bottom = paddingValues.calculateBottomPadding())) {
             // App navigation setup
             AppNavigation(
-                modifier = Modifier.fillMaxSize(),
                 navController = navController
             )
         }
     }
 
 }
+
 
 // BottomNavBar.kt
 @Composable

@@ -33,15 +33,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagOutlinedTextField
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.UiState.DataState
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.composables.WorkoutCoverImageContent
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.composables.WorkoutExerciseListScreenContent
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.composables.WorkoutExercisesSection
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagOutlinedTextField
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.utils.MockData
+import com.ganainy.gymmasterscompose.utils.MockData.sampleExercise
+import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkoutExercise
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 
@@ -335,6 +337,22 @@ private fun WorkoutSetupContentWithExercisesPreview2() {
                 filteredExerciseList = MockData.sampleExerciseListLarge
             ),
             onAction = {},
+        )
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+private fun WorkoutExercisesSectionPreview() {
+    AppTheme {
+        WorkoutExercisesSection(
+            exerciseList = listOf(
+             sampleWorkoutExercise,
+                sampleWorkoutExercise.copy(exercise = sampleExercise.copy(name = "Exercise 2"))
+            ),
+            onDeleteExercise = { /* Handle delete */ },
+            toggleExerciseWorkoutListShow = { /* Handle toggle */ }
         )
     }
 }

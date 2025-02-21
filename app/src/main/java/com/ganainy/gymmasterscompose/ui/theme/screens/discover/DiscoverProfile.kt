@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.user_image.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 import java.util.Date

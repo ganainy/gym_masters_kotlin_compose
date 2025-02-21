@@ -11,12 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -27,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.User
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTopAppBar
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 
@@ -61,7 +57,11 @@ private fun DiscoverUserList(
         modifier = Modifier.fillMaxSize().systemBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DiscoverTopBar(onRefresh = { onAction(DiscoverScreenAction.Refresh) })
+        CustomTopAppBar(
+            title = stringResource(R.string.discover),
+            actionIcons = listOf(Icons.Default.Refresh),
+            onActionClicks = listOf { onAction(DiscoverScreenAction.Refresh) },
+                   )
 
         CustomSearchBar(
             hint = stringResource(id = R.string.search_for_a_user),
@@ -96,20 +96,6 @@ private fun DiscoverUserList(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DiscoverTopBar(onRefresh: () -> Unit,) {
-    TopAppBar(
-        title = { Text("Discover") },
-        navigationIcon = {
-        },
-        actions = {
-            IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-            }
-        }
-    )
-}
 
 
 @Preview(showBackground = true)

@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.shared_components.user_image
+package com.ganainy.gymmasterscompose.ui.theme.shared_components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

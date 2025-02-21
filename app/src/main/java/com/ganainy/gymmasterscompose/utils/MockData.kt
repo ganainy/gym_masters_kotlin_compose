@@ -109,6 +109,12 @@ object MockData {
         restBetweenSets = 30
     )
 
+    val sampleWorkoutExerciseList = listOf(
+        sampleWorkoutExercise,
+        sampleWorkoutExercise2,
+        sampleWorkoutExercise3
+    )
+
     // Sample Workout data
     val sampleWorkout = Workout(
         id = "1234567890",

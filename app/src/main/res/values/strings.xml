@@ -71,4 +71,5 @@
     <string name="workout_uploaded_successfully">Workout uploaded successfully</string>
     <string name="back_button">Back button</string>
     <string name="no_bio">No bio</string>
+    <string name="feed">Feed</string>
 </resources>

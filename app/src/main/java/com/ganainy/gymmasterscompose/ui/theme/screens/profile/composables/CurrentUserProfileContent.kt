@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,13 +32,11 @@ internal fun CurrentUserProfileContent(
     uiData: ProfileUiData,
     onAction: (ProfileScreenAction) -> Unit
 ) {
-    Scaffold(
 
-    ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                ,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
@@ -143,7 +140,6 @@ internal fun CurrentUserProfileContent(
                 )
             }
         }
-    }
 }
 
 

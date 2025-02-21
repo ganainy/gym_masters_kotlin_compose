@@ -15,16 +15,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Feed
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,18 +29,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
+import com.ganainy.gymmasterscompose.ui.theme.screens.feed.composables.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTopAppBar
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.post.FeedPostItem
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
@@ -66,8 +63,6 @@ fun FeedScreen(
     FeedScreenContent(
         uiState = uiState,
         feedUiData = feedUiData,
-        drawerState = drawerState,
-        scope = scope,
         onAction = { action ->
             when (action) {
                 is FeedScreenAction.RefreshFeed -> viewModel.refreshFeed()
@@ -75,10 +70,13 @@ fun FeedScreen(
                 is FeedScreenAction.ToggleReaction -> viewModel.toggleReaction(action.postId)
                 is FeedScreenAction.NavigateToProfile ->
                     navigateToProfile(action.userId)
+
                 is FeedScreenAction.CreatePost ->
                     navigateToCreatePost()
+
                 is FeedScreenAction.NavigateToDetailedPost ->
                     navigateToDetailedPost(action.post, action.isLiked)
+
                 is FeedScreenAction.ToggleDrawer -> scope.launch {
                     if (drawerState.isOpen) drawerState.close() else drawerState.open()
                 }
@@ -88,157 +86,95 @@ fun FeedScreen(
 }
 
 
-@Preview(showBackground = true)
-@Composable
-fun FeedScreenContentPreview() {
-    val previewScope = rememberCoroutineScope()
-    val previewDrawerState = rememberDrawerState(DrawerValue.Closed)
-
-    // First post without images
-    val firstPost = FeedPost(
-        id = "1",
-        content = "Just finished an amazing workout! 💪 #fitness #motivation",
-        imagePathList = emptyList(),
-        imageUrlList = emptyList(),
-        createdAt = System.currentTimeMillis(),
-        tags = listOf("fitness", "motivation"),
-        postMetrics = PostMetrics(postId = "1", likes = 42, comments = 7),
-        postCreator = PostCreator(
-            id = "user1",
-            displayName = "John Doe",
-            profilePictureUrl = "https://picsum.photos/200"
-        )
-    )
-
-    // Second post with images
-    val secondPost = FeedPost(
-        id = "2",
-        content = "Check out my workout progress! 🏋️‍♂️ #gym #progress",
-        imagePathList = emptyList(),
-        imageUrlList = listOf(
-            "https://picsum.photos/800/600",
-            "https://picsum.photos/800/601",
-            "https://picsum.photos/800/601",
-            "https://picsum.photos/800/601",
-            "https://picsum.photos/800/601",
-            "https://picsum.photos/800/601",
-        ),
-        createdAt = System.currentTimeMillis() - 3600000, // 1 hour ago
-        tags = listOf("gym", "progress"),
-        postMetrics = PostMetrics(postId = "2", likes = 88, comments = 12),
-        postCreator = PostCreator(
-            id = "user2",
-            displayName = "Jane Smith",
-            profilePictureUrl = "https://picsum.photos/201"
-        )
-    )
-
-    val previewFeedUiData = FeedUiData(
-        postList = listOf(
-            FeedPostWithLikesAndComments(post = firstPost),
-            FeedPostWithLikesAndComments(post = secondPost)
-        ),
-        followingUserIds = emptySet(),
-        lastLoadedPostTimestamp = 0L
-    )
-
-AppTheme {
-    FeedScreenContent(
-        uiState = FeedUiState.NonEmptyFeed,
-        feedUiData = previewFeedUiData,
-        drawerState = previewDrawerState,
-        scope = previewScope,
-        onAction = {}
-    )
-}
-
-}
-
 @Composable
 private fun FeedScreenContent(
     uiState: FeedUiState,
     feedUiData: FeedUiData,
-    drawerState: DrawerState,
-    scope: CoroutineScope,
     onAction: (FeedScreenAction) -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            FeedTopBar(
-                onRefresh = { onAction(FeedScreenAction.RefreshFeed)  },
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { onAction(FeedScreenAction.CreatePost)  },
+
+        Column {
+            CustomTopAppBar(
+                title = stringResource(R.string.feed),
+                actionIcons = listOf(Icons.Default.Refresh),
+                onActionClicks = listOf { onAction(FeedScreenAction.RefreshFeed) },
+                    )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Create Post")
-            }
-        }
-    ) { paddingValues ->
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (uiState) {
-                FeedUiState.Loading -> {
-                    LoadingIndicator()
-                }
-
-                FeedUiState.EmptyFeed -> {
-                    EmptyFeedMessage()
-                }
-
-                FeedUiState.NonEmptyFeed -> {
-                    LazyColumn(modifier = Modifier.testTag("posts_list")) {
-                        items(feedUiData.postList) { feedPostWithLikesAndComments ->
-                            FeedPostItem(
-                                feedPostWithLikesAndComments = feedPostWithLikesAndComments,
-                                onProfileClick = {  onAction(FeedScreenAction.NavigateToProfile(feedPostWithLikesAndComments.post.postCreator.id)) },
-                                onLikeIconClick = {onAction(FeedScreenAction.ToggleReaction(feedPostWithLikesAndComments.post.id))
-                                },
-                                onPostClick = {
-                                    onAction(FeedScreenAction.NavigateToDetailedPost(
-                                        feedPostWithLikesAndComments.post,
-                                        feedPostWithLikesAndComments.isLiked
-                                    ))
-                                }
-                            )
-                        }
-                        // Load more posts when the last item is visible
-                        item {
-                            LaunchedEffect(Unit) {
-                                onAction(FeedScreenAction.LoadMorePosts)
-                            }
-                        }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize() .padding(16.dp),
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    FloatingActionButton(
+                        onClick = { onAction(FeedScreenAction.CreatePost) },
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Create Post")
                     }
                 }
 
-                is FeedUiState.Error -> ErrorMessage("Error loading feed") { onAction(FeedScreenAction.RefreshFeed) }
+                when (uiState) {
+                    FeedUiState.Loading -> {
+                        LoadingIndicator()
+                    }
 
+                    FeedUiState.EmptyFeed -> {
+                        EmptyFeedMessage()
+                    }
+
+                    FeedUiState.NonEmptyFeed -> {
+                        LazyColumn(modifier = Modifier.testTag("posts_list")) {
+                            items(feedUiData.postList) { feedPostWithLikesAndComments ->
+                                FeedPostItem(
+                                    feedPostWithLikesAndComments = feedPostWithLikesAndComments,
+                                    onProfileClick = {
+                                        onAction(
+                                            FeedScreenAction.NavigateToProfile(
+                                                feedPostWithLikesAndComments.post.postCreator.id
+                                            )
+                                        )
+                                    },
+                                    onLikeIconClick = {
+                                        onAction(
+                                            FeedScreenAction.ToggleReaction(
+                                                feedPostWithLikesAndComments.post.id
+                                            )
+                                        )
+                                    },
+                                    onPostClick = {
+                                        onAction(
+                                            FeedScreenAction.NavigateToDetailedPost(
+                                                feedPostWithLikesAndComments.post,
+                                                feedPostWithLikesAndComments.isLiked
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                            // Load more posts when the last item is visible
+                            item {
+                                LaunchedEffect(Unit) {
+                                    onAction(FeedScreenAction.LoadMorePosts)
+                                }
+                            }
+                        }
+                    }
+
+                    is FeedUiState.Error -> ErrorMessage("Error loading feed") {
+                        onAction(
+                            FeedScreenAction.RefreshFeed
+                        )
+                    }
+
+                }
             }
         }
-    }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FeedTopBar(onRefresh: () -> Unit) {
-    TopAppBar(
-        title = { Text("Feed") },
-        navigationIcon = {
-
-        },
-        actions = {
-            IconButton(onClick = onRefresh) {
-                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-            }
-        }
-    )
-}
 
 
 @Composable
@@ -302,3 +238,65 @@ private fun EmptyFeedMessage() {
     }
 }
 
+
+@Preview(showBackground = true)
+@Composable
+fun FeedScreenContentPreview() {
+
+    // First post without images
+    val firstPost = FeedPost(
+        id = "1",
+        content = "Just finished an amazing workout! 💪 #fitness #motivation",
+        imagePathList = emptyList(),
+        imageUrlList = emptyList(),
+        createdAt = System.currentTimeMillis(),
+        tags = listOf("fitness", "motivation"),
+        postMetrics = PostMetrics(postId = "1", likes = 42, comments = 7),
+        postCreator = PostCreator(
+            id = "user1",
+            displayName = "John Doe",
+            profilePictureUrl = "https://picsum.photos/200"
+        )
+    )
+
+    // Second post with images
+    val secondPost = FeedPost(
+        id = "2",
+        content = "Check out my workout progress! 🏋️‍♂️ #gym #progress",
+        imagePathList = emptyList(),
+        imageUrlList = listOf(
+            "https://picsum.photos/800/600",
+            "https://picsum.photos/800/601",
+            "https://picsum.photos/800/601",
+            "https://picsum.photos/800/601",
+            "https://picsum.photos/800/601",
+            "https://picsum.photos/800/601",
+        ),
+        createdAt = System.currentTimeMillis() - 3600000, // 1 hour ago
+        tags = listOf("gym", "progress"),
+        postMetrics = PostMetrics(postId = "2", likes = 88, comments = 12),
+        postCreator = PostCreator(
+            id = "user2",
+            displayName = "Jane Smith",
+            profilePictureUrl = "https://picsum.photos/201"
+        )
+    )
+
+    val previewFeedUiData = FeedUiData(
+        postList = listOf(
+            FeedPostWithLikesAndComments(post = firstPost),
+            FeedPostWithLikesAndComments(post = secondPost)
+        ),
+        followingUserIds = emptySet(),
+        lastLoadedPostTimestamp = 0L
+    )
+
+    AppTheme {
+        FeedScreenContent(
+            uiState = FeedUiState.NonEmptyFeed,
+            feedUiData = previewFeedUiData,
+            onAction = {}
+        )
+    }
+
+}

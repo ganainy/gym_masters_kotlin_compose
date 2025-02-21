@@ -31,11 +31,6 @@ fun WorkoutMetricsRow(
 ) {
 
     Column {
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            thickness = 1.dp
-        )
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -68,11 +63,6 @@ fun WorkoutMetricsRow(
             )
 
         }
-
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            thickness = 1.dp
-        )
     }
 }
 

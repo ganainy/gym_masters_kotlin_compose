@@ -7,11 +7,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 
 /**
@@ -29,7 +32,8 @@ import androidx.compose.ui.unit.dp
 fun HashtagText(
     text: String,
     onHashtagClick: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyLarge,
 ) {
     val hashtagColor = MaterialTheme.colorScheme.primary
 
@@ -60,6 +64,7 @@ fun HashtagText(
 
     Text(
         text = annotatedString,
+        style = style,
         modifier = modifier
             .padding(vertical = 4.dp)
             .clickable {
@@ -75,5 +80,10 @@ fun HashtagText(
 @Preview(backgroundColor = 0xFFFFFFFF, showBackground = true)
 @Composable
 fun HashtagTextPreview() {
-    HashtagText(text = "Hello #world #gymmasters", onHashtagClick = {})
+    HashtagText(
+        text = "Hello #world #gymmasters", onHashtagClick = {}, style = MaterialTheme.typography.titleLarge.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+    )
 }

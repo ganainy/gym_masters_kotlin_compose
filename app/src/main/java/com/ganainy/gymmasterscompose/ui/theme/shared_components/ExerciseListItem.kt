@@ -227,7 +227,7 @@ private fun ExerciseImage(data: ExerciseListItemData) {
             model = imagePath,
             contentDescription = "Exercise image",
             modifier = Modifier
-                .size(40.dp)
+                .size(48.dp)
                 .clip(RoundedCornerShape(8.dp)),
             contentScale = ContentScale.Crop,
             placeholder = painterResource(id = R.drawable.error),

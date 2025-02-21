@@ -32,7 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.CenteredText
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.post.FeedPostItem
+import com.ganainy.gymmasterscompose.ui.theme.screens.feed.composables.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics

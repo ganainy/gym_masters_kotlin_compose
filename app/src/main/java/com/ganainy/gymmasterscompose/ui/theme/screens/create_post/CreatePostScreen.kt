@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagOutlinedTextField
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.user_image.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ProfileImageSmall
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,10 +1,13 @@
 package com.ganainy.gymmasterscompose.ui.theme.shared_components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,11 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +47,7 @@ import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.composables.WorkoutExercisesSection
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_details.ExerciseInWorkoutListItem
 import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutWithStatus
 
@@ -55,108 +63,133 @@ data class DetailedOnlyParams(
     val onExerciseClick: (Exercise) -> Unit = {},
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutComposable(
     workoutWithStatus: WorkoutWithStatus,
+    modifier: Modifier = Modifier,
     workoutViewType: WorkoutViewType = WorkoutViewType.PREVIEW,
     previewOnlyParams: PreviewOnlyParams? = null,
     detailedOnlyParams: DetailedOnlyParams? = null,
 ) {
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 8.dp)
-            .clickable {
-                previewOnlyParams?.onWorkoutClick?.let {
-                    it(
-                        workoutWithStatus.workout,
-                        workoutWithStatus.isLiked,
-                        workoutWithStatus.isSaved
-                    )
-                }
-            },
-    ) {
-        Text(
-            text = workoutWithStatus.workout.title,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
-        )
-
-        if (workoutWithStatus.workout.description.isNotEmpty()) {
-            Text(
-                text = workoutWithStatus.workout.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // Stats Row
-        Row(
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp), // Rounded corners
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+    )
+    {
+        Column(
             modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 8.dp)
+                .clickable {
+                    previewOnlyParams?.onWorkoutClick?.let {
+                        it(
+                            workoutWithStatus.workout,
+                            workoutWithStatus.isLiked,
+                            workoutWithStatus.isSaved
+                        )
+                    }
+                },
         ) {
-            WorkoutStat(
-                icon = Icons.Rounded.Timer,
-                value = "${workoutWithStatus.workout.workoutDuration.takeIf { it.isNotEmpty() } ?: "N/A"} mins"
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            WorkoutStat(
-                icon = Icons.Rounded.FitnessCenter,
-                value = workoutWithStatus.workout.difficulty.takeIf { it.isNotEmpty() } ?: "N/A"
-            )
-        }
-
-
-        // Workout Image
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(workoutWithStatus.workout.imageUrl.ifEmpty { null }) // Avoids request if empty
-                .crossfade(true)
-                .error(R.drawable.dumbbells)
-                .placeholder(R.drawable.dumbbells)
-                .build(),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .shimmerPlaceholder(
-                    visible = workoutWithStatus.workout.imageUrl.isNotEmpty(), // Shimmer only when loading
-                    shimmerTheme = LocalShimmerTheme.current,
+            HashtagText(
+                text = workoutWithStatus.workout.title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
                 ),
-            contentScale = ContentScale.Crop
-        )
+                onHashtagClick = {/*todo*/},
+            )
+
+            if (workoutWithStatus.workout.description.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = workoutWithStatus.workout.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            // Stats Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                WorkoutStat(
+                    icon = Icons.Rounded.Timer,
+                    value = "${workoutWithStatus.workout.workoutDuration.takeIf { it.isNotEmpty() } ?: "N/A"} mins"
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                WorkoutStat(
+                    icon = Icons.Rounded.FitnessCenter,
+                    value = workoutWithStatus.workout.difficulty.takeIf { it.isNotEmpty() } ?: "N/A"
+                )
+            }
 
 
-        // Exercises Section
-        when (workoutViewType) {
-            WorkoutViewType.PREVIEW -> {
-                workoutWithStatus.workout.workoutExerciseList.forEachIndexed { index, workoutExercise ->
-                    ExerciseItem(
-                        exercise = workoutExercise.exercise,
-                        isLast = index == workoutWithStatus.workout.workoutExerciseList.lastIndex
-                    )
+
+
+            Spacer(modifier = Modifier.height(4.dp))
+            // Exercises Section
+            when (workoutViewType) {
+                WorkoutViewType.PREVIEW -> {
+
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Exercises :",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            workoutWithStatus.workout.workoutExerciseList.forEach { workoutExercise ->
+                                WorkoutExerciseMiniComposable(
+                                    workoutExercise = workoutExercise,
+                                )
+                            }
+                    }
+                }
+
+                WorkoutViewType.DETAILED -> {
+                    // DetailedExercise List
+                    workoutWithStatus.workout.workoutExerciseList.forEach { workoutExercise ->
+                        detailedOnlyParams?.onExerciseClick?.let {
+                            ExerciseInWorkoutListItem(
+                                workoutExercise = workoutExercise,
+                                onClick = it,
+                            )
+                        }
+                    }
                 }
             }
 
-            WorkoutViewType.DETAILED -> {
-                // DetailedExercise List
-                workoutWithStatus.workout.workoutExerciseList.forEach { workoutExercise ->
-                    detailedOnlyParams?.onExerciseClick?.let {
-                        ExerciseInWorkoutListItem(
-                            workoutExercise = workoutExercise,
-                            onClick = it,
-                        )
-                    }
-                }
-                }
+            // Workout Image
+            if (workoutWithStatus.workout.imageUrl.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(workoutWithStatus.workout.imageUrl.ifEmpty { null }) // Avoids request if empty
+                        .placeholder(R.drawable.dumbbells)
+                        .crossfade(true)
+                        .error(R.drawable.dumbbells)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .shimmerPlaceholder(
+                            visible = workoutWithStatus.workout.imageUrl.isNotEmpty(), // Shimmer only when loading
+                            shimmerTheme = LocalShimmerTheme.current,
+                        ),
+                    contentScale = ContentScale.Crop
+                )
             }
 
             // Interaction Row
@@ -174,6 +207,7 @@ fun WorkoutComposable(
                 WorkoutViewType.DETAILED -> {}
             }
         }
+    }
         }
 
 
@@ -215,46 +249,6 @@ fun WorkoutComposable(
             }
         }
 
-        @Composable
-        private fun ExerciseItem(
-            exercise: Exercise?,
-            isLast: Boolean,
-            modifier: Modifier = Modifier
-        ) {
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                            CircleShape
-                        )
-                )
-
-                Text(
-                    text = exercise?.name ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
-                )
-
-                if (!isLast) {
-                    Box(
-                        modifier = Modifier
-                            .height(16.dp)
-                            .width(1.dp)
-                            .background(
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                            )
-                    )
-                }
-            }
-        }
 
         @Preview
         @Composable
@@ -265,9 +259,10 @@ fun WorkoutComposable(
                         workout =
                         Workout(
                             id = "1",
-                            title = "Workout Title",
+                            tags = listOf("tag"),
+                            title = "WorkoutTitle #tag ",
                             description = "Workout description",
-                            imageUrl = "",
+                            imageUrl = "randomUrl",
                             workoutDuration = "30",
                             difficulty = "Intermediate",
                             workoutExerciseList = listOf(
@@ -287,8 +282,9 @@ fun WorkoutComposable(
                                                     " wider than shoulder-width apart. Lower the barbell to your chest, then press upwards extending your arms fully.",
                                         ),
                                         id = "1",
-                                        screenshotPath = "123.jpg"
-                                    ), 1
+                                        screenshotPath = "/storage/emulated/0/Download/exercise.jpg",
+
+                                    ), order = 1
                                 ),
                                 WorkoutExercise(
                                     Exercise(
@@ -305,9 +301,9 @@ fun WorkoutComposable(
                                             "Lie on a flat bench and grip the barbell with your hands slightly" +
                                                     " wider than shoulder-width apart. Lower the barbell to your chest, then press upwards extending your arms fully.",
                                         ),
-                                        id = "1",
+                                        id = "2",
                                         screenshotPath = "123.jpg"
-                                    ), 1
+                                    ), order = 2
                                 ),
 
                                 )
@@ -318,6 +314,83 @@ fun WorkoutComposable(
                     workoutViewType = WorkoutViewType.PREVIEW,
                     previewOnlyParams = PreviewOnlyParams(),
                     detailedOnlyParams = DetailedOnlyParams(),
+
                 )
             }
         }
+
+
+@Preview(showBackground = true)
+@Composable
+fun WorkoutExercisesSectionEmptyPreview() {
+    MaterialTheme {
+        WorkoutExercisesSection(
+            exerciseList = emptyList(),
+            onDeleteExercise = { /* Handle delete */ },
+            toggleExerciseWorkoutListShow = { /* Handle toggle */ }
+        )
+    }
+}
+
+
+@Composable
+internal fun WorkoutExerciseMiniComposable(
+    workoutExercise: WorkoutExercise,
+    modifier: Modifier = Modifier
+) {
+
+
+        Row(
+            modifier = modifier
+                .padding( vertical = 4.dp), // Compact padding
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Order indicator
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                    .wrapContentSize(Alignment.Center)
+            ) {
+                Text(
+                    text = "${workoutExercise.order}",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp)) // Space between order and content
+
+            // Exercise name
+                workoutExercise.exercise?.name?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun WorkoutExercisesMiniComposablePreview() {
+    MaterialTheme {
+        WorkoutExerciseMiniComposable(
+            workoutExercise =
+                WorkoutExercise(
+                    exercise = Exercise(name = "Squats"),
+                    sets = 4,
+                    reps = 12,
+                    order = 1
+            ),
+        )
+    }
+}
+

@@ -4,25 +4,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTopAppBar
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.EmptyComponent
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
+import com.ganainy.gymmasterscompose.utils.MockData.sampleExercise
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,14 +40,13 @@ fun ExerciseScreen(exercise: Exercise, navigateBack: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        ExercisesContent(uiState, viewModel::toggleExerciseSave, navigateBack)
+        ExerciseListContent(uiState, viewModel::toggleExerciseSave, navigateBack)
     }
 }
 
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun ExercisesContent(
+private fun ExerciseListContent(
     uiState: ExerciseViewModel.ExerciseUiState,
     onSaveExercise: () -> Unit,
     navigateBack: () -> Unit,
@@ -59,24 +56,17 @@ private fun ExercisesContent(
 
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Exercise") },
-            navigationIcon = {
-                IconButton(onClick = navigateBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                IconButton(onClick = onSaveExercise) {
-                    Icon(
-                        painter = if (exerciseWithSaveState?.isSavedLocally == true) painterResource(id = R.drawable.save_filled) else painterResource(id = R.drawable.save_outlined),
-                        contentDescription = "Save"
-                    )
-                }
-            }
+
+        CustomTopAppBar(
+            title = "Exercise",
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            onNavigationClick = navigateBack,
+            actionDrawables = listOf(
+                if (exerciseWithSaveState?.isSavedLocally == true) R.drawable.save_filled else R.drawable.save_outlined,
+            ),
+            onActionClicks = listOf { onSaveExercise() },
+
         )
-
-
 
         if (uiState.isLoading) {
             LoadingIndicator()
@@ -94,3 +84,16 @@ private fun ExercisesContent(
 }
 
 
+@Preview(showBackground = true)
+@Composable
+private fun PreviewExerciseListContent() {
+    ExerciseListContent(
+        uiState = ExerciseViewModel.ExerciseUiState(
+            exercise = sampleExercise,
+            isLoading = false,
+            error = null
+        ),
+        onSaveExercise = { },
+        navigateBack = { }
+    )
+}

@@ -17,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,7 +38,7 @@ fun CustomChip(
     val backgroundColor = if (isSelected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     }
 
     val textColor = if (isSelected) {
@@ -60,10 +59,6 @@ fun CustomChip(
         modifier = modifier
             .scale(animatedScale)
             .clip(RoundedCornerShape(8.dp))
-            .shadow(
-                elevation = if (isSelected) 4.dp else 2.dp,
-                shape = RoundedCornerShape(8.dp)
-            )
             .background(backgroundColor)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },

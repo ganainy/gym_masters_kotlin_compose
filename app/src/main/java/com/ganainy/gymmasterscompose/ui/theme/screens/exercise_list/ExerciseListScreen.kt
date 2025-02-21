@@ -16,22 +16,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,14 +43,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItem
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemData
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemType
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
+import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.ErrorContent
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTopAppBar
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemData
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ExerciseListItemType
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,28 +108,23 @@ private fun ExercisesContent(
     onExerciseClick: (Exercise) -> Unit,
     onRetry: () -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Exercises") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onShowFilters) {
-                        Text("Filters", color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
         ) {
+
+
+            CustomTopAppBar(
+                title =  "Exercises",
+                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+                onNavigationClick = onNavigateBack,
+                actionIcons = listOf(Icons.Default.FilterList),
+                onActionClicks = listOf { onShowFilters() },
+
+            )
+
+
             SearchBar(
                 searchQuery = uiState.searchQuery,
                 onQueryChange = onQueryChange,
@@ -142,7 +137,7 @@ private fun ExercisesContent(
                 is DataState.Loading -> LoadingIndicator()
                 is DataState.Error -> ErrorContent(
                     message = (uiState.dataState as DataState.Error).message,
-                    onRetry = onRetry
+                    onRetry = onRetry,
                 )
 
                 is DataState.Success -> {
@@ -159,7 +154,6 @@ private fun ExercisesContent(
                 }
             }
         }
-    }
 }
 
 @Composable
@@ -184,6 +178,9 @@ fun ExerciseList(
                 onModify = { /* No-op for EXERCISE type */ },
                 onDelete = { /* No-op for EXERCISE type */ }
             )
+            if (exercises.last() != exercise) {
+                HorizontalDivider()
+        }
         }
     }
 }

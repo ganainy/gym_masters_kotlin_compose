@@ -1,4 +1,4 @@
-package com.ganainy.gymmasterscompose.ui.theme.shared_components.post
+package com.ganainy.gymmasterscompose.ui.theme.screens.feed.composables
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +35,7 @@ import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagText
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.PostInteractionRow
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.user_image.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.theme.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 
 
@@ -63,7 +63,11 @@ fun FeedPostItem(
         HashtagText(
             text = feedPostWithLikesAndComments.post.content,
             onHashtagClick = {}, // TODO: Add hashtag click handler
-            modifier = Modifier.padding(vertical = 4.dp)
+            modifier = Modifier.padding(vertical = 4.dp),
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
         )
 
         if (feedPostWithLikesAndComments.post.imageUrlList.isNotEmpty()) {
