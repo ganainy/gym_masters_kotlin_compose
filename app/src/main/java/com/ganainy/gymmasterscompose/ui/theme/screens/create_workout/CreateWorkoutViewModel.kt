@@ -29,15 +29,14 @@ import javax.inject.Inject
 // State Management
 sealed interface UiState {
     sealed interface DataState {
-        object Initial : DataState
         object Loading : DataState
-        object Success : DataState
+        object WorkoutSetup : DataState
+        object ExerciseListSetup : DataState
         data class Error(val message: String) : DataState
     }
 
     data class WorkoutUiState(
-        val exerciseListState: DataState = DataState.Initial,
-        val workoutState: DataState = DataState.Initial,
+        val workoutState: DataState = DataState.Loading,
         val searchQuery: String = "",
         val currentTag: String = "",
         val bodyPartFilter: BodyPart? = null,
@@ -61,7 +60,8 @@ sealed interface UiState {
         ),
         val validationState: ValidationState = ValidationState(),
         val showExerciseDialog: Boolean = false,
-        val isUploadEnabled: Boolean = false
+        val isUploadEnabled: Boolean = false,
+        val showFilterSheet: Boolean = false,
     )
 
     data class ValidationState(
@@ -165,7 +165,7 @@ class CreateWorkoutViewModel @Inject constructor(
             try {
                 setStateForOperation(operation, UiState.DataState.Loading)
                 block()
-                setStateForOperation(operation, UiState.DataState.Success)
+                setStateForOperation(operation, UiState.DataState.WorkoutSetup)
             } catch (e: Exception) {
                 setStateForOperation(
                     operation,
@@ -179,7 +179,7 @@ class CreateWorkoutViewModel @Inject constructor(
         _uiState.update { currentState ->
             when (operation) {
                 is Operation.UploadWorkout -> currentState.copy(workoutState = state)
-                is Operation.LoadInitialData -> currentState.copy(exerciseListState = state)
+                is Operation.LoadInitialData -> currentState.copy(workoutState = state)
             }
         }
     }
@@ -310,6 +310,14 @@ class CreateWorkoutViewModel @Inject constructor(
             applyFilters()
         }
 
+        fun hideFilterSheet() {
+            _uiState.update { it.copy(showFilterSheet = false) }
+        }
+
+        fun showFilterSheet() {
+            _uiState.update { it.copy(showFilterSheet = true) }
+        }
+
 
     }
 
@@ -343,15 +351,7 @@ class CreateWorkoutViewModel @Inject constructor(
 
     }
 
-    // State Management
-    fun clearError() {
-        _uiState.update { state ->
-            state.copy(
-                exerciseListState = UiState.DataState.Initial,
-                workoutState = UiState.DataState.Initial
-            )
-        }
-    }
+
 
     fun resetUiState() {
         _uiState.value = UiState.WorkoutUiState().copy(
@@ -361,6 +361,20 @@ class CreateWorkoutViewModel @Inject constructor(
             )
         )
         loadInitialData()
+    }
+
+    // toggle between setup workout general settings page and exercise list page
+    fun toggleExerciseWorkoutListShow() {
+        _uiState.update { state ->
+            state.copy(
+                workoutState =
+                    if (state.workoutState == UiState.DataState.ExerciseListSetup) {
+                        UiState.DataState.WorkoutSetup
+                    } else {
+                        UiState.DataState.ExerciseListSetup
+                    }
+            )
+        }
     }
 
     // Public instance of managers

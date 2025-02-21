@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemData
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemType
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
@@ -142,6 +144,7 @@ private fun ExercisesContent(
                     message = (uiState.dataState as DataState.Error).message,
                     onRetry = onRetry
                 )
+
                 is DataState.Success -> {
                     if (filteredExercises.isEmpty()) {
                         EmptyContent(
@@ -150,7 +153,7 @@ private fun ExercisesContent(
                     } else {
                         ExerciseList(
                             exercises = filteredExercises,
-                            onExerciseClick = onExerciseClick
+                            onExerciseClick = onExerciseClick,
                         )
                     }
                 }
@@ -160,17 +163,26 @@ private fun ExercisesContent(
 }
 
 @Composable
-private fun ExerciseList(
+fun ExerciseList(
     exercises: List<Exercise>,
-    onExerciseClick: (Exercise) -> Unit
+    onExerciseClick: (Exercise) -> Unit,
 ) {
-    LazyColumn {
-        items(exercises,
-            key = { it.id }) { exercise ->
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = exercises,
+            key = { it.id } // Use exercise.id as key for performance
+        ) { exercise ->
             ExerciseListItem(
-                exercise = exercise,
-                onClick = onExerciseClick,
+                data = ExerciseListItemData.ExerciseData(exercise),
                 type = ExerciseListItemType.EXERCISE,
+                onClick = onExerciseClick,
+                onAddToWorkout = { /* No-op for EXERCISE type */ },
+                onModify = { /* No-op for EXERCISE type */ },
+                onDelete = { /* No-op for EXERCISE type */ }
             )
         }
     }
@@ -263,7 +275,7 @@ private fun <T> FilterSection(
                     },
                     label = {
                         Text(
-                            when(option) {
+                            when (option) {
                                 is BodyPart -> option.name
                                 is Equipment -> option.name
                                 is TargetMuscle -> option.name

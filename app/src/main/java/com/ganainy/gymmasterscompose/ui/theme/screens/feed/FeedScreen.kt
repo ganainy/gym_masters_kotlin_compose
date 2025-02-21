@@ -39,22 +39,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
 import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.components.post.FeedPostItem
 import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
 import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun FeedScreen(
-    navController: NavController,
     navigateToDetailedPost: (post: FeedPost, isLiked: Boolean) -> Unit,
+    navigateToProfile: (userId: String?) -> Unit,
+    navigateToCreatePost: () -> Unit,
 ) {
     // ViewModel and State
     val viewModel: FeedViewModel = hiltViewModel()
@@ -76,9 +75,9 @@ fun FeedScreen(
                 is FeedScreenAction.LoadMorePosts -> viewModel.loadMorePosts()
                 is FeedScreenAction.ToggleReaction -> viewModel.toggleReaction(action.postId)
                 is FeedScreenAction.NavigateToProfile ->
-                    navController.navigate(Screen.Main.Profile.route + "/${action.userId}")
+                    navigateToProfile(action.userId)
                 is FeedScreenAction.CreatePost ->
-                    navController.navigate(Screen.CreatePost.route)
+                    navigateToCreatePost()
                 is FeedScreenAction.NavigateToDetailedPost ->
                     navigateToDetailedPost(action.post, action.isLiked)
                 is FeedScreenAction.ToggleDrawer -> scope.launch {
@@ -208,7 +207,7 @@ private fun FeedScreenContent(
                             FeedPostItem(
                                 feedPostWithLikesAndComments = feedPostWithLikesAndComments,
                                 onProfileClick = {  onAction(FeedScreenAction.NavigateToProfile(feedPostWithLikesAndComments.post.postCreator.id)) },
-                                onLikeIconClick = {onAction(FeedScreenAction.NavigateToProfile(feedPostWithLikesAndComments.post.postCreator.id))
+                                onLikeIconClick = {onAction(FeedScreenAction.ToggleReaction(feedPostWithLikesAndComments.post.id))
                                 },
                                 onPostClick = {
                                     onAction(FeedScreenAction.NavigateToDetailedPost(

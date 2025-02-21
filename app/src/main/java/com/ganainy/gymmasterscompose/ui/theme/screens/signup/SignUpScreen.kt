@@ -34,7 +34,6 @@ import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomPasswordTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.navigation.Screen
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 @Composable

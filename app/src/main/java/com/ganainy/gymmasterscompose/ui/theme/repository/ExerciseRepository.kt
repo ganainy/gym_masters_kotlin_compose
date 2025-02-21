@@ -1,6 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.theme.repository
 
 
+import AndroidImageProcessor
+import android.content.Context
 import com.ganainy.gymmasterscompose.di.IoDispatcher
 import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
@@ -8,7 +10,6 @@ import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
 import com.ganainy.gymmasterscompose.ui.theme.networking.retrofit.ExerciseApi
 import com.ganainy.gymmasterscompose.ui.theme.room.AppDatabase
-import com.ganainy.gymmasterscompose.utils.IImageProcessor
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,8 +38,11 @@ class ExerciseRepository @Inject constructor(
     private val appDatabase: AppDatabase,
     private val exerciseApi: ExerciseApi,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-    private val imageProcessor: IImageProcessor
+    private val context: Context
 ) : IExerciseRepository {
+
+
+    val imageProcessor = AndroidImageProcessor(context)
 
     // Generic function to handle API calls with caching
     private suspend fun <T> fetchWithCache(
@@ -95,7 +99,13 @@ class ExerciseRepository @Inject constructor(
         fetchWithCache(
             dbQuery = { appDatabase.exerciseDao().getAllExercises() },
             networkCall = { exerciseApi.getExercises(limit, offset) },
-            saveCallResult = { appDatabase.exerciseDao().insertAll(it) }
+            saveCallResult = {
+                it.forEach { exercise ->
+                    processExerciseImage(exercise).also { updatedExercise ->
+                        appDatabase.exerciseDao().insert(updatedExercise)
+                    }
+                }
+            }
         )
 
     override suspend fun getExercisesByBodyPart(bodyPart: BodyPart): ResultWrapper<List<Exercise>> =
@@ -185,6 +195,19 @@ class ExerciseRepository @Inject constructor(
             } catch (e: Exception) {
                 emit(ResultWrapper.Error(e))
             }
+        }
+    }
+
+    private suspend fun processExerciseImage(exercise: Exercise): Exercise {
+        // Try to get image path, either from cache or by downloading gifUrl and image of it to disk
+        val imagePath = imageProcessor.getImagePathFromGif(exercise.gifUrl)
+
+        return if (imagePath != null) {
+            val updatedExercise = exercise.copy(screenshotPath = imagePath)
+            appDatabase.exerciseDao().update(updatedExercise)
+            updatedExercise
+        } else {
+            exercise
         }
     }
 

@@ -20,13 +20,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberImagePainter
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.CustomChip
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
-import com.ganainy.gymmasterscompose.utils.Utils.getBitmapFromPath
 
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -87,14 +88,19 @@ fun ExerciseInWorkoutListItem(
             }
         },
         leadingContent = {
-            workoutExercise.exercise?.screenshotPath?.let { screenshotPath ->
-                getBitmapFromPath(screenshotPath)?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp)
-                    )
-                }
+            // If an imageBitmap is provided, use it. Otherwise, show placeholder
+            if (workoutExercise.exercise?.screenshotPath != null) {
+                Image(
+                    painter = rememberImagePainter(data = workoutExercise.exercise.screenshotPath),
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp)
+                )
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.dumbbell), // Placeholder icon
+                    contentDescription = "Placeholder",
+                    modifier = Modifier.size(56.dp)
+                )
             }
         },
         trailingContent = {

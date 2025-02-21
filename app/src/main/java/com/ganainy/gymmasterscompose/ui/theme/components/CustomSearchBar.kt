@@ -1,4 +1,4 @@
-import androidx.compose.foundation.background
+
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,18 +11,15 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ganainy.gymmasterscompose.R
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomSearchBar(
+    hint: String,
     onQueryChange: (String) -> Unit,
     searchQuery: String
 ) {
@@ -34,15 +31,15 @@ fun CustomSearchBar(
         onActiveChange = { /* Handle active state if needed */ },
         placeholder = {
             Text(
-                text = stringResource(R.string.search_for_a_user),
+                text = hint,
                 fontSize = 16.sp
             )
         },
-        leadingIcon = { /* No leading icon */ },
+        leadingIcon = {  IconButton(onClick = { /* Handle search click */ }) {
+            Icon(Icons.Default.Search, contentDescription = "Search icon")
+        } },
         trailingIcon = {
-            IconButton(onClick = { /* Handle search click */ }) {
-                Icon(Icons.Default.Search, contentDescription = "Search icon")
-            }
+
         },
         shape = RoundedCornerShape(8.dp), // Set the shape directly
         modifier = Modifier
@@ -57,5 +54,5 @@ fun CustomSearchBar(
 @Preview(showBackground = true)
 @Composable
 fun PreviewSearchBar() {
-    CustomSearchBar({}, "")
+    CustomSearchBar("Search",{}, "")
 }

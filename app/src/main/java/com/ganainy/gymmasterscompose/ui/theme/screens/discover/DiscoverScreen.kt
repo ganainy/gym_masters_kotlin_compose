@@ -16,13 +16,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.User
 
 @Composable
-fun DiscoverScreen(navController: NavHostController) {
+fun DiscoverScreen(navigateToProfile: (String?) -> Unit) {
 
 
 
@@ -32,7 +32,7 @@ fun DiscoverScreen(navController: NavHostController) {
 
 
     DiscoverUserList( discoverData, uiState, onAction = {action -> when (action) {
-        is DiscoverScreenAction.NavigateToProfile -> navController.navigate("profile/${action.userId}")
+        is DiscoverScreenAction.NavigateToProfile -> navigateToProfile(action.userId)
         is DiscoverScreenAction.UpdateSearchQuery -> viewModel.onSearchQueryChanged(action.searchQuery)
         is DiscoverScreenAction.ToggleFollowUser -> viewModel.followUnfollowUser(action.user)
     }
@@ -52,6 +52,7 @@ private fun DiscoverUserList(
     ) {
 
         CustomSearchBar(
+            hint = stringResource(id = R.string.search_for_a_user),
             onQueryChange = { query -> onAction(DiscoverScreenAction.UpdateSearchQuery(query)) },
             searchQuery = discoverData.searchQuery
         )

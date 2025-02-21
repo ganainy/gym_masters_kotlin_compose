@@ -1,7 +1,5 @@
 package com.ganainy.gymmasterscompose.ui.theme.components
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,43 +23,50 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
-import com.ganainy.gymmasterscompose.utils.Utils.getBitmapFromPath
+import com.ganainy.gymmasterscompose.utils.MockData.sampleExercise
+import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkoutExercise
 
+// Enum for item types
 enum class ExerciseListItemType {
     EXERCISE,
     WORKOUT_ADDED_TO_EXERCISE,
     WORKOUT_NOT_ADDED_TO_EXERCISE
 }
 
+// Sealed class to encapsulate exercise or workout exercise data
+sealed class ExerciseListItemData {
+    data class ExerciseData(val exercise: Exercise) : ExerciseListItemData()
+    data class WorkoutExerciseData(val workoutExercise: WorkoutExercise) : ExerciseListItemData()
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ExerciseListItem(
-    exercise: Exercise?=null,
+    data: ExerciseListItemData,
     type: ExerciseListItemType,
-    workoutExercise: WorkoutExercise? = null,
-    onClick: ((Exercise) -> Unit)? = null,
-    onAddToWorkout: (() -> Unit)? = null,
-    onModify: ((WorkoutExercise) -> Unit)? = null,
-    onDelete: ((WorkoutExercise) -> Unit)? = null
+    onClick: (Exercise) -> Unit,
+    onAddToWorkout: () -> Unit = {},
+    onModify: (WorkoutExercise) -> Unit = {},
+    onDelete: (WorkoutExercise) -> Unit = {},
 ) {
-    val backgroundColor = when (type) {
-        ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE -> Color(0xFFC8E6C9) // Light green background
-        else -> MaterialTheme.colorScheme.surface
-    }
 
     ListItem(
         headlineContent = {
-            if (exercise != null) {
-                Text(exercise.name)
-            }else if (workoutExercise != null) {
-                workoutExercise.exercise?.name?.let { Text(it) }
-            }
+            Text(
+                text = when (data) {
+                    is ExerciseListItemData.ExerciseData -> data.exercise.name
+                    is ExerciseListItemData.WorkoutExerciseData -> data.workoutExercise.exercise?.name.orEmpty()
+                }
+            )
         },
         supportingContent = {
             Column {
@@ -70,106 +75,66 @@ fun ExerciseListItem(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (exercise != null) {
-                        CustomChip(exercise.bodyPart)
-                    }else if (workoutExercise != null) {
-                        workoutExercise.exercise?.bodyPart?.let { CustomChip(it) }
+                    val bodyPart = when (data) {
+                        is ExerciseListItemData.ExerciseData -> data.exercise.bodyPart
+                        is ExerciseListItemData.WorkoutExerciseData -> data.workoutExercise.exercise?.bodyPart.orEmpty()
                     }
-                    if (exercise != null) {
-                        CustomChip(exercise.equipment)
-                    }else if (workoutExercise != null) {
-                        workoutExercise.exercise?.equipment?.let { CustomChip(it) }
+                    val equipment = when (data) {
+                        is ExerciseListItemData.ExerciseData -> data.exercise.equipment
+                        is ExerciseListItemData.WorkoutExerciseData -> data.workoutExercise.exercise?.equipment.orEmpty()
                     }
-                    if (exercise != null) {
-                        CustomChip(exercise.target)
-                    }else if (workoutExercise != null) {
-                        workoutExercise.exercise?.target?.let { CustomChip(it) }
+                    val target = when (data) {
+                        is ExerciseListItemData.ExerciseData -> data.exercise.target
+                        is ExerciseListItemData.WorkoutExerciseData -> data.workoutExercise.exercise?.target.orEmpty()
                     }
+
+                    if (bodyPart.isNotEmpty()) CustomChip(bodyPart)
+                    if (equipment.isNotEmpty()) CustomChip(equipment)
+                    if (target.isNotEmpty()) CustomChip(target)
                 }
 
-                if (type == ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE && workoutExercise != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Order: ${workoutExercise.order}",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "${workoutExercise.sets} sets",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = "${workoutExercise.reps} reps",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-
-                        Text(
-                            text = "Rest: ${workoutExercise.restBetweenSets}s",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
+                if (type == ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE && data is ExerciseListItemData.WorkoutExerciseData) {
+                    WorkoutDetails(workoutExercise = data.workoutExercise)
                 }
             }
         },
         leadingContent = {
-            if (exercise != null) {
-                exercise.screenshotPath?.let { screenshotPath ->
-                    getBitmapFromPath(screenshotPath)?.let { bitmap ->
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                }
-            }else if (workoutExercise != null) {
-                workoutExercise.exercise?.screenshotPath?.let { screenshotPath ->
-                    getBitmapFromPath(screenshotPath)?.let { bitmap ->
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                }
-            }
+            ExerciseImage(data = data)
         },
         trailingContent = {
             when (type) {
                 ExerciseListItemType.EXERCISE -> {
-                    Icon(Icons.Default.ChevronRight, "View details")
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "View exercise details"
+                    )
                 }
                 ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE -> {
-                    IconButton(onClick = { onAddToWorkout?.invoke() }) {
-                        Icon(Icons.Default.Add, "Add to workout")
+                    IconButton(onClick = onAddToWorkout) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add exercise to workout"
+                        )
                     }
                 }
                 ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE -> {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = {
-                            if (workoutExercise != null) {
-                                onModify?.invoke(workoutExercise)
+                    if (data is ExerciseListItemData.WorkoutExerciseData) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { onModify(data.workoutExercise) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Modify exercise in workout"
+                                )
                             }
-                        }) {
-                            Icon(Icons.Default.Edit, "Modify exercise")
-                        }
-                        IconButton(onClick = {
-                            if (workoutExercise != null) {
-                                onDelete?.invoke(workoutExercise)
+                            IconButton(onClick = { onDelete(data.workoutExercise) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete exercise from workout"
+                                )
                             }
-                        }) {
-                            Icon(Icons.Default.Delete, "Delete exercise")
                         }
                     }
                 }
@@ -177,98 +142,117 @@ fun ExerciseListItem(
         },
         modifier = Modifier
             .clickable {
-                if (onClick != null) {
-                    if (exercise != null) {
-                        onClick(exercise)
-                    }
+                if (data is ExerciseListItemData.ExerciseData) {
+                    onClick(data.exercise)
                 }
             }
-            .background(backgroundColor)
             .fillMaxWidth()
     )
 }
 
-
-
-@Preview
 @Composable
-private fun ExerciseListItemPreview() {
-    ExerciseListItem(
-        exercise = Exercise(
-            bodyPart = "Legs",
-            equipment = "Machine",
-            gifUrl = "url_to_squat_machine_gif",
-            screenshotPath ="path_to_squat_machine_screenshot",
-            id = "1",
-            name = "Squat (Machine)",
-            target = "Quadriceps",
-            secondaryMuscles = listOf("Glutes", "Hamstrings"),
-            instructions = listOf(
-                "Set the machine to your height.",
-                "Place your shoulders under the pads.",
-                "Push through your heels to lift."
-            )
-        ),
-        type = ExerciseListItemType.EXERCISE,
-        onClick = {},
-        onAddToWorkout = null,
-        onModify = null,
-        onDelete = null
-    )
+private fun ExerciseImage(data: ExerciseListItemData) {
+    val imagePath = when (data) {
+        is ExerciseListItemData.ExerciseData -> data.exercise.screenshotPath
+        is ExerciseListItemData.WorkoutExerciseData -> data.workoutExercise.exercise?.screenshotPath
+    }
+
+    if (imagePath != null) {
+        AsyncImage(
+            model = imagePath,
+            contentDescription = "Exercise image",
+            modifier = Modifier.size(56.dp),
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.error), // Placeholder during loading
+            error = painterResource(id = R.drawable.error) // Error image
+        )
+    } else {
+        Icon(
+            painter = painterResource(id = R.drawable.error),
+            contentDescription = "Exercise image not available",
+            modifier = Modifier.size(56.dp)
+        )
+    }
+}
+
+@Composable
+private fun WorkoutDetails(workoutExercise: WorkoutExercise) {
+    Spacer(modifier = Modifier.height(4.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "Order: ${workoutExercise.order}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "${workoutExercise.sets} sets",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "${workoutExercise.reps} reps",
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "Rest: ${workoutExercise.restBetweenSets}s",
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
 }
 
 
-@Preview
+
+
+// Preview for EXERCISE type
+@Preview(showBackground = true, name = "Exercise Item")
 @Composable
-private fun ExerciseListItemPreview2() {
-    ExerciseListItem(
-        exercise = Exercise(
-            bodyPart = "Legs",
-            equipment = "Machine",
-            gifUrl = "url_to_squat_machine_gif",
-            screenshotPath ="path_to_squat_machine_screenshot",
-            id = "1",
-            name = "Squat (Machine)",
-            target = "Quadriceps",
-            secondaryMuscles = listOf("Glutes", "Hamstrings"),
-            instructions = listOf(
-                "Set the machine to your height.",
-                "Place your shoulders under the pads.",
-                "Push through your heels to lift."
-            )
-        ),
-        type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
-        onClick = {},
-        onAddToWorkout = null,
-        onModify = null,
-        onDelete = null
-    )
+fun ExerciseListItemExercisePreview() {
+    AppTheme {
+        ExerciseListItem(
+            data = ExerciseListItemData.ExerciseData(sampleExercise),
+            type = ExerciseListItemType.EXERCISE,
+            onClick = { /* No-op for preview */ },
+            onAddToWorkout = { /* No-op for preview */ },
+            onModify = { /* No-op for preview */ },
+            onDelete = { /* No-op for preview */ }
+        )
+    }
 }
 
-
-@Preview
+// Preview for WORKOUT_ADDED_TO_EXERCISE type
+@Preview(showBackground = true, name = "Workout Exercise Item (Added)")
 @Composable
-private fun ExerciseListItemPreview3() {
-    ExerciseListItem(
-        exercise = Exercise(
-            bodyPart = "Legs",
-            equipment = "Machine",
-            gifUrl = "url_to_squat_machine_gif",
-            screenshotPath ="path_to_squat_machine_screenshot",
-            id = "1",
-            name = "Squat (Machine)",
-            target = "Quadriceps",
-            secondaryMuscles = listOf("Glutes", "Hamstrings"),
-            instructions = listOf(
-                "Set the machine to your height.",
-                "Place your shoulders under the pads.",
-                "Push through your heels to lift."
-            )
-        ),
-        type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE,
-        onClick = {},
-        onAddToWorkout = null,
-        onModify = null,
-        onDelete = null
-    )
+fun ExerciseListItemWorkoutAddedPreview() {
+    AppTheme {
+        ExerciseListItem(
+            data = ExerciseListItemData.WorkoutExerciseData(sampleWorkoutExercise),
+            type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
+            onClick = { /* No-op for preview */ },
+            onAddToWorkout = { /* No-op for preview */ },
+            onModify = { /* No-op for preview */ },
+            onDelete = { /* No-op for preview */ }
+        )
+    }
+}
+
+// Preview for WORKOUT_NOT_ADDED_TO_EXERCISE type
+@Preview(showBackground = true, name = "Workout Exercise Item (Not Added)")
+@Composable
+fun ExerciseListItemWorkoutNotAddedPreview() {
+    AppTheme {
+        ExerciseListItem(
+            data = ExerciseListItemData.ExerciseData(sampleExercise),
+            type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE,
+            onClick = { /* No-op for preview */ },
+            onAddToWorkout = { /* No-op for preview */ },
+            onModify = { /* No-op for preview */ },
+            onDelete = { /* No-op for preview */ }
+        )
+    }
 }

@@ -39,7 +39,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutCard
+import com.ganainy.gymmasterscompose.ui.theme.components.PreviewOnlyParams
+import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutComposable
+import com.ganainy.gymmasterscompose.ui.theme.components.WorkoutViewType
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 
 @Composable
@@ -149,11 +151,14 @@ private fun WorkoutList(
 ) {
     LazyColumn {
         items(workoutList, key = { it.workout.id }) { workout ->
-            WorkoutCard(
+            WorkoutComposable(
                 workoutWithStatus = workout,
-                onWorkoutClick = onWorkoutClick,
-                onWorkoutLike = onWorkoutLike,
-                onWorkoutSave = onWorkoutSave,
+                workoutViewType = WorkoutViewType.PREVIEW,
+                previewOnlyParams = PreviewOnlyParams(
+                    onWorkoutLike = onWorkoutLike,
+                    onWorkoutSave = onWorkoutSave,
+                    onWorkoutClick = onWorkoutClick,
+                ),
             )
         }
     }

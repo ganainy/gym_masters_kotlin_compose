@@ -50,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemData
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemType
 import com.ganainy.gymmasterscompose.ui.theme.components.ExpandableContent
 import com.ganainy.gymmasterscompose.ui.theme.components.FollowButton
@@ -528,9 +529,12 @@ fun ExerciseList(
                 key = { it.id }
             ) { exercise ->
                 ExerciseListItem(
-                    exercise = exercise,
+                    data = ExerciseListItemData.ExerciseData(exercise),
                     type = ExerciseListItemType.EXERCISE,
                     onClick = { onExerciseClick(exercise) },
+                    onAddToWorkout = { /* No-op for EXERCISE type */ },
+                    onModify = { /* No-op for EXERCISE type */ },
+                    onDelete = { /* No-op for EXERCISE type */ }
                 )
             }
         }

@@ -1,6 +1,5 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.create_workout
 
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,87 +58,119 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberImagePainter
 import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.components.HashtagOutlinedTextField
 import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
 import com.ganainy.gymmasterscompose.ui.theme.screens.create_workout.UiState.DataState
+import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkout
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
 
-// UI States
-// 1. Events sealed interface with grouped related events
-sealed interface WorkoutSetupScreenEvent {
-
-    sealed interface WorkoutActions : WorkoutSetupScreenEvent {
-        object Upload : WorkoutActions
-        data class EditWorkout(val workout: Workout) : WorkoutActions
-        data class DeleteExercise(val exercise: WorkoutExercise) : WorkoutActions
-    }
-
-
-    sealed interface NavigationActions : WorkoutSetupScreenEvent {
-        object NavigateToCreateWorkoutExerciseList : WorkoutActions
-        object NavigateToFeed : WorkoutActions
-    }
-
-    sealed interface StateActions : WorkoutSetupScreenEvent {
-        object ClearError : WorkoutActions
-    }
-}
-
-// 2. Screen component split into smaller components
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutSetupScreen(
     modifier: Modifier = Modifier,
-    navigateToCreateWorkoutExerciseList: () -> Unit,
     navigateToFeed: () -> Unit,
-    viewModel: CreateWorkoutViewModel
+    navigateBack: () -> Unit,
+    navigateToExercise: (Exercise) -> Unit,
+    viewModel: CreateWorkoutViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
     val uiState: UiState.WorkoutUiState by viewModel.uiState.collectAsState()
 
-    val handleEvent: (WorkoutSetupScreenEvent) -> Unit = { event ->
+
+    // Event handler
+    val onAction: (CreateWorkoutAction) -> Unit = { event ->
         when (event) {
-            is WorkoutSetupScreenEvent.NavigationActions.NavigateToCreateWorkoutExerciseList -> navigateToCreateWorkoutExerciseList()
-            is WorkoutSetupScreenEvent.NavigationActions.NavigateToFeed -> navigateToFeed()
-            is WorkoutSetupScreenEvent.WorkoutActions.Upload -> viewModel.workoutManager.uploadWorkout()
-            is WorkoutSetupScreenEvent.WorkoutActions.EditWorkout -> viewModel.workoutManager.editWorkout(
+            is CreateWorkoutAction.NavigateBack -> navigateBack()
+            is CreateWorkoutAction.ShowFilterSheet -> {
+                viewModel.filterManager.showFilterSheet()
+            }
+
+            is CreateWorkoutAction.SearchQueryChanged -> {
+                viewModel.filterManager.onQueryChange(event.query)
+            }
+
+            is CreateWorkoutAction.ExerciseSelected -> {
+                viewModel.exerciseManager.setSelectedExercise(event.exercise)
+            }
+
+            is CreateWorkoutAction.ExerciseModified -> {
+                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
+            }
+
+            is CreateWorkoutAction.ExerciseDeleted -> {
+                viewModel.exerciseManager.deleteWorkoutExercise(event.exercise)
+            }
+
+            is CreateWorkoutAction.DismissAddExerciseDialog -> {
+                viewModel.exerciseManager.dismissAddExerciseDialog()
+            }
+
+            is CreateWorkoutAction.AddWorkoutExercise -> {
+                viewModel.exerciseManager.addWorkoutExercise(event.exercise)
+            }
+
+            is CreateWorkoutAction.BodyPartFilterChange -> {
+                viewModel.filterManager.onBodyPartFilterChange(event.bodyPart)
+            }
+
+            CreateWorkoutAction.ApplyFilters -> viewModel.filterManager.applyFilters()
+            is CreateWorkoutAction.EquipmentFilterChange -> {
+                viewModel.filterManager.onEquipmentFilterChange(event.equipment)
+            }
+
+            is CreateWorkoutAction.TargetMuscleFilterChange -> {
+                viewModel.filterManager.onTargetMuscleFilterChange(event.targetMuscle)
+            }
+
+            CreateWorkoutAction.ClearFilters -> viewModel.filterManager.clearFilters()
+            is CreateWorkoutAction.EditWorkoutExercise -> {
+                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
+            }
+
+            is CreateWorkoutAction.NavigateToExercise -> navigateToExercise(event.exercise)
+            CreateWorkoutAction.HideFilterSheet -> viewModel.filterManager.hideFilterSheet()
+
+            is CreateWorkoutAction.ToggleExerciseWorkoutListShow -> viewModel.toggleExerciseWorkoutListShow()
+            is CreateWorkoutAction.NavigateToFeed -> navigateToFeed()
+            is CreateWorkoutAction.UploadWorkout -> viewModel.workoutManager.uploadWorkout()
+            is CreateWorkoutAction.EditWorkout -> viewModel.workoutManager.editWorkout(
                 event.workout
             )
-            is WorkoutSetupScreenEvent.WorkoutActions.DeleteExercise -> viewModel.exerciseManager.deleteWorkoutExercise(
-                event.exercise
-            )
-
-            WorkoutSetupScreenEvent.StateActions.ClearError -> viewModel.clearError()
         }
     }
 
+
     WorkoutSetupScaffold(
         uiState = uiState,
-        onUploadClick = { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.Upload) }
+        onUploadClick = { onAction(CreateWorkoutAction.UploadWorkout) }
     ) { paddingValues ->
-        HandleWorkoutState(
-            workoutState = uiState.workoutState,
-            onClearError = { handleEvent(WorkoutSetupScreenEvent.StateActions.ClearError) },
-            context = context
-        )
+        when (val workoutState = uiState.workoutState) {
 
-        WorkoutSetupContent(
-            modifier = modifier,
-            paddingValues = paddingValues,
-            uiState = uiState,
-            handleEvent = handleEvent,
-        )
+            is DataState.Error -> {
+                showToast(context, workoutState.message)
+            }
+
+            DataState.Loading -> LoadingIndicator()
+            DataState.WorkoutSetup -> WorkoutSetupContent(
+                paddingValues = paddingValues,
+                uiState = uiState,
+                onAction = onAction,
+            )
+
+            DataState.ExerciseListSetup -> WorkoutExerciseListScreenContent(paddingValues,uiState, onAction)
+        }
+
     }
 }
 
 
-// 4. Scaffold component
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkoutSetupScaffold(
@@ -176,30 +207,28 @@ fun WorkoutSetupTopBar(isUploadEnabled: Boolean, onUploadClick: () -> Unit) {
     )
 }
 
-// 5. Content split into smaller, focused components
 @Composable
 private fun WorkoutSetupContent(
-    modifier: Modifier,
-    paddingValues: PaddingValues,
+    modifier: Modifier = Modifier,
     uiState: UiState.WorkoutUiState,
-    handleEvent: (WorkoutSetupScreenEvent) -> Unit
+    onAction: (CreateWorkoutAction) -> Unit,
+    paddingValues: PaddingValues
 ) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(paddingValues)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(paddingValues),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             WorkoutBasicInfo(
                 workout = uiState.workout,
-                onEditWorkout = { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.EditWorkout(it)) })
+                onEditWorkout = { onAction(CreateWorkoutAction.EditWorkout(it)) })
         }
         item {
             DifficultyDropdownMenu(
                 difficulties = uiState.availableDifficulties,
-                onEditWorkout = { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.EditWorkout(it)) },
+                onEditWorkout = { onAction(CreateWorkoutAction.EditWorkout(it)) },
                 workout = uiState.workout
             )
         }
@@ -207,15 +236,15 @@ private fun WorkoutSetupContent(
         item {
             WorkoutAddExercisesSection(
                 onAddExercise =
-                { handleEvent(WorkoutSetupScreenEvent.NavigationActions.NavigateToCreateWorkoutExerciseList) },
+                { onAction(CreateWorkoutAction.ToggleExerciseWorkoutListShow) },
             )
         }
         item {
             WorkoutExercisesSection(
                 exerciseList = uiState.workout.workoutExerciseList,
                 onDeleteExercise = {
-                    handleEvent(
-                        WorkoutSetupScreenEvent.WorkoutActions.DeleteExercise(
+                    onAction(
+                        CreateWorkoutAction.ExerciseDeleted(
                             it
                         )
                     )
@@ -227,7 +256,7 @@ private fun WorkoutSetupContent(
         item {
             WorkoutVisibilityToggle(
                 uiState.workout,
-                { handleEvent(WorkoutSetupScreenEvent.WorkoutActions.EditWorkout(it)) })
+                { onAction(CreateWorkoutAction.EditWorkout(it)) })
         }
     }
 }
@@ -329,7 +358,6 @@ fun WorkoutTagsSection(
     }
 }
 
-// Additional component examples (implement as needed):
 @Composable
 private fun WorkoutBasicInfo(workout: Workout, onEditWorkout: (Workout) -> Unit) {
     Column {
@@ -360,7 +388,7 @@ private fun WorkoutBasicInfo(workout: Workout, onEditWorkout: (Workout) -> Unit)
             modifier = Modifier.fillMaxWidth()
         )
 
-        WorkoutCoverImageContent(workout, onEditWorkout, )
+        WorkoutCoverImageContent(workout, onEditWorkout)
     }
 }
 
@@ -430,25 +458,6 @@ private fun WorkoutCoverImageContent(
     }
 }
 
-
-@Composable
-private fun HandleWorkoutState(
-    context: Context,
-    workoutState: DataState,
-    onClearError: () -> Unit
-) {
-    when (val workoutState = workoutState) {
-
-        is DataState.Error -> {
-            showToast(context, (workoutState as DataState.Error).message)
-            onClearError()
-        }
-
-        DataState.Initial -> Unit
-        DataState.Loading -> LoadingIndicator()
-        DataState.Success -> Unit
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -530,26 +539,44 @@ private fun ExerciseCard(
     }
 }
 
-@Preview
+
+@Preview(showBackground = true)
 @Composable
-private fun PreviewExerciseCard() {
-    val exercise = WorkoutExercise(
-        exercise = Exercise(
-            bodyPart = "Chest",
-            equipment = "Barbell",
-            gifUrl = "url_to_bench_press_gif",
-            id = "1",
-            name = "Bench Press",
-            target = "Pectoralis major",
-            secondaryMuscles = listOf("Anterior deltoid", "Serratus anterior"),
-            instructions = listOf("Press the barbell upwards")
-        ),
-        order = 1,
-        sets = 3,
-        reps = 8,
-        restBetweenSets = 60
-    )
-    ExerciseCard(exercise, onDeleteExercise = {})
+private fun PreviewWorkoutSetupContent() {
+    AppTheme {
+        WorkoutSetupContent(
+            modifier = Modifier,
+            uiState = UiState.WorkoutUiState(),
+            onAction = {},
+            paddingValues = PaddingValues(0.dp),
+        )
+    }
 }
 
 
+@Preview(showBackground = true)
+@Composable
+private fun WorkoutSetupContentWithExercisesPreview() {
+    AppTheme {
+        WorkoutSetupContent(
+            modifier = Modifier,
+            uiState = UiState.WorkoutUiState(workout = sampleWorkout),
+            onAction = {},
+            paddingValues = PaddingValues(0.dp),
+        )
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+private fun WorkoutSetupContentWithExercisesPreview2() {
+    AppTheme {
+        WorkoutSetupContent(
+            modifier = Modifier,
+            uiState = UiState.WorkoutUiState(workoutState = DataState.ExerciseListSetup),
+            onAction = {},
+            paddingValues = PaddingValues(0.dp),
+        )
+    }
+}

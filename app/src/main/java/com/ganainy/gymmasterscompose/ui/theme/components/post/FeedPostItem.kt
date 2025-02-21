@@ -147,6 +147,7 @@ fun FeedPostItem(
             onLikeClick = onLikeIconClick,
             isLiked = feedPostWithLikesAndComments.isLiked,
             feedPostWithLikesAndComments.post.postMetrics.comments,
+            onCommentClick = onPostClick, //when comment icon is clicked show post details
         )
 
     }

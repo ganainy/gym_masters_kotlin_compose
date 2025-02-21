@@ -9,6 +9,7 @@ plugins {
     id("kotlin-parcelize")
     id("com.google.devtools.ksp")
     alias(libs.plugins.kotlinx.serialization)
+    id("dagger.hilt.android.plugin")
 }
 
 val properties = Properties()
@@ -81,6 +82,9 @@ android {
 
 kapt {
     correctErrorTypes = true
+    arguments {
+        arg("dagger.processingX", "print")
+    }
 }
 
 dependencies {
@@ -145,20 +149,20 @@ dependencies {
 
     //glide for handling gifs
     implementation (libs.glide)
-    kapt (libs.compiler)
+    ksp (libs.compiler)
 
     //Room
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
     debugImplementation(libs.androidx.ui.tooling)
-    ksp("androidx.room:room-compiler:2.5.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.kotlinx.serialization.json)
 
     //Mockito  for unit tests
-    testImplementation("org.mockito:mockito-core:5.4.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    testImplementation(libs.mockito.core)
+    testImplementation(libs.mockito.kotlin)
     //  Robolectric framework, which provides a simulated Android environment for unit tests.
-    testImplementation("org.robolectric:robolectric:4.10.3")
+    testImplementation(libs.robolectric)
     //Default
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

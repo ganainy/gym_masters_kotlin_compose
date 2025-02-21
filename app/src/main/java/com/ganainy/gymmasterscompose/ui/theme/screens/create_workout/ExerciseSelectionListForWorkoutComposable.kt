@@ -4,8 +4,10 @@ import CustomSearchBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FilterList
@@ -29,203 +30,128 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.ganainy.gymmasterscompose.R
+import com.ganainy.gymmasterscompose.ui.theme.AppTheme
 import com.ganainy.gymmasterscompose.ui.theme.components.ChipOptionList
 import com.ganainy.gymmasterscompose.ui.theme.components.EmptyComponent
-import com.ganainy.gymmasterscompose.ui.theme.components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItem
+import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemData
 import com.ganainy.gymmasterscompose.ui.theme.components.ExerciseListItemType
-import com.ganainy.gymmasterscompose.ui.theme.components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
 import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
 import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
-import com.ganainy.gymmasterscompose.utils.Utils.showToast
+import com.ganainy.gymmasterscompose.utils.MockData.sampleBodyPartList
+import com.ganainy.gymmasterscompose.utils.MockData.sampleEquipmentList
+import com.ganainy.gymmasterscompose.utils.MockData.sampleExerciseList
+import com.ganainy.gymmasterscompose.utils.MockData.sampleTargetList
+import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkout
+import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkoutExercise
 import kotlinx.coroutines.launch
 
 
-// UI States
-sealed interface ExerciseListScreenEvent {
-    object NavigateBack : ExerciseListScreenEvent
-    object ShowFilterSheet : ExerciseListScreenEvent
-    object DismissFilterSheet : ExerciseListScreenEvent
-    object SaveWorkout : ExerciseListScreenEvent
-    data class SearchQueryChanged(val query: String) : ExerciseListScreenEvent
-    data class ExerciseSelected(val exercise: Exercise) : ExerciseListScreenEvent
-    data class ExerciseModified(val exercise: WorkoutExercise) : ExerciseListScreenEvent
-    data class ExerciseDeleted(val exercise: WorkoutExercise) : ExerciseListScreenEvent
-    object DismissAddExerciseDialog : ExerciseListScreenEvent
-    object ApplyFilters : ExerciseListScreenEvent
-    object clearFilters : ExerciseListScreenEvent
-    data class AddWorkoutExercise(val exercise: WorkoutExercise?) : ExerciseListScreenEvent
-    data class EditWorkoutExercise(val exercise: WorkoutExercise?) : ExerciseListScreenEvent
-    data class BodyPartFilterChange(val bodyPart: BodyPart) : ExerciseListScreenEvent
-    data class EquipmentFilterChange(val equipment: Equipment) : ExerciseListScreenEvent
-    data class TargetMuscleFilterChange(val targetMuscle: TargetMuscle) : ExerciseListScreenEvent
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkoutExerciseListScreen(
-    navigateBack: () -> Unit,
-    viewModel: CreateWorkoutViewModel
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    // Event handler
-    val handleEvent: (ExerciseListScreenEvent) -> Unit = { event ->
-        when (event) {
-            is ExerciseListScreenEvent.NavigateBack -> navigateBack()
-            is ExerciseListScreenEvent.ShowFilterSheet -> {
-                coroutineScope.launch { sheetState.show() }
-            }
-            is ExerciseListScreenEvent.DismissFilterSheet -> {
-                coroutineScope.launch { sheetState.hide() }
-            }
-            is ExerciseListScreenEvent.SaveWorkout -> {
-                navigateBack()
-            }
-            is ExerciseListScreenEvent.SearchQueryChanged -> {
-                viewModel.filterManager.onQueryChange(event.query)
-            }
-            is ExerciseListScreenEvent.ExerciseSelected -> {
-                viewModel.exerciseManager.setSelectedExercise(event.exercise)
-            }
-            is ExerciseListScreenEvent.ExerciseModified -> {
-                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
-            }
-            is ExerciseListScreenEvent.ExerciseDeleted -> {
-                viewModel.exerciseManager.deleteWorkoutExercise(event.exercise)
-            }
-            is ExerciseListScreenEvent.DismissAddExerciseDialog -> {
-                viewModel.exerciseManager.dismissAddExerciseDialog()
-            }
-            is ExerciseListScreenEvent.AddWorkoutExercise -> {
-                viewModel.exerciseManager.addWorkoutExercise(event.exercise)
-        }
-
-            is ExerciseListScreenEvent.BodyPartFilterChange -> {
-                viewModel.filterManager.onBodyPartFilterChange(event.bodyPart)
-            }
-
-            ExerciseListScreenEvent.ApplyFilters -> viewModel.filterManager.applyFilters()
-            is ExerciseListScreenEvent.EquipmentFilterChange -> {
-                viewModel.filterManager.onEquipmentFilterChange(event.equipment)
-            }
-            is ExerciseListScreenEvent.TargetMuscleFilterChange -> {
-                viewModel.filterManager.onTargetMuscleFilterChange(event.targetMuscle)
-            }
-            ExerciseListScreenEvent.clearFilters -> viewModel.filterManager.clearFilters()
-            is ExerciseListScreenEvent.EditWorkoutExercise -> {
-                viewModel.exerciseManager.editWorkoutExercise(event.exercise)
-            }
-        }
-    }
-
-    // Error handling
-    LaunchedEffect(uiState.exerciseListState) {
-        if (uiState.exerciseListState is UiState.DataState.Error) {
-            showToast(context, (uiState.exerciseListState as UiState.DataState.Error).message)
-            viewModel.clearError()
-        }
-    }
-
-    WorkoutExerciseListScreenContent(
-        uiState = uiState,
-        sheetState = sheetState,
-        onEvent = handleEvent
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WorkoutExerciseListScreenContent(
+fun WorkoutExerciseListScreenContent(
+    paddingValues: PaddingValues,
     uiState: UiState.WorkoutUiState,
-    sheetState: SheetState,
-    onEvent: (ExerciseListScreenEvent) -> Unit
+    onEvent: (CreateWorkoutAction) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    ModalBottomSheet(
-        onDismissRequest = { coroutineScope.launch { sheetState.hide() } },
-        sheetState = sheetState
-    ) {
-        FilterSheet(
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = false,
+        confirmValueChange = { true }
+    )
+
+    // Box for main content and dialogs
+    Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+        ExerciseSelectionListForWorkoutComposable(
             uiState = uiState,
             onEvent = onEvent
         )
-    }
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (uiState.exerciseListState) {
-                is UiState.DataState.Loading -> LoadingIndicator()
-                else -> MainContent(
-                    uiState = uiState,
-                    onEvent = onEvent
-                )
-            }
 
-            // Exercise Dialog
-            if (uiState.showExerciseDialog) {
-                ExerciseDialog(
-                    onDismiss = {onEvent(ExerciseListScreenEvent.DismissAddExerciseDialog)},
-                    onAdd = {onEvent(ExerciseListScreenEvent.AddWorkoutExercise(it))},
-                    onEdit = {onEvent(ExerciseListScreenEvent.EditWorkoutExercise(it))},
-                    selectedExercise = uiState.selectedExercise,
-                    validationState = uiState.validationState
-                )
-            }
+        // Exercise Dialog
+        if (uiState.showExerciseDialog) {
+            ExerciseDialog(
+                onDismiss = { onEvent(CreateWorkoutAction.DismissAddExerciseDialog) },
+                onAdd = { onEvent(CreateWorkoutAction.AddWorkoutExercise(it)) },
+                onEdit = { onEvent(CreateWorkoutAction.EditWorkoutExercise(it)) },
+                selectedExercise = uiState.selectedExercise,
+                validationState = uiState.validationState
+            )
         }
     }
 
+    // ModalBottomSheet (conditionally rendered)
+    if (uiState.showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                coroutineScope.launch {
+                    sheetState.hide()
+                    onEvent(CreateWorkoutAction.HideFilterSheet)
+                }
+            },
+            sheetState = sheetState,
+            modifier = Modifier.fillMaxHeight(0.75f) // Limit sheet height for better UX
+        ) {
+            FilterSheet(
+                bodyPartList = uiState.bodyPartList,
+                bodyPartFilter = uiState.bodyPartFilter,
+                equipmentList = uiState.equipmentList,
+                equipmentFilter = uiState.equipmentFilter,
+                targetList = uiState.targetList,
+                targetFilter = uiState.targetFilter,
+                onEvent = onEvent
+            )
+        }
+    }
+}
+
 @Composable
-private fun MainContent(
+private fun ExerciseSelectionListForWorkoutComposable(
     uiState: UiState.WorkoutUiState,
-    onEvent: (ExerciseListScreenEvent) -> Unit
+    onEvent: (CreateWorkoutAction) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         TopBar(
-            onNavigateBack = { onEvent(ExerciseListScreenEvent.NavigateBack) },
-            onShowFilters = { onEvent(ExerciseListScreenEvent.ShowFilterSheet) },
-            onSave = { onEvent(ExerciseListScreenEvent.SaveWorkout) }
+            onNavigateBack = { onEvent(CreateWorkoutAction.NavigateBack) },
+            onShowFilters = { onEvent(CreateWorkoutAction.ShowFilterSheet) },
+            onSave = { onEvent(CreateWorkoutAction.ToggleExerciseWorkoutListShow) }
         )
 
         CustomSearchBar(
-            onQueryChange = { onEvent(ExerciseListScreenEvent.SearchQueryChanged(it)) },
+            hint = stringResource(R.string.search_exercises),
+            onQueryChange = { onEvent(CreateWorkoutAction.SearchQueryChanged(it)) },
             searchQuery = uiState.searchQuery,
         )
 
         ExerciseList(
-            onExerciseAdd = { onEvent(ExerciseListScreenEvent.ExerciseSelected(it)) },
-            onExerciseModify = { onEvent(ExerciseListScreenEvent.ExerciseModified(it)) },
-            onExerciseDelete = { onEvent(ExerciseListScreenEvent.ExerciseDeleted(it)) },
-            exerciseListState = uiState.exerciseListState,
+            onExerciseAdd = { onEvent(CreateWorkoutAction.ExerciseSelected(it)) },
+            onExerciseModify = { onEvent(CreateWorkoutAction.ExerciseModified(it)) },
+            onExerciseDelete = { onEvent(CreateWorkoutAction.ExerciseDeleted(it)) },
             filteredExerciseList = uiState.filteredExerciseList,
             workoutExerciseList = uiState.workout.workoutExerciseList,
+            onExerciseClick = {onEvent(CreateWorkoutAction.NavigateToExercise(it))},
         )
     }
 }
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,66 +180,57 @@ private fun TopBar(
 }
 
 @Composable
-private fun ExerciseList(
-    exerciseListState: UiState.DataState,
+fun ExerciseList(
     filteredExerciseList: List<Exercise>,
     workoutExerciseList: List<WorkoutExercise>,
+    onExerciseClick: (Exercise) -> Unit,
     onExerciseAdd: (Exercise) -> Unit,
     onExerciseModify: (WorkoutExercise) -> Unit,
-    onExerciseDelete: (WorkoutExercise) -> Unit
+    onExerciseDelete: (WorkoutExercise) -> Unit,
 ) {
-    when (exerciseListState) {
-        is UiState.DataState.Success -> {
+
             if (filteredExerciseList.isNotEmpty()) {
-                LazyColumn {
-                    items(filteredExerciseList) { exercise ->
-                        ExerciseListItem(
-                            exercise = exercise,
-                            workoutExercises = workoutExerciseList,
-                            onAdd = onExerciseAdd,
-                            onModify = onExerciseModify,
-                            onDelete = onExerciseDelete
-                        )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(
+                        items = filteredExerciseList,
+                        key = { exercise -> exercise.id } // Use exercise.id as key for performance
+                    ) { exercise ->
+                        val workoutExercise =
+                            workoutExerciseList.find { it.exercise?.id == exercise.id }
+                        if (workoutExercise != null) {
+                            // WORKOUT_ADDED_TO_EXERCISE
+                            ExerciseListItem(
+                                data = ExerciseListItemData.WorkoutExerciseData(workoutExercise),
+                                type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
+                                onClick = { onExerciseClick(exercise) },
+                                onAddToWorkout = { onExerciseAdd(exercise) },
+                                onModify = { onExerciseModify(workoutExercise) },
+                                onDelete = { onExerciseDelete(workoutExercise) }
+                            )
+                        } else {
+                            // WORKOUT_NOT_ADDED_TO_EXERCISE
+                            ExerciseListItem(
+                                data = ExerciseListItemData.ExerciseData(exercise),
+                                type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE,
+                                onClick = { onExerciseClick(exercise) },
+                                onAddToWorkout = { onExerciseAdd(exercise) },
+                                onModify = { /* No-op for this type */ },
+                                onDelete = { /* No-op for this type */ }
+                            )
+                        }
                     }
                 }
             } else {
-                EmptyComponent("No exercises found")
+                EmptyComponent(text = "No exercises found")
             }
         }
-        is UiState.DataState.Error -> {
-            ErrorComponent(text = (exerciseListState as UiState.DataState.Error).message)
-        }
-        else -> Unit
-    }
-}
 
-@Composable
-private fun ExerciseListItem(
-    exercise: Exercise,
-    workoutExercises: List<WorkoutExercise>,
-    onAdd: (Exercise) -> Unit,
-    onModify: (WorkoutExercise) -> Unit,
-    onDelete: (WorkoutExercise) -> Unit
-) {
-    val workoutExercise = workoutExercises.find { it.exercise?.id == exercise.id }
 
-    if (workoutExercise != null) {
-        ExerciseListItem(
-            type = ExerciseListItemType.WORKOUT_ADDED_TO_EXERCISE,
-            workoutExercise = workoutExercise,
-            onModify = { onModify(workoutExercise) },
-            onDelete = { onDelete(workoutExercise) }
-        )
-    } else {
-        ExerciseListItem(
-            exercise = exercise,
-            onAddToWorkout = { onAdd(exercise) },
-            type = ExerciseListItemType.WORKOUT_NOT_ADDED_TO_EXERCISE
-        )
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 private fun ExerciseDialog(
     selectedExercise: WorkoutExercise?,
@@ -333,11 +250,28 @@ private fun ExerciseDialog(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+fun ExerciseDialogPreview() {
+    AppTheme {
+    ExerciseDialog(
+        selectedExercise = sampleWorkoutExercise,
+        validationState = UiState.ValidationState(), // Provide a sample or mock ValidationState if needed
+        onDismiss = {},
+        onAdd = {},
+        onEdit = {}
+    )
+} }
 
 @Composable
 fun FilterSheet(
-    uiState: UiState.WorkoutUiState,
-    onEvent: (ExerciseListScreenEvent) -> Unit,
+    bodyPartList: List<BodyPart>,
+    bodyPartFilter: BodyPart?,
+    equipmentList: List<Equipment>,
+    equipmentFilter: Equipment?,
+    targetList: List<TargetMuscle>,
+    targetFilter: TargetMuscle?,
+    onEvent: (CreateWorkoutAction) -> Unit,
 ) {
 
     Column(modifier = Modifier.padding(16.dp)) {
@@ -351,33 +285,33 @@ fun FilterSheet(
         // Body Part Dropdown
         ChipOptionList(
             label = "Body Part",
-            options = uiState.bodyPartList,
-            selectedOption = uiState.bodyPartFilter,
-            onOptionSelected = { onEvent(ExerciseListScreenEvent.BodyPartFilterChange(it)) }
+            options = bodyPartList,
+            selectedOption = bodyPartFilter,
+            onOptionSelected = { onEvent(CreateWorkoutAction.BodyPartFilterChange(it)) }
         )
 
         // Equipment Dropdown
         ChipOptionList(
             label = "Equipment",
-            options =  uiState.equipmentList,
-            selectedOption =  uiState.equipmentFilter,
-            onOptionSelected = { onEvent(ExerciseListScreenEvent.EquipmentFilterChange(it)) }
+            options = equipmentList,
+            selectedOption = equipmentFilter,
+            onOptionSelected = { onEvent(CreateWorkoutAction.EquipmentFilterChange(it)) }
         )
 
         // Target Dropdown
         ChipOptionList(
             label = "Target",
-            options =  uiState.targetList,
-            selectedOption =  uiState.targetFilter,
-            onOptionSelected = { onEvent(ExerciseListScreenEvent.TargetMuscleFilterChange(it)) }
+            options = targetList,
+            selectedOption = targetFilter,
+            onOptionSelected = { onEvent(CreateWorkoutAction.TargetMuscleFilterChange(it)) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Apply Filters Button
         Button(
-            onClick =  {
-                onEvent(ExerciseListScreenEvent.ApplyFilters)
+            onClick = {
+                onEvent(CreateWorkoutAction.ApplyFilters)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -388,7 +322,7 @@ fun FilterSheet(
         // Clear Filters Button
         TextButton(
             onClick = {
-                onEvent(ExerciseListScreenEvent.clearFilters)
+                onEvent(CreateWorkoutAction.ClearFilters)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -397,7 +331,22 @@ fun FilterSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, name = "Filter Sheet Preview")
+@Composable
+fun FilterSheetPreview() {
+    AppTheme {
+    FilterSheet(
+        bodyPartList = sampleBodyPartList,
+        bodyPartFilter = sampleBodyPartList.first(),
+        equipmentList = sampleEquipmentList,
+        equipmentFilter = sampleEquipmentList.first(),
+        targetList = sampleTargetList,
+        targetFilter = sampleTargetList.first(),
+        onEvent = { /* No-op for preview */ }
+    )
+}
+}
+
 @Composable
 private fun ExerciseDialogContent(
     selectedExercise: WorkoutExercise?,
@@ -541,6 +490,29 @@ private fun ExerciseNumberField(
             supportingText = error?.let {
                 { Text(it) }
             }
+        )
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true)
+@Composable
+fun WorkoutExerciseListScreenPreview() {
+    AppTheme {
+        WorkoutExerciseListScreenContent(
+            uiState = UiState.WorkoutUiState(
+                workoutState = UiState. DataState.ExerciseListSetup,
+                filteredExerciseList = sampleExerciseList,
+                searchQuery = "",
+                showExerciseDialog = false,
+                selectedExercise = null,
+                validationState = UiState.ValidationState(),    // No validation errors
+                workout = sampleWorkout,
+
+            ),
+            onEvent = {},    // No-op
+            paddingValues = PaddingValues(0.dp)
         )
     }
 }
