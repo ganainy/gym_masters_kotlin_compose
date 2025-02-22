@@ -362,6 +362,7 @@ private fun NavGraphBuilder.mainGraph(navigator: AppNavigator) {
                 workout = workout,
                 isLiked = isLiked,
                 isSaved = isSaved,
+                navigateBack = navigator::navigateBack,
                 navigateToExerciseDetails = navigator::navigateToExerciseDetails
             )
         }

@@ -54,9 +54,6 @@ import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.CustomTopAppBar
 import com.ganainy.gymmasterscompose.ui.theme.shared_components.LoadingIndicator
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.PreviewOnlyParams
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutComposable
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.WorkoutViewType
 import com.ganainy.gymmasterscompose.utils.MockData
 
 @Composable
@@ -221,9 +218,8 @@ private fun WorkoutList(
             items = workoutList,
             key = { it.workout.id }
         ) { workout ->
-            WorkoutComposable(
+            WorkoutPreviewComposable(
                 workoutWithStatus = workout,
-                workoutViewType = WorkoutViewType.PREVIEW,
                 previewOnlyParams = PreviewOnlyParams(
                     onWorkoutLike = onWorkoutLike,
                     onWorkoutSave = onWorkoutSave,

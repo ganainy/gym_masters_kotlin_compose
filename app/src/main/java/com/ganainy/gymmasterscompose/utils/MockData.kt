@@ -93,7 +93,7 @@ object MockData {
         restBetweenSets = 60
     )
 
-    val sampleWorkoutExercise2 = WorkoutExercise(
+    private val sampleWorkoutExercise2 = WorkoutExercise(
         exercise = sampleExercise2,
         order = 2,
         sets = 4,
@@ -101,7 +101,7 @@ object MockData {
         restBetweenSets = 50
     )
 
-    val sampleWorkoutExercise3 = WorkoutExercise(
+    private val sampleWorkoutExercise3 = WorkoutExercise(
         exercise = sampleExercise3,
         order = 3,
         sets = 3,
@@ -109,10 +109,27 @@ object MockData {
         restBetweenSets = 30
     )
 
+    private val sampleWorkoutExercise4 = WorkoutExercise(
+    exercise = sampleExercise4,
+    sets = 3,
+    reps = 8,
+    order = 1,
+    restBetweenSets = 60,
+    )
+    private val sampleWorkoutExercise5 = WorkoutExercise(
+    exercise = sampleExercise5,
+    sets = 4,
+    reps = 10,
+    order = 2,
+    restBetweenSets = 30,
+    )
+
     val sampleWorkoutExerciseList = listOf(
         sampleWorkoutExercise,
         sampleWorkoutExercise2,
-        sampleWorkoutExercise3
+        sampleWorkoutExercise3,
+        sampleWorkoutExercise4,
+        sampleWorkoutExercise5
     )
 
     // Sample Workout data
@@ -238,6 +255,8 @@ object MockData {
         isLiked = true,
         isSaved = false
     )
+
+
 
     val sampleBodyPartList = listOf(BodyPart("Chest"), BodyPart("Back"))
     val sampleEquipmentList = listOf(Equipment("Dumbbell"), Equipment("Barbell"))
