@@ -1,12 +1,12 @@
 package com.ganainy.gymmasterscompose.utils
 
 import com.ganainy.gymmasterscompose.di.IoDispatcher
-import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
-import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
-import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
-import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
-import com.ganainy.gymmasterscompose.ui.theme.repository.IExerciseRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.ui.models.BodyPart
+import com.ganainy.gymmasterscompose.ui.models.Equipment
+import com.ganainy.gymmasterscompose.ui.models.Exercise
+import com.ganainy.gymmasterscompose.ui.models.TargetMuscle
+import com.ganainy.gymmasterscompose.ui.repository.IExerciseRepository
+import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

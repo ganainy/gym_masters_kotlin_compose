@@ -1,5 +1,6 @@
 package com.ganainy.gymmasterscompose.ui.theme.screens.feed.composables
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,13 +32,15 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ganainy.gymmasterscompose.animation.LocalShimmerTheme
 import com.ganainy.gymmasterscompose.animation.shimmerPlaceholder
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.screens.post_details.FeedPostWithLikesAndComments
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.HashtagText
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.PostInteractionRow
-import com.ganainy.gymmasterscompose.ui.theme.shared_components.ProfileImageSmall
+import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.models.post.PostCreator
+import com.ganainy.gymmasterscompose.ui.models.post.PostMetrics
+import com.ganainy.gymmasterscompose.ui.screens.feed.composables.ImageGrid
+import com.ganainy.gymmasterscompose.ui.screens.feed.composables.UserInfoRow
+import com.ganainy.gymmasterscompose.ui.screens.post_details.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.ui.shared_components.HashtagText
+import com.ganainy.gymmasterscompose.ui.shared_components.PostInteractionRow
+import com.ganainy.gymmasterscompose.ui.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
 
 
@@ -45,8 +50,18 @@ fun FeedPostItem(
     feedPostWithLikesAndComments: FeedPostWithLikesAndComments,
     onLikeIconClick: () -> Unit,
     onProfileClick: () -> Unit,
-    onPostClick: () -> Unit
+    onPostClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+    ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -87,7 +102,7 @@ fun FeedPostItem(
                                 .crossfade(true)
                                 .build(),
                             contentDescription = "Post Image 1",
-                            contentScale = ContentScale.FillWidth,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1.5f)
@@ -128,6 +143,7 @@ fun FeedPostItem(
         )
 
     }
+}
 }
 
 /**

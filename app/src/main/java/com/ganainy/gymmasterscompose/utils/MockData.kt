@@ -1,18 +1,22 @@
 package com.ganainy.gymmasterscompose.utils
 
-import com.ganainy.gymmasterscompose.ui.theme.models.BodyPart
-import com.ganainy.gymmasterscompose.ui.theme.models.Equipment
-import com.ganainy.gymmasterscompose.ui.theme.models.Exercise
-import com.ganainy.gymmasterscompose.ui.theme.models.TargetMuscle
-import com.ganainy.gymmasterscompose.ui.theme.models.User
-import com.ganainy.gymmasterscompose.ui.theme.models.UserStats
-import com.ganainy.gymmasterscompose.ui.theme.models.post.FeedPost
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostCreator
-import com.ganainy.gymmasterscompose.ui.theme.models.post.PostMetrics
-import com.ganainy.gymmasterscompose.ui.theme.models.workout.Workout
-import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutExercise
-import com.ganainy.gymmasterscompose.ui.theme.models.workout.WorkoutMetrics
-import com.ganainy.gymmasterscompose.ui.theme.screens.workout_list.WorkoutWithStatus
+import Comment
+import UserDisplayInfo
+import com.ganainy.gymmasterscompose.ui.models.BodyPart
+import com.ganainy.gymmasterscompose.ui.models.Equipment
+import com.ganainy.gymmasterscompose.ui.models.Exercise
+import com.ganainy.gymmasterscompose.ui.models.TargetMuscle
+import com.ganainy.gymmasterscompose.ui.models.User
+import com.ganainy.gymmasterscompose.ui.models.UserStats
+import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.models.post.PostCreator
+import com.ganainy.gymmasterscompose.ui.models.post.PostMetrics
+import com.ganainy.gymmasterscompose.ui.models.workout.Workout
+import com.ganainy.gymmasterscompose.ui.models.workout.WorkoutExercise
+import com.ganainy.gymmasterscompose.ui.models.workout.WorkoutMetrics
+import com.ganainy.gymmasterscompose.ui.screens.post_details.CommentWithLikeStatus
+import com.ganainy.gymmasterscompose.ui.screens.post_details.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.ui.screens.workout_list.WorkoutWithStatus
 
 //sample data to be used in preview functions and testing
 object MockData {
@@ -22,10 +26,18 @@ object MockData {
     val sampleExercise = Exercise(
         id = "1",
         name = "Push Up",
-        bodyPart = "Chest",
-        equipment = "Bodyweight",
-        target = "Pectoralis Major",
-        screenshotPath = "https://example.com/pushup.jpg" // Replace with actual image URL or local resource
+        bodyPart = "chest",
+        equipment = "equipment-name",
+        target = "upper-body",
+        secondaryMuscles = listOf("Triceps", "Shoulders"),
+        instructions = listOf(
+            "Step 1: Start in a plank position with your hands shoulder-width apart.",
+            "Step 2: Lower your body until your chest touches the floor.",
+            "Step 3: Push your body back up to the starting position.",
+            "Step 4: Repeat for desired repetitions."
+        ),
+        screenshotPath = "https://www.example.com/images/pushup.jpg",
+        isSavedLocally = false
     )
 
     val sampleExercise2 = Exercise(
@@ -110,18 +122,18 @@ object MockData {
     )
 
     private val sampleWorkoutExercise4 = WorkoutExercise(
-    exercise = sampleExercise4,
-    sets = 3,
-    reps = 8,
-    order = 1,
-    restBetweenSets = 60,
+        exercise = sampleExercise4,
+        sets = 3,
+        reps = 8,
+        order = 1,
+        restBetweenSets = 60,
     )
     private val sampleWorkoutExercise5 = WorkoutExercise(
-    exercise = sampleExercise5,
-    sets = 4,
-    reps = 10,
-    order = 2,
-    restBetweenSets = 30,
+        exercise = sampleExercise5,
+        sets = 4,
+        reps = 10,
+        order = 2,
+        restBetweenSets = 30,
     )
 
     val sampleWorkoutExerciseList = listOf(
@@ -223,7 +235,7 @@ object MockData {
 
     val samplePost2 = FeedPost(
         id = "2",
-        content = "Healthy eating is key to success.",
+        content = "Healthy eating is key to #success.",
         postCreator = PostCreator(
             id = "user2",
             displayName = "Bob Johnson",
@@ -231,7 +243,12 @@ object MockData {
         ),
         createdAt = System.currentTimeMillis(),
         tags = listOf("nutrition", "health"),
-        postMetrics = PostMetrics(likes = 15, comments = 4)
+        postMetrics = PostMetrics(likes = 15, comments = 4),
+        imageUrlList = listOf(
+            "https://example.com/image1.jpg",
+            "https://example.com/image2.jpg",
+            "https://example.com/image3.jpg"
+        )
     )
 
     val samplePost3 = FeedPost(
@@ -244,10 +261,68 @@ object MockData {
         ),
         createdAt = System.currentTimeMillis(),
         tags = listOf("running", "morning"),
-        postMetrics = PostMetrics(likes = 30, comments = 8)
+        postMetrics = PostMetrics(likes = 30, comments = 8),
+        imageUrlList = listOf("https://example.com/image1.jpg", "https://example.com/image2.jpg")
     )
 
     val samplePostList = listOf(samplePost, samplePost2, samplePost3)
+
+    //sample comments
+    val sampleComment = Comment(
+        id = "1",
+        content = "Great job!",
+        userDisplayInfo = UserDisplayInfo(
+            displayName = "Eve Johnson",
+            profileImageUrl = "https://randomuser.me/api/portraits/women/4.jpg",
+        ),
+    )
+
+    val sampleComment2 = Comment(
+        id = "2",
+        content = "Thanks for sharing!",
+        userDisplayInfo = UserDisplayInfo(
+            displayName = "Frank Wilson",
+            profileImageUrl = "https://randomuser.me/api/portraits/men/5.jpg",
+        ),
+    )
+
+    val sampleCommentList = listOf(sampleComment, sampleComment2)
+    val sampleCommentWithLikeStatusList = listOf(
+        CommentWithLikeStatus(
+            comment = sampleComment,
+            isLiked = true
+        ),
+        CommentWithLikeStatus(
+            comment = sampleComment2,
+            isLiked = false
+        ),
+    )
+
+
+    val samplePostWithLikesAndComments = FeedPostWithLikesAndComments(
+        post = samplePost,
+        isLiked = true,
+        commentList = sampleCommentWithLikeStatusList
+    )
+
+    val samplePostWithLikesAndComments2 = FeedPostWithLikesAndComments(
+        post = samplePost2,
+        isLiked = false,
+        commentList = sampleCommentWithLikeStatusList
+    )
+
+    val samplePostWithLikesAndComments3 = FeedPostWithLikesAndComments(
+        post = samplePost3,
+        isLiked = true,
+        commentList = sampleCommentWithLikeStatusList
+    )
+
+
+    val samplePostWithLikesAndCommentsList = listOf(
+        samplePostWithLikesAndComments,
+        samplePostWithLikesAndComments2,
+        samplePostWithLikesAndComments3
+    )
 
     // Sample WorkoutWithStatus data
     val sampleWorkoutWithStatus = WorkoutWithStatus(
@@ -255,7 +330,6 @@ object MockData {
         isLiked = true,
         isSaved = false
     )
-
 
 
     val sampleBodyPartList = listOf(BodyPart("Chest"), BodyPart("Back"))

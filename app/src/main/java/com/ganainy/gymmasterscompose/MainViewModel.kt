@@ -2,8 +2,8 @@ package com.ganainy.gymmasterscompose
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ganainy.gymmasterscompose.ui.theme.repository.AuthRepository
-import com.ganainy.gymmasterscompose.ui.theme.repository.ILikeRepository
+import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.repository.ILikeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
