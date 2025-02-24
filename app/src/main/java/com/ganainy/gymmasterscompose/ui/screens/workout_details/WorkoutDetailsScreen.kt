@@ -7,14 +7,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.ganainy.gymmasterscompose.R
 import com.ganainy.gymmasterscompose.ui.models.Exercise
 import com.ganainy.gymmasterscompose.ui.models.workout.Workout
-import com.ganainy.gymmasterscompose.ui.screens.workout_list.EmptyContent
-import com.ganainy.gymmasterscompose.ui.screens.workout_list.ErrorContent
 import com.ganainy.gymmasterscompose.ui.screens.workout_list.WorkoutWithStatus
 import com.ganainy.gymmasterscompose.ui.shared_components.CustomTopAppBar
+import com.ganainy.gymmasterscompose.ui.shared_components.EmptyComponent
+import com.ganainy.gymmasterscompose.ui.shared_components.ErrorComponent
 import com.ganainy.gymmasterscompose.ui.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkoutExerciseList
 
@@ -60,13 +62,14 @@ private fun WorkoutDetailsContent(
             LoadingIndicator()
         }
         if (uiState.error != null) {
-            ErrorContent(
-                message = uiState.error,
-                onRetry = {},
+            ErrorComponent(
+                text = uiState.error,
+                onRetryClick = {},
             )
         } else {
             if (uiState.workoutWithStatus == null) {
-                EmptyContent(
+                EmptyComponent(
+                    text = stringResource(R.string.no_workout_found),
                 )
             } else {
                 val workoutWithStatus = uiState.workoutWithStatus

@@ -61,8 +61,6 @@ fun CustomChip(
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(color = textColor.copy(alpha = 0.3f)),
                 onClick = onClick
             )
             .padding(horizontal = 8.dp, vertical = 4.dp) // Compact padding

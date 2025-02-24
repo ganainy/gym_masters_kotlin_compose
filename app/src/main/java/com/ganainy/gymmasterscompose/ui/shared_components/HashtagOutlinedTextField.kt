@@ -66,13 +66,6 @@ fun HashtagOutlinedTextField(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         },
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            containerColor = Color.Transparent,
-            focusedBorderColor = MaterialTheme.colorScheme.primary, // Border color when focused
-            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f), // Border color when unfocused
-            focusedLabelColor = MaterialTheme.colorScheme.primary,
-            cursorColor = MaterialTheme.colorScheme.primary
-        ),
         textStyle = MaterialTheme.typography.bodyLarge,
         visualTransformation = hashtagTransformation
     )

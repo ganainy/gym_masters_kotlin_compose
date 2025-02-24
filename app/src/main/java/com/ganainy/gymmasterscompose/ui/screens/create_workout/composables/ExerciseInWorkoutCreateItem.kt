@@ -118,8 +118,6 @@ internal fun ExerciseInWorkoutCreateItem(
                     .size(24.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = rememberRipple(bounded = false, radius = 20.dp),
                         onClick = { onDeleteExercise(workoutExercise) }
                     )
                     .padding(4.dp),

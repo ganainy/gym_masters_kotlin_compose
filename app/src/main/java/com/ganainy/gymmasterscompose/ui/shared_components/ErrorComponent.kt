@@ -59,7 +59,7 @@ sealed interface ErrorIcon {
 fun ErrorComponent(
     text: String,
     modifier: Modifier = Modifier,
-    icon: ErrorIcon = ErrorIcon.ResourceIcon(android.R.drawable.ic_dialog_alert),
+    icon: ErrorIcon = ErrorIcon.ResourceIcon(R.drawable.error),
     onRetryClick: (() -> Unit)? = null
 ) {
     Column(
@@ -74,7 +74,7 @@ fun ErrorComponent(
                 Image(
                     painter = painterResource(id = icon.resourceId),
                     contentDescription = null,
-                    modifier = Modifier.size(256.dp),
+                    modifier = Modifier.size(128.dp),
                     colorFilter = ColorFilter.tint(LocalContentColor.current) // Apply tint
                 )
             }
@@ -83,7 +83,7 @@ fun ErrorComponent(
                     imageVector = icon.imageVector,
                     contentDescription = null,
                     tint = LocalContentColor.current,
-                    modifier = Modifier.size(256.dp),
+                    modifier = Modifier.size(128.dp),
                 )
             }
         }

@@ -72,4 +72,5 @@
     <string name="back_button">Back button</string>
     <string name="no_bio">No bio</string>
     <string name="feed">Feed</string>
+    <string name="no_workout_found">No workout found</string>
 </resources>

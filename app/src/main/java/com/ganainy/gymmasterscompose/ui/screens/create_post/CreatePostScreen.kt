@@ -7,7 +7,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PostAdd
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,15 +44,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.ganainy.gymmasterscompose.ui.AppTheme
 import com.ganainy.gymmasterscompose.ui.screens.create_post.composables.HashtagMultiLineTextField
 import com.ganainy.gymmasterscompose.ui.shared_components.CustomTopAppBar
+import com.ganainy.gymmasterscompose.ui.shared_components.ErrorComponent
+import com.ganainy.gymmasterscompose.ui.shared_components.LoadingIndicator
 import com.ganainy.gymmasterscompose.ui.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.utils.MockData.samplePost
 import com.ganainy.gymmasterscompose.utils.MockData.sampleUser
@@ -67,14 +67,6 @@ fun CreatePostScreen(onNavigateBack: () -> Unit) {
 
     val uiState by viewModel.uiState.collectAsState()
     val selectedImages = uiState.selectedImages
-
-    // Image picker launcher
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        viewModel.onImagePicked(uris)
-    }
-
 
     val onClickPublishPost: () -> Unit = { viewModel.publishPost { onNavigateBack() } }
     val onUpdatePostContent: (String) -> Unit = { viewModel.updatePostContent(it) }
@@ -131,44 +123,74 @@ fun CreatePostContent(
                 .background(MaterialTheme.colorScheme.surface)
         )
 
+        if (uiState.isLoading) {
+            // Show loading indicator
+             LoadingIndicator()
+            return@Column
+        }else if (uiState.error != null) {
+            // Show error message
+             ErrorComponent(text = stringResource( uiState.error))
+            return@Column
+        }
+
+        CreatePostFields(
+            uiState,
+            onUpdatePostContent,
+            selectedImages,
+            multiplePhotoPickerLauncher,
+            onImageRemoved
+        )
+
+    }
+}
+
+@Composable
+private fun CreatePostFields(
+    uiState: CreatePostUiState,
+    onUpdatePostContent: (String) -> Unit,
+    selectedImages: List<Uri>,
+    multiplePhotoPickerLauncher: ManagedActivityResultLauncher<PickVisualMediaRequest, List<@JvmSuppressWildcards Uri>>,
+    onImageRemoved: (Uri) -> Unit
+) {
+    Column {
         // User Info Section with Card
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ProfileImageSmall(
+                profilePictureUrl = uiState.user?.profilePictureUrl,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ProfileImageSmall(
-                    profilePictureUrl = uiState.user?.profilePictureUrl,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .border(
-                            2.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            CircleShape
-                        ),
-                    onClick = { }
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(
+                        2.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        CircleShape
+                    ),
+                onClick = { }
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = uiState.user?.displayName ?: "Anonymous",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = uiState.user?.displayName ?: "Anonymous",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                Text(
+                    text = "@${uiState.user?.username ?: "user"}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = "@${uiState.user?.username ?: "user"}",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-                }
+                )
             }
+        }
 
         // Content TextField with enhanced styling
         Card(
@@ -186,7 +208,7 @@ fun CreatePostContent(
                 onValueChange = onUpdatePostContent,
                 modifier = Modifier
                     .fillMaxWidth(),
-                placeholder =  "What's on your mind?",
+                placeholder = "What's on your mind?",
             )
         }
 
@@ -280,87 +302,69 @@ fun CreatePostContent(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun CreatePostContent_Preview() {
-    val uiState = CreatePostUiState(
-        feedPost = samplePost,
-        user = sampleUser
-    )
-
-    CreatePostContent(
-        onNavigateBack = { },
-        onPublishPost = { },
-        onUpdatePostContent = { },
-        onImageRemoved = { },
-        onImageSelected = {},
-        uiState = uiState,
-        selectedImages = emptyList(),
-    )
-}
-
-
-@Composable
-private fun CreatePostActionButtons(imagePickerLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            ActionButton(
-                icon = Icons.Default.Image,
-                label = "Photo",
-                onClick = { imagePickerLauncher.launch("image/*") }
-            )
-
-            ActionButton(
-                icon = Icons.Default.Schedule,
-                label = "Workout",
-                onClick = { /* TODO */ }
-            )
-        }
-    }
-}
-
-@Composable
-private fun ActionButton(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(28.dp)
-                .padding(bottom = 4.dp)
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 
 @Preview
 @Composable
-fun PreviewCreatePostScreen() {
-    CreatePostScreen(
-        onNavigateBack = { true },
-    )
+fun PreviewCreatePostScreen_Initial() {
+    AppTheme {
+        val uiState = CreatePostUiState(
+            isLoading = false,
+            feedPost = samplePost,
+            user = sampleUser
+        )
+        CreatePostContent(
+            uiState = uiState,
+            selectedImages = emptyList(),
+            onNavigateBack = { true },
+            onUpdatePostContent = { },
+            onImageSelected = {},
+            onImageRemoved = {},
+            onPublishPost = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+fun PreviewCreatePostScreen_Loading() {
+    AppTheme {
+        val uiState = CreatePostUiState(
+            isLoading = true,
+            error = null,
+            feedPost = samplePost,
+            user = sampleUser
+        )
+
+        CreatePostContent(
+            uiState = uiState,
+            selectedImages = emptyList(),
+            onNavigateBack = { true },
+            onUpdatePostContent = { },
+            onImageSelected = {},
+            onImageRemoved = {},
+            onPublishPost = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+fun PreviewCreatePostScreen_Error() {
+    AppTheme {
+        val uiState = CreatePostUiState(
+            isLoading = false,
+            feedPost = samplePost,
+            error = 1,
+            user = sampleUser
+        )
+        CreatePostContent(
+            uiState = uiState,
+            selectedImages = emptyList(),
+            onNavigateBack = { true },
+            onUpdatePostContent = { },
+            onImageSelected = {},
+            onImageRemoved = {},
+            onPublishPost = {},
+        )
+    }
 }

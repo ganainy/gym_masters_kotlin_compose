@@ -79,8 +79,6 @@ fun CustomButton(
                 )
             )
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(color = contentColor.copy(alpha = 0.3f)),
                 enabled = enabled,
                 onClick = onClick
             ),

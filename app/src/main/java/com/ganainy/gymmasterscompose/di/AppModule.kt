@@ -4,15 +4,15 @@ package com.ganainy.gymmasterscompose.di
 import android.content.Context
 import androidx.room.Room
 import com.ganainy.gymmasterscompose.Constants.FIREBASE_DATABASE_NAME
-import com.ganainy.gymmasterscompose.ui.retrofit.ExerciseApi
-import com.ganainy.gymmasterscompose.ui.retrofit.Secrets
 import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.repository.CommentsRepository
 import com.ganainy.gymmasterscompose.ui.repository.ExerciseRepository
+import com.ganainy.gymmasterscompose.ui.repository.FeedRepository
 import com.ganainy.gymmasterscompose.ui.repository.HashtagRepository
 import com.ganainy.gymmasterscompose.ui.repository.IAuthRepository
 import com.ganainy.gymmasterscompose.ui.repository.ICommentsRepository
 import com.ganainy.gymmasterscompose.ui.repository.IExerciseRepository
+import com.ganainy.gymmasterscompose.ui.repository.IFeedRepository
 import com.ganainy.gymmasterscompose.ui.repository.IHashtagRepository
 import com.ganainy.gymmasterscompose.ui.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.repository.IPostRepository
@@ -26,6 +26,8 @@ import com.ganainy.gymmasterscompose.ui.repository.SocialRepository
 import com.ganainy.gymmasterscompose.ui.repository.UserRepository
 import com.ganainy.gymmasterscompose.ui.repository.UsersRepository
 import com.ganainy.gymmasterscompose.ui.repository.WorkoutRepository
+import com.ganainy.gymmasterscompose.ui.retrofit.ExerciseApi
+import com.ganainy.gymmasterscompose.ui.retrofit.Secrets
 import com.ganainy.gymmasterscompose.ui.room.AppDatabase
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
 import com.google.firebase.auth.FirebaseAuth
@@ -193,6 +195,16 @@ object AppModule {
     }
 
 
+    @Provides
+    @Singleton
+    fun provideFeedRepository(
+        database: FirebaseDatabase,
+        hashtagRepository: IHashtagRepository,
+        userRepository: IUserRepository
+
+    ): IFeedRepository {
+        return FeedRepository(database, hashtagRepository, userRepository)
+    }
 
     @Provides
     @Singleton

@@ -3,9 +3,9 @@ package com.ganainy.gymmasterscompose.ui.repository
 
 import com.ganainy.gymmasterscompose.Constants.FOLLOWING
 import com.ganainy.gymmasterscompose.ui.models.Follow
+import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWER_ID
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.models.User
-import com.ganainy.gymmasterscompose.ui.models.User.Companion.FOLLOWER_ID
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.USERS_COLLECTION
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot

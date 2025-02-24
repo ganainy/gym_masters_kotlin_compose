@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -162,8 +160,6 @@ private fun EditableProfileImage(
                     isPressed = true
                     launcher.launch("image/*")
                 },
-                indication = rememberRipple(bounded = false),
-                interactionSource = remember { MutableInteractionSource() }
             ),
 
     ) {
@@ -196,8 +192,6 @@ private fun EditableProfileImage(
                             isPressed = true
                             launcher.launch("image/*")
                         },
-                        indication = rememberRipple(bounded = false),
-                        interactionSource = remember { MutableInteractionSource() }
                     )
                     .graphicsLayer {
                         scaleX = scale

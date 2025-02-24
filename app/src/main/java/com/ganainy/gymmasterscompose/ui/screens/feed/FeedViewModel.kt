@@ -4,50 +4,34 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
-import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
+import com.ganainy.gymmasterscompose.ui.repository.IFeedRepository
 import com.ganainy.gymmasterscompose.ui.repository.ILikeRepository
-import com.ganainy.gymmasterscompose.ui.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.repository.ISocialRepository
 import com.ganainy.gymmasterscompose.ui.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.ui.repository.onError
 import com.ganainy.gymmasterscompose.ui.room.LikeType
-import com.ganainy.gymmasterscompose.ui.screens.discover.DiscoverData
 import com.ganainy.gymmasterscompose.ui.screens.post_details.FeedPostWithLikesAndComments
+import com.ganainy.gymmasterscompose.utils.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed class FeedUiState {
-    data object EmptyFeed : FeedUiState()
-    data class NonEmptyFeed(val postList: List<FeedPostWithLikesAndComments>) : FeedUiState()
-    data object Loading : FeedUiState()
-    sealed class Error : FeedUiState() {
-        data class IntError(val messageStringResource: Int) : Error()
-        data class StringError(val message: String) : Error()
-    }
-
-}
-
 
 data class FeedUiData(
-    val postIds: Set<String> = emptySet(),
+    val postList: List<FeedPostWithLikesAndComments> = emptyList(),
     val followingUserIds: Set<String> = emptySet(),
-    var lastLoadedPostTimestamp: Long? = null // used for pagination, first most recent 20 posts are
+    val lastLoadedPostTimestamp: Long? = null,// used for pagination, first most recent 10 posts are
     // loaded then on load more older posts are loaded
+    val lastPostId: String? = null,
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val hasReachedEnd: Boolean = false,
+    val error: UiText? = null
 )
 
 
@@ -55,229 +39,271 @@ data class FeedUiData(
 class FeedViewModel @Inject constructor(
     private val socialRepository: ISocialRepository,
     private val userRepository: IUserRepository,
-    private val postRepository: IPostRepository,
+    private val feedRepository: IFeedRepository,
     private val likeRepository: ILikeRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
-    val uiState: StateFlow<FeedUiState> = _uiState.asStateFlow()
-
-    private val _feedUiData = MutableStateFlow(FeedUiData(emptySet()))
+    private val _feedUiData = MutableStateFlow(FeedUiData())
     val feedUiData: StateFlow<FeedUiData> = _feedUiData.asStateFlow()
 
     init {
-        loadFeed()
+        loadInitialFeed()
+    }
 
-        // Update the feed UI data with the post IDs of the feed.
-        _uiState.asStateFlow()
-            .map { uiState ->
-                if (uiState is FeedUiState.NonEmptyFeed) {
-                    _feedUiData.update { currentState ->
-                        currentState.copy(
-                            postIds = uiState.postList.map { it.post.id }.toSet()
+
+    private fun loadInitialFeed() {
+        viewModelScope.launch {
+            // Prevent concurrent loads
+            if (_feedUiData.value.isLoading || _feedUiData.value.isRefreshing) return@launch
+
+            // Reset state for initial load
+            _feedUiData.update {
+                it.copy(
+                    lastPostId = null,
+                    lastLoadedPostTimestamp = null,
+                    postList = emptyList(),
+                    isLoading = true,
+                    error = null
+                )
+            }
+
+            try {
+                    _feedUiData.update { it.copy(isLoading = true, error = null) }
+                loadFeedPage(isInitialLoad = true)
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Error loading initial feed", e)
+                _feedUiData.update {
+                    it.copy(
+                        isLoading = false,
+                        error = UiText.String(e.message ?: "Unknown error")
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadNextPage() {
+        viewModelScope.launch {
+            // Prevent concurrent loads or if no more pages
+            if (_feedUiData.value.isLoading ||
+                _feedUiData.value.isRefreshing ||
+                _feedUiData.value.lastPostId == null ||
+                _feedUiData.value.hasReachedEnd
+            ) return@launch
+
+            _feedUiData.update { it.copy( error = null) }
+
+            try {
+                loadFeedPage(isInitialLoad = false)
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Error loading next page", e)
+                _feedUiData.update {
+                    it.copy(
+                        error = UiText.String(e.message ?: "Unknown error")
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun loadFeedPage(isInitialLoad: Boolean) {
+        try {
+            val currentUserId = userRepository.getCurrentUserId()
+
+            when (val followingResult = socialRepository.getFollowedUsers(currentUserId)) {
+                is ResultWrapper.Success -> {
+                    val followingIds = followingResult.data
+                    val updatedFollowingIds = (followingIds + currentUserId).toSet()
+                    _feedUiData.update { it.copy(followingUserIds = updatedFollowingIds) }
+
+                    if (updatedFollowingIds.isEmpty()) {
+                        _feedUiData.update {
+                            it.copy(
+                                isLoading = false,
+                                postList = emptyList(),
+                                hasReachedEnd = true,
+                                error = UiText.String("No followed users found")
+                            )
+                        }
+                        return
+                    }
+
+                    // Load paginated posts
+                    when (val result = feedRepository.getPaginatedFeed(_feedUiData.value.lastPostId)) {
+                        is ResultWrapper.Success -> {
+                            val newPosts = result.data
+
+                            // Check if we've reached the end of pagination
+                            if (newPosts.isEmpty()) {
+                                _feedUiData.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        hasReachedEnd = true,
+                                        error = if (isInitialLoad && _feedUiData.value.postList.isEmpty()) {
+                                            UiText.String("No posts found")
+                                        } else {
+                                            null
+                                        }
+                                    )
+                                }
+                                return
+                            }
+
+                            // Update lastPostId and fetch like status for new posts
+                            _feedUiData.update { it.copy(lastPostId = newPosts.lastOrNull()?.id) }
+
+                            val postsWithLikes = newPosts.map { post ->
+                                val isLikedResult = likeRepository.getLikeStatus(
+                                    targetId = post.id,
+                                    type = LikeType.POST,
+                                    postId = null
+                                )
+                                val isLiked = (isLikedResult as? ResultWrapper.Success)?.data ?: false
+                                FeedPostWithLikesAndComments(
+                                    post = post,
+                                    isLiked = isLiked
+                                )
+                            }
+
+                            // Deduplicate posts by ID and merge with existing posts
+                            _feedUiData.update { currentState ->
+                                val existingPosts = if (isInitialLoad) emptyList() else currentState.postList
+                                val mergedPosts = (existingPosts + postsWithLikes)
+                                    .distinctBy { it.post.id } // Deduplicate by post ID
+                                currentState.copy(
+                                    postList = mergedPosts,
+                                    lastLoadedPostTimestamp = postsWithLikes.lastOrNull()?.post?.createdAt,
+                                    isLoading = false,
+                                    hasReachedEnd = postsWithLikes.isEmpty(),
+                                    error = null
+                                )
+                            }
+                        }
+                        is ResultWrapper.Error -> {
+                            _feedUiData.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = UiText.String(result.exception.message ?: "Failed to load posts")
+                                )
+                            }
+                        }
+                        is ResultWrapper.Loading -> {
+                            // Do nothing
+                        }
+                    }
+                }
+                is ResultWrapper.Error -> {
+                    _feedUiData.update {
+                        it.copy(
+                            isLoading = false,
+                            error = UiText.String(followingResult.exception.message ?: "Failed to load followed users")
                         )
                     }
                 }
-                uiState
+                is ResultWrapper.Loading -> {
+                    /// Do nothing
+                }
             }
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                DiscoverData()
-            )
-    }
-
-    /**
-     * Loads the feed of the current user.
-     *
-     * It first starts observing the followed users in real-time, and for each new list of followed users,
-     * it fetches the posts of those users and updates the feed UI data.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private fun loadFeed() {
-        viewModelScope.launch {
-            try {
-                val currentUserId = userRepository.getCurrentUserId()
-
-                socialRepository.observeFollowedUsers(currentUserId)
-                    .onStart {
-                        _uiState.value = FeedUiState.Loading
-                    }
-                    .catch { e ->
-                        _uiState.value = FeedUiState.Error.StringError(e.message ?: "Unknown error")
-                    }
-                    .flatMapLatest { followingIds ->
-                        val updatedFollowingIds = (followingIds + currentUserId).toSet()
-                        _feedUiData.update { currentState ->
-                            currentState.copy(followingUserIds = updatedFollowingIds)
-                        }
-
-                        if (updatedFollowingIds.isEmpty()) {
-                            flowOf(emptyList<FeedPostWithLikesAndComments>())
-                        } else {
-                            observePostsOfUsers(updatedFollowingIds)
-                                .flatMapLatest { posts ->
-                                    if (posts.isEmpty()) {
-                                        flowOf(emptyList<FeedPostWithLikesAndComments>())
-                                    } else {
-                                        combine(
-                                            posts.map { feedPostWithLikesAndComments ->
-                                                likeRepository.observeLikeStatus(
-                                                    targetId = feedPostWithLikesAndComments.post.id,
-                                                    type = LikeType.POST
-                                                ).map { isLiked ->
-                                                    FeedPostWithLikesAndComments(
-                                                        post = feedPostWithLikesAndComments.post,
-                                                        isLiked = isLiked
-                                                    )
-                                                }
-                                            }
-                                        ) { it.toList() }
-                                    }
-                                }
-                        }
-                    }
-                    .collect { posts ->
-                        _feedUiData.update { currentState ->
-                            _uiState.value = FeedUiState.NonEmptyFeed(posts)
-                            currentState.copy(
-                                lastLoadedPostTimestamp = posts.lastOrNull()?.post?.createdAt
-                            )
-                        }
-                        _uiState.value = if (posts.isNotEmpty()) {
-                            FeedUiState.NonEmptyFeed(posts)
-                        } else {
-                            FeedUiState.EmptyFeed
-                        }
-                    }
-
-            } catch (e: Exception) {
-                Log.e("FeedViewModel", "Error loading feed", e)
-                _uiState.value = FeedUiState.Error.StringError(e.message ?: "Unknown error")
+        } catch (e: Exception) {
+            Log.e("FeedViewModel", "Error loading feed page", e)
+            _feedUiData.update {
+                it.copy(
+                    isLoading = false,
+                    error = UiText.String(e.message ?: "Unknown error")
+                )
             }
         }
     }
 
 
-    /**
-     * Observes the posts of the specified users and updates the feed UI data.
-     *
-     * @param userIds The set of user IDs whose posts are to be observed.
-     * @return Flow of posts with their like status
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun observePostsOfUsers(userIds: Set<String>): Flow<List<FeedPostWithLikesAndComments>> {
-        return postRepository.observePostsOfUsers(userIds, lastPostTimestamp = null)
-            // Handle errors from post repository
-            .catch { error ->
-                _uiState.value = FeedUiState.Error.StringError(error.message ?: "Unknown error")
-                emit(emptyList()) // Emit empty list to continue the flow
-            }
-            // Process posts and their like status
-            .flatMapLatest { posts: List<FeedPost> ->
-                if (posts.isEmpty()) {
-                    // Return empty list flow for empty posts
-                    // WHY: Ensures type consistency with non-empty case
-                    flowOf(emptyList<FeedPostWithLikesAndComments>())
-                } else {
-                    // Create flows for each post's like status
-                    val postLikeFlows = posts.map { post ->
-                        likeRepository.observeLikeStatus(
-                            targetId = post.id,
-                            type = LikeType.POST
-                        ).map { isLiked ->
-                            FeedPostWithLikesAndComments(
-                                post = post,
-                                isLiked = isLiked
-                            )
-                        }
-                    }
-
-                    // Combine all like status flows
-                    // WHY: Simplifies flow combination and ensures type safety
-                    combine(postLikeFlows) { it.toList() }
-                }
-            }
-            // Handle errors in like status processing
-            .catch { error ->
-                _uiState.value = FeedUiState.Error.StringError(error.message ?: "Unknown error")
-                emit(emptyList()) // Emit empty list to continue the flow
-            }
-            // Update UI state with collected posts
-            .onEach { updatedPosts ->
-                _uiState.value = FeedUiState.NonEmptyFeed(updatedPosts)
-                _feedUiData.update { currentState ->
-                    currentState.copy(
-                        lastLoadedPostTimestamp = updatedPosts.lastOrNull()?.post?.createdAt
-                    )
-                }
-            }
-    }
-
     fun toggleReaction(postId: String) {
         viewModelScope.launch {
-            runCatching {
+            try {
+                // Find the post to update
+                val targetPost = _feedUiData.value.postList.find { it.post.id == postId }
+                if (targetPost == null) return@launch
+
+                // Optimistically update UI state
+                val updatedPosts = _feedUiData.value.postList.map { postWithLikes ->
+                    if (postWithLikes.post.id == postId) {
+                        val isCurrentlyLiked = postWithLikes.isLiked
+                        val newLikeStatus = !isCurrentlyLiked
+                        val currentLikeCount = postWithLikes.post.postMetrics.likes
+                        val newLikeCount = if (isCurrentlyLiked) {
+                            // If currently liked, decrease like count (unlike)
+                            currentLikeCount - 1
+                        } else {
+                            // If not liked, increase like count (like)
+                            currentLikeCount + 1
+                        }
+
+                        // Update the post with new like status and like count
+                        postWithLikes.copy(
+                            isLiked = newLikeStatus,
+                            post = postWithLikes.post.copy(
+                                postMetrics = postWithLikes.post.postMetrics.copy(
+                                    likes = newLikeCount.coerceAtLeast(0) // Ensure like count doesn't go negative
+                                )
+                            )
+                        )
+                    } else {
+                        postWithLikes
+                    }
+                }
+                _feedUiData.update { it.copy(postList = updatedPosts) }
+
+                // Perform actual like toggle in the backend
                 likeRepository.toggleLike(
                     userId = userRepository.getCurrentUserId(),
                     targetId = postId,
                     type = LikeType.POST
-                )
-            }.onFailure {
-                _uiState.value = FeedUiState.Error.IntError(R.string.error_updating_reaction)
+                ).onError {
+                    // Revert UI state on failure
+                    _feedUiData.update { it.copy(postList = it.postList.map { postWithLikes ->
+                        if (postWithLikes.post.id == postId) {
+                            postWithLikes.copy(
+                                isLiked = !postWithLikes.isLiked,
+                                post = postWithLikes.post.copy(
+                                    postMetrics = postWithLikes.post.postMetrics.copy(
+                                        likes = if (postWithLikes.isLiked) {
+                                            postWithLikes.post.postMetrics.likes - 1
+                                        } else {
+                                            postWithLikes.post.postMetrics.likes + 1
+                                        }
+                                    )
+                                )
+                            )
+                        } else {
+                            postWithLikes
+                        }
+                    }) }
+                    _feedUiData.update { it.copy(error = UiText.StringResource(R.string.error_updating_reaction)) }
+                }
+            } catch (e: Exception) {
+                _feedUiData.update { it.copy(error = UiText.StringResource(R.string.error_updating_reaction)) }
             }
         }
-
     }
-
 
     fun refreshFeed() {
         viewModelScope.launch {
-            _uiState.value = FeedUiState.Loading
+            if (_feedUiData.value.isLoading || _feedUiData.value.isRefreshing ) return@launch
+            _feedUiData.update { it.copy(isRefreshing = true) }
 
-            // Temporarily clear followingUserIds to force refresh
-            _feedUiData.update { it.copy(followingUserIds = emptySet()) }
-
-            // Reload feed
-            loadFeed()
-        }
-    }
-
-
-    //TODO: fix this
-    /**
-     * Loads more posts for the feed by combining the like status and the posts of the following users.
-     * updates lastLoadedPostTimestamp to be the timestamp of the last post in the new posts
-     * Updates the feed UI data with the new posts and their like status.
-     */
-    fun loadMorePosts() {
-        viewModelScope.launch {
             try {
-                combine(
-                    postRepository.observePostsLikes(
-                        userId = userRepository.getCurrentUserId(),
-                        postIds = _feedUiData.value.postIds
-                    ),
-                    postRepository.observePostsOfUsers(
-                        userIds = _feedUiData.value.followingUserIds,
-                        lastPostTimestamp = _feedUiData.value.lastLoadedPostTimestamp
-                    )
-                ) { likeMap: Map<String, Boolean>, posts: List<FeedPost> ->
-                    // Update the feed UI data with the new posts and their like status
-                    _feedUiData.update { currentState ->
-                        val updatedPosts = posts.map { post ->
-                            FeedPostWithLikesAndComments(
-                                post = post,
-                                isLiked = likeMap[post.id] ?: false
-                            )
-                        }
-                        _uiState.value = FeedUiState.NonEmptyFeed(updatedPosts)
-                        currentState.copy(
-                            lastLoadedPostTimestamp = posts.lastOrNull()?.createdAt
-                        )
-                    }
-                }.collect { }
+                // Reset pagination
+                _feedUiData.update { it.copy(lastPostId = null) }
+
+                // Clear followingUserIds to force refresh
+                _feedUiData.update { it.copy(followingUserIds = emptySet()) }
+
+                // Load fresh data
+                loadFeedPage(true)
             } catch (e: Exception) {
-                _uiState.value = FeedUiState.Error.StringError(e.message ?: "Unknown error")
+                Log.e("FeedViewModel", "Error refreshing feed", e)
+                _feedUiData.update { it.copy(error = UiText.String(e.message ?: "Unknown error")) }
+            } finally {
+                _feedUiData.update { it.copy(isRefreshing = false) }
             }
         }
     }

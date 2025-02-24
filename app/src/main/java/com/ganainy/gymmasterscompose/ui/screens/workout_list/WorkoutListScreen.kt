@@ -243,7 +243,7 @@ private fun WorkoutList(
 }
 
 @Composable
-fun ErrorContent(
+private fun ErrorContent(
     message: String, onRetry: () -> Unit, modifier: Modifier = Modifier
 ) {
     Column(
@@ -264,7 +264,7 @@ fun ErrorContent(
 }
 
 @Composable
-fun EmptyContent(modifier: Modifier = Modifier) {
+private fun EmptyContent(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -306,9 +306,7 @@ private fun SearchBar(
             placeholder = { Text("Search workouts") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
             singleLine = true,
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+
         )
         Spacer(modifier = Modifier.width(8.dp))
         FilterMenu(

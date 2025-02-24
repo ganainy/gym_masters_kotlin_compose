@@ -26,9 +26,9 @@ import javax.inject.Inject
 // Social interactions (following/followers)
 interface ISocialRepository {
     fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>>
-    fun observeFollowedUsers(userId: String?): Flow<List<String>>
-    abstract fun isFollowing(userIdToCheck: String): Flow<ResultWrapper<Boolean>> // Check if the current user is following the target user, returns Boolean
+    fun isFollowing(userIdToCheck: String): Flow<ResultWrapper<Boolean>> // Check if the current user is following the target user, returns Boolean
     suspend fun updateFollowState(userId: String): ResultWrapper<Unit>
+    suspend fun getFollowedUsers(userId: String): ResultWrapper<List<String>>
 }
 
 class SocialRepository @Inject constructor(
@@ -68,39 +68,29 @@ class SocialRepository @Inject constructor(
     }
 
 
-    /**
-     * Retrieves the list of user IDs that the specified user is following.
-     *
-     * @param userId The ID of the user whose following list is to be retrieved. If null, an error is returned.
-     * @return A Flow emitting a list of user IDs that the specified user is following or an error.
-     */
-    override fun observeFollowedUsers(userId: String?): Flow<List<String>> =
-        callbackFlow {
-            if (userId == null) {
-                close(Exception("logged in user id is null"))
-                return@callbackFlow
+    override suspend fun getFollowedUsers(userId: String): ResultWrapper<List<String>> {
+        return try {
+            // Validate userId
+            if (userId.isBlank()) {
+                return ResultWrapper.Error(Exception("User ID cannot be blank"))
             }
 
+            // Reference to the follows collection, filtered by followerId (current user)
             val followsRef = database.getReference(FOLLOWS_COLLECTION)
                 .orderByChild(FOLLOWER_ID)
                 .equalTo(userId)
 
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val followedIds =
-                        snapshot.children.mapNotNull { it.getValue(Follow::class.java)?.followedId }
-                    trySend(followedIds)
-                }
+            // Perform one-time read
+            val snapshot = followsRef.get().await()
 
-                override fun onCancelled(error: DatabaseError) {
-                    close(error.toException()) // Close the flow on error
-                }
-            }
+            // Parse followed user IDs from the snapshot
+            val followedIds = snapshot.children.mapNotNull { it.getValue(Follow::class.java)?.followedId }
 
-            followsRef.addListenerForSingleValueEvent(listener)
-
-            awaitClose { followsRef.removeEventListener(listener) } // Cleanup when flow is closed
+            ResultWrapper.Success(followedIds)
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
         }
+    }
 
 
     /**

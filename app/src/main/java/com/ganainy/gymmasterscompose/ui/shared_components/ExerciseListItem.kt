@@ -86,8 +86,6 @@ fun ExerciseListItem(
             .shadow(elevation = 2.dp, shape = RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = rememberRipple(),
                 enabled = data is ExerciseListItemData.ExerciseData,
                 onClick = {
                     if (data is ExerciseListItemData.ExerciseData) {
@@ -165,8 +163,6 @@ fun ExerciseListItem(
                             .size(24.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = rememberRipple(bounded = false, radius = 20.dp),
                                 onClick = onAddToWorkout
                             )
                             .padding(4.dp),
@@ -186,8 +182,6 @@ fun ExerciseListItem(
                                     .size(24.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = rememberRipple(bounded = false, radius = 20.dp),
                                         onClick = { onModify(data.workoutExercise) }
                                     )
                                     .padding(4.dp),
@@ -200,8 +194,6 @@ fun ExerciseListItem(
                                     .size(24.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = rememberRipple(bounded = false, radius = 20.dp),
                                         onClick = { onDelete(data.workoutExercise) }
                                     )
                                     .padding(4.dp),

@@ -1,8 +1,10 @@
 package com.ganainy.gymmasterscompose.ui.repository
 
 import Comment
+import NavigationArgs.USER_ID
 import android.util.Log
 import com.ganainy.gymmasterscompose.ui.models.comment.CommentLike
+import com.ganainy.gymmasterscompose.ui.models.comment.CommentLike.Companion.COMMENT_LIKES_COLLECTION
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost.Companion.POSTS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost.Companion.POST_LIKES
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost.Companion.POST_METRICS
@@ -44,6 +46,11 @@ interface ILikeRepository {
     ): Flow<Boolean>
 
     suspend fun observeTypeLikes(type: LikeType, userId: String?): Flow<List<CachedLike?>>
+    suspend fun getLikeStatus(
+        targetId: String,
+        type: LikeType,
+        postId: String?
+    ): ResultWrapper<Boolean>
 }
 
 
@@ -81,10 +88,10 @@ class LikeRepository @Inject constructor(
                 LikeType.COMMENT -> CommentLike.createId(effectiveUserId, targetId, postId!!)
             }
 
-            // Check current like status from cache
+            // Get current like status
             val isCurrentlyLiked = cachedLikeDao.isLiked(effectiveUserId, targetId, type, postId)
 
-            // Update cache immediately for responsive UI
+            // Update cache immediately
             val newCachedLike = CachedLike(
                 id = likeId,
                 userId = effectiveUserId,
@@ -125,9 +132,46 @@ class LikeRepository @Inject constructor(
                 }
                 cachedLikeDao.deleteLike(likeId)
             } catch (revertError: Exception) {
-                // Log revert error but throw original error
                 Log.e("LikeRepository", "Failed to revert cache", revertError)
             }
+            ResultWrapper.Error(e)
+        }
+    }
+
+
+    private val postLikesRef = database.reference.child(POST_LIKES_COLLECTION)
+    private val commentLikesRef = database.reference.child(COMMENT_LIKES_COLLECTION)
+    private val workoutLikesRef = database.reference.child(WORKOUT_LIKES_COLLECTION)
+    override suspend fun getLikeStatus(
+        targetId: String,
+        type: LikeType,
+        postId: String?
+    ): ResultWrapper<Boolean> {
+        return try {
+            val userId = userRepository.getCurrentUserId()
+
+            // Determine the collection based on the like type
+            val likesRef = when (type) {
+                LikeType.POST -> postLikesRef
+                LikeType.COMMENT -> commentLikesRef
+                LikeType.WORKOUT -> workoutLikesRef
+            }
+
+            // Query the like entry for the current user and target
+            val likeSnapshot = likesRef
+                .orderByChild(USER_ID)
+                .equalTo(userId)
+                .get()
+                .await()
+
+            // Check if the user has liked the target
+            val isLiked = likeSnapshot.children.any { snapshot ->
+                val like = snapshot.getValue(CachedLike::class.java)
+                like?.targetId == targetId && like.likeType == type
+            }
+
+            ResultWrapper.Success(isLiked)
+        } catch (e: Exception) {
             ResultWrapper.Error(e)
         }
     }
@@ -221,6 +265,7 @@ class LikeRepository @Inject constructor(
             .map { it?.isLiked ?: false }
             .collect { emit(it) }
     }
+
 
     override suspend fun observeTypeLikes(
         type: LikeType,

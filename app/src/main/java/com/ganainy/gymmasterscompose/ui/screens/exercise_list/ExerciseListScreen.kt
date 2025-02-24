@@ -29,7 +29,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,7 +46,6 @@ import com.ganainy.gymmasterscompose.ui.models.BodyPart
 import com.ganainy.gymmasterscompose.ui.models.Equipment
 import com.ganainy.gymmasterscompose.ui.models.Exercise
 import com.ganainy.gymmasterscompose.ui.models.TargetMuscle
-import com.ganainy.gymmasterscompose.ui.screens.workout_list.ErrorContent
 import com.ganainy.gymmasterscompose.ui.shared_components.CustomTopAppBar
 import com.ganainy.gymmasterscompose.ui.shared_components.ExerciseListItem
 import com.ganainy.gymmasterscompose.ui.shared_components.ExerciseListItemData
@@ -355,8 +353,5 @@ private fun SearchBar(
         placeholder = { Text("Search exercises") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
         singleLine = true,
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
     )
 }

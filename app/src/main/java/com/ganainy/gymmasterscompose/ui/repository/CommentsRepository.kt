@@ -1,28 +1,18 @@
 package com.ganainy.gymmasterscompose.ui.repository
 
 import Comment
-import UserDisplayInfo
 import com.ganainy.gymmasterscompose.ui.models.comment.CommentLike
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.room.AppDatabase
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 interface ICommentsRepository {
-    suspend fun addComment(postId: String, content: String): Result<Comment>
-    suspend fun deleteComment(comment: Comment): Result<Unit>
-    fun observePostComments(postId: String): Flow<List<Comment>>
-    fun observeIsCommentLikedByCurrentUser(commentId: String, postId: String):  Flow<Boolean>
+    suspend fun deleteComment(comment: Comment): ResultWrapper<Unit>
+    suspend fun getPostComments(postId: String): ResultWrapper<List<Comment>>
+    suspend fun addComment(comment: Comment): ResultWrapper<Unit>
 }
 
 class CommentsRepository @Inject constructor(
@@ -36,86 +26,58 @@ class CommentsRepository @Inject constructor(
     private val postsRef = firebaseDatabase.reference.child(FeedPost.POSTS_COLLECTION)
     private val rootRef = firebaseDatabase.reference
 
-
-    //todo add periodic work manager to sync local db with firebase db
-    /**
-     * Checks locally if a comment is liked by the current user.
-     *
-     * @param commentId The ID of the comment.
-     * @param postId The ID of the post containing the comment.
-     * @return True if the comment is liked by the current user, false otherwise.
-     */
-    override  fun observeIsCommentLikedByCurrentUser(commentId: String, postId: String): Flow<Boolean> {
-        val currentUserId = userRepository.getCurrentUserId()
+    override suspend fun getPostComments(postId: String): ResultWrapper<List<Comment>> {
         return try {
-            appDatabase.commentLikeDao().isCommentLiked(currentUserId, commentId, postId).map { it != null }
-        } catch (e: Exception) {
-            throw e
-        }
-    }
+            // Reference to the comments collection for the given post
+            val commentsSnapshot = commentsRef.orderByChild("postId").equalTo(postId).get().await()
 
+            // Check if there are any comments
+            if (!commentsSnapshot.exists()) {
+                // No comments found, return empty list
+                ResultWrapper.Success(emptyList())
+            } else {
+                // Parse comments from the snapshot
+                val comments = commentsSnapshot.children.mapNotNull { snapshot ->
+                    snapshot.getValue(Comment::class.java)?.takeIf { it.postId == postId }
+                }.sortedByDescending { it.timestamp } // Sort by timestamp (newest first)
 
-    override suspend fun addComment(postId: String, content: String): Result<Comment> {
-        return try {
-            val userId = userRepository.getCurrentUserId()
-            val commentRef = commentsRef.push()
-            val commentId =
-                commentRef.key ?: throw IllegalStateException("Failed to generate comment ID")
-
-            // Get user display info
-            when (val userResult = userRepository.getUser(null)) {
-                is ResultWrapper.Error -> throw userResult.exception
-                else -> {
-                    val user = (userResult as ResultWrapper.Success).data
-
-
-                    val userDisplayInfo = UserDisplayInfo(
-                        displayName = user.displayName,
-                        profileImageUrl = user.profilePictureUrl
-                    )
-
-                    val comment = Comment(
-                        id = commentId,
-                        postId = postId,
-                        userId = userId,
-                        content = content,
-                        userDisplayInfo = userDisplayInfo,
-                        timestamp = System.currentTimeMillis(),
-                        isPending = false,
-                    )
-
-                    // Create updates map for atomic operation
-                    val updates = HashMap<String, Any>()
-
-                    // Add comment
-                    updates["/${Comment.COMMENTS_COLLECTION}/$commentId"] = comment
-
-                    // Increment post comment count
-                    val postMetricsRef =
-                        "/${FeedPost.POSTS_COLLECTION}/$postId/${FeedPost.POST_METRICS}"
-                    // Get current comment count first
-                    val currentCount = postsRef.child(postId)
-                        .child(FeedPost.POST_METRICS)
-                        .child(PostMetrics.POST_METRICS_COMMENTS)
-                        .get()
-                        .await()
-                        .getValue(Long::class.java) ?: 0
-
-                    updates["$postMetricsRef/${PostMetrics.POST_METRICS_COMMENTS}"] =
-                        currentCount + 1
-
-                    // Perform atomic update
-                    rootRef.updateChildren(updates).await()
-
-                    Result.success(comment)
-                }
+                ResultWrapper.Success(comments)
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            ResultWrapper.Error(e)
         }
     }
 
-    override suspend fun deleteComment(comment: Comment): Result<Unit> {
+    override suspend fun addComment(comment: Comment): ResultWrapper<Unit> {
+        return try {
+            // Create updates map for atomic operation
+            val updates = HashMap<String, Any>()
+
+            // Add comment to backend
+            updates["/${Comment.COMMENTS_COLLECTION}/${comment.id}"] = comment.copy(isPending = false)
+
+            // Increment post comment count
+            val postMetricsRef = "/${FeedPost.POSTS_COLLECTION}/${comment.postId}/${FeedPost.POST_METRICS}"
+            // Get current comment count first
+            val currentCount = postsRef.child(comment.postId)
+                .child(FeedPost.POST_METRICS)
+                .child(PostMetrics.POST_METRICS_COMMENTS)
+                .get()
+                .await()
+                .getValue(Long::class.java) ?: 0
+
+            updates["$postMetricsRef/${PostMetrics.POST_METRICS_COMMENTS}"] = currentCount + 1
+
+            // Perform atomic update
+            rootRef.updateChildren(updates).await()
+
+            ResultWrapper.Success(Unit)
+        } catch (e: Exception) {
+            ResultWrapper.Error(e)
+        }
+    }
+
+    override suspend fun deleteComment(comment: Comment): ResultWrapper<Unit> {
         return try {
             // Get all likes for this comment
             val likesSnapshot = commentLikesRef
@@ -143,39 +105,21 @@ class CommentsRepository @Inject constructor(
                 .await()
                 .getValue(Long::class.java) ?: 1
 
-            // Update post comment count
+            // Update post comment count (ensure it doesn't go negative)
+            val newCount = (currentCount - 1).coerceAtLeast(0)
             updates["/${FeedPost.POSTS_COLLECTION}/${comment.postId}/${FeedPost.POST_METRICS}/${PostMetrics.POST_METRICS_COMMENTS}"] =
-                currentCount - 1
+                newCount
 
             // Perform atomic update
             rootRef.updateChildren(updates).await()
 
-            Result.success(Unit)
+            ResultWrapper.Success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            ResultWrapper.Error(e)
         }
     }
 
 
-    override fun observePostComments(postId: String): Flow<List<Comment>> = callbackFlow {
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val comments = snapshot.children.mapNotNull {
-                    it.getValue(Comment::class.java)
-                }.sortedByDescending { it.timestamp }
-
-                trySend(comments).isSuccess
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
-            }
-        }
-
-        commentsRef.orderByChild("postId").equalTo(postId).addValueEventListener(listener)
-
-        awaitClose { commentsRef.removeEventListener(listener) }
-    }.distinctUntilChanged() // Avoid unnecessary emissions
 
 
 }

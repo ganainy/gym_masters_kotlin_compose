@@ -306,20 +306,16 @@ private fun NavGraphBuilder.mainGraph(navigator: AppNavigator) {
         // Post Details Screen
         composable(
             route = "${Screen.PostDetails.route}?" +
-                    "${NavigationArgs.POST}={${NavigationArgs.POST}}&" +
-                    "${NavigationArgs.IS_LIKED}={${NavigationArgs.IS_LIKED}}",
+                    "${NavigationArgs.POST}={${NavigationArgs.POST}}",
             arguments = listOf(
                 navArgument(NavigationArgs.POST) { type = NavType.StringType },
-                navArgument(NavigationArgs.IS_LIKED) { type = NavType.BoolType }
             )
         ) { backStackEntry ->
             val postJson = backStackEntry.arguments?.getString(NavigationArgs.POST)
-            val isLiked = backStackEntry.arguments?.getBoolean(NavigationArgs.IS_LIKED) ?: false
             val post = Gson().fromJson(postJson, FeedPost::class.java)
             PostDetailsScreen(
                 navigateBack = navigator::navigateBack,
                 post = post,
-                isLiked = isLiked
             )
         }
 

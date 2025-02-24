@@ -13,4 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
-app/src/main/java/com/ganainy/gymmasterscompose/ui/theme/networking/retrofit/Secrets.kt
+app/src/main/java/com/ganainy/gymmasterscompose/ui/retrofit/Secrets.kt

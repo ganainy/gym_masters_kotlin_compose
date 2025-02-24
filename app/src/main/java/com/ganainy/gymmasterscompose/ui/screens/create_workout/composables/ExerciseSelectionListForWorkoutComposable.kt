@@ -478,12 +478,6 @@ private fun ExerciseNumberField(
             ),
             singleLine = true,
             isError = error != null,
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                errorBorderColor = MaterialTheme.colorScheme.error,
-                errorLabelColor = MaterialTheme.colorScheme.error,
-                errorSupportingTextColor = MaterialTheme.colorScheme.error
-            ),
             supportingText = error?.let {
                 { Text(it) }
             }

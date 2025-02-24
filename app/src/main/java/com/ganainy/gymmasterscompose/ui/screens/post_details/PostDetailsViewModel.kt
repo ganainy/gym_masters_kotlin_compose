@@ -1,6 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.screens.post_details
 
 import Comment
+import UserDisplayInfo
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganainy.gymmasterscompose.R
@@ -9,21 +10,15 @@ import com.ganainy.gymmasterscompose.ui.repository.ICommentsRepository
 import com.ganainy.gymmasterscompose.ui.repository.ILikeRepository
 import com.ganainy.gymmasterscompose.ui.repository.IPostRepository
 import com.ganainy.gymmasterscompose.ui.repository.IUserRepository
+import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
+import com.ganainy.gymmasterscompose.ui.repository.onError
 import com.ganainy.gymmasterscompose.ui.room.LikeType
 import com.ganainy.gymmasterscompose.utils.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -33,8 +28,8 @@ import javax.inject.Inject
 data class PostDetailsUiData(
     val loadingPost: Boolean,
     val loadingComments: Boolean,
-    val error: UiText?,
-    val feedPostWithLikesAndComments: FeedPostWithLikesAndComments?,
+    val error: UiText? = null,
+    val feedPostWithLikesAndComments: FeedPostWithLikesAndComments? = null,
 )
 
 /**
@@ -93,78 +88,46 @@ class PostDetailsViewModel @Inject constructor(
     }
 
 
-    fun setLikeStatus(isLiked: Boolean) {
-        _postDetailsUiData.update { currentState ->
-            _postDetailsUiData.value.copy(
-                loadingPost = false,
-                feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
-                    isLiked = isLiked
-                )
-            )
-        }
-    }
-
-
-
-    /**
-     * Observes the comments of a specific post and updates the UI state with the fetched data.
-     *
-     * This function performs the following actions:
-     * 1. Sets the `loadingComments` flag to `true` in the UI state to indicate that comment loading is in progress.
-     * 2. Retrieves the post ID from the current `feedPostWithLikesAndComments` in the UI state.
-     * 3. Observes the comments associated with the post ID using `commentsRepository.observePostComments()`.
-     * 4. Uses `distinctUntilChanged()` to prevent redundant updates if the comment list hasn't changed.
-     * 5. Employs `flatMapLatest` to handle potential updates to the comment list efficiently.
-     *    - If the comment list is empty, it emits an empty list immediately.
-     *    - If comments exist, it uses `combine` to fetch and merge the like status for each comment.
-     *      - It calls `likeRepository.observeLikeStatus()` for each comment to determine if it's liked by the current user.
-     *      - It maps each comment and its like status to a `CommentWithLikeStatus` object.
-     *      - It combines all `CommentWithLikeStatus` objects into a list.
-     * 6. Uses `catch` to handle potential errors during the observation process.
-     *    - If an error occurs, it updates the UI state by setting `loadingComments` to `false` and populating the `error` field with the error message.
-     * 7. Uses `collectLatest` to collect the final stream of `List<CommentWithLikeStatus>` objects.
-     *    - Updates the UI state by setting `loadingComments` to `false` and updating the `commentList` within the `feedPostWithLikesAndComments` object.
-     * 8. A global `try-catch` block handles potential errors at the top level, updating the UI state accordingly if exceptions occur outside the flow */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun observePostComments() {
+    fun loadPostComments() {
         viewModelScope.launch {
             try {
+                // Set loading state
                 _postDetailsUiData.update { it.copy(loadingComments = true) }
 
                 _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.let { post ->
-                    commentsRepository.observePostComments(post.id)
-                        .distinctUntilChanged()
-                        .flatMapLatest { comments ->
-                            // If no comments, emit empty list immediately
+                    // Fetch comments (one-time read)
+                    when (val commentsResult = commentsRepository.getPostComments(post.id)) {
+                        is ResultWrapper.Success -> {
+                            val comments = commentsResult.data
                             if (comments.isEmpty()) {
-                                flow { emit(emptyList()) }
-                            } else {
-                                // Combine like status for each comment
-                                combine(
-                                    comments.map { comment ->
-                                        likeRepository.observeLikeStatus(
-                                            targetId = comment.id,
-                                            type = LikeType.COMMENT,
-                                            postId = post.id
-                                        ).map { isLiked ->
-                                            CommentWithLikeStatus(
-                                                comment = comment,
-                                                isLiked = isLiked
-                                            )
-                                        }
-                                    }
-                                ) { commentsWithLikes -> commentsWithLikes.toList() }
+                                // If no comments, update UI with empty list
+                                _postDetailsUiData.update { currentState ->
+                                    currentState.copy(
+                                        loadingComments = false,
+                                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                            commentList = emptyList()
+                                        )
+                                    )
+                                }
+                                return@let
                             }
-                        }
-                        .catch { error ->
-                            _postDetailsUiData.update { currentState ->
-                                currentState.copy(
-                                    loadingComments = false,
-                                    error = UiText.String(error.message ?: "Unknown error")
+
+                            // Fetch like status for each comment (one-time read)
+                            val commentsWithLikes = comments.map { comment ->
+                                val isLikedResult = likeRepository.getLikeStatus(
+                                    targetId = comment.id,
+                                    type = LikeType.COMMENT,
+                                    postId = post.id
+                                )
+                                val isLiked =
+                                    (isLikedResult as? ResultWrapper.Success)?.data ?: false
+                                CommentWithLikeStatus(
+                                    comment = comment,
+                                    isLiked = isLiked
                                 )
                             }
-                        }
-                        .collectLatest { commentsWithLikes ->
+
+                            // Update UI with comments and like statuses
                             _postDetailsUiData.update { currentState ->
                                 currentState.copy(
                                     loadingComments = false,
@@ -174,6 +137,30 @@ class PostDetailsViewModel @Inject constructor(
                                 )
                             }
                         }
+
+                        is ResultWrapper.Error -> {
+                            _postDetailsUiData.update { currentState ->
+                                currentState.copy(
+                                    loadingComments = false,
+                                    error = UiText.String(
+                                        commentsResult.exception.message ?: "Unknown error"
+                                    )
+                                )
+                            }
+                        }
+
+                        is ResultWrapper.Loading -> {
+                            // Already handled by loadingComments = true at the start
+                        }
+                    }
+                } ?: run {
+                    // Post is null, update error state
+                    _postDetailsUiData.update { currentState ->
+                        currentState.copy(
+                            loadingComments = false,
+                            error = UiText.String("Post not found")
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _postDetailsUiData.update { currentState ->
@@ -186,54 +173,111 @@ class PostDetailsViewModel @Inject constructor(
         }
     }
 
-
-    fun observePostMetricsUpdates() {
+    fun loadPostMetrics() {
         viewModelScope.launch {
             try {
-                postRepository.observePostMetricsUpdates(
-                    _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
-                        ?: throw IllegalStateException("Cannot observePostMetrics without a post ID")
-                )
-                    .distinctUntilChanged()
-                    .collectLatest { metrics ->
+                val postId = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
+                    ?: run {
                         _postDetailsUiData.update {
-                            _postDetailsUiData.value.copy(
-                                feedPostWithLikesAndComments = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.copy(
-                                    postMetrics = metrics
-                                )?.let { it1 ->
-                                    _postDetailsUiData.value.feedPostWithLikesAndComments?.copy(
-                                        post = it1
+                            it.copy(error = UiText.String("Cannot load post metrics without a post ID"))
+                        }
+                        return@launch
+                    }
+
+                // Fetch post metrics (one-time read)
+                when (val metricsResult = postRepository.getPostMetrics(postId)) {
+                    is ResultWrapper.Success -> {
+                        val metrics = metricsResult.data
+                        likeRepository.observeLikeStatus(targetId = postId, type = LikeType.POST).collectLatest { isLiked ->
+                            _postDetailsUiData.update { currentState ->
+                                currentState.copy(
+                                    feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                        post = currentState.feedPostWithLikesAndComments.post.copy(
+                                            postMetrics = metrics
+                                        ),
+                                        isLiked = isLiked
                                     )
-                                }
+                                )
+                            }
+                        }
+                    }
+
+                    is ResultWrapper.Error -> {
+                        _postDetailsUiData.update { currentState ->
+                            currentState.copy(
+                                error = UiText.String(
+                                    metricsResult.exception.message ?: "Failed to load post metrics"
+                                )
                             )
                         }
                     }
+
+                    is ResultWrapper.Loading -> {
+                        // Handle loading state if needed (optional)
+                    }
+                }
             } catch (e: Exception) {
-                _postDetailsUiData.update {
-                    _postDetailsUiData.value.copy(
-                        error = e.message?.let { errorMessage -> UiText.String(errorMessage) }
+                _postDetailsUiData.update { currentState ->
+                    currentState.copy(
+                        error = UiText.String(e.message ?: "Unknown error")
                     )
                 }
             }
-
         }
     }
 
-
     fun togglePostLike() {
-        val postId = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
-            ?: throw IllegalStateException("Cannot toggle post like without a post ID")
+        val postWithLikes = _postDetailsUiData.value.feedPostWithLikesAndComments
+            ?: return
         viewModelScope.launch {
-            runCatching {
+            try {
+                // Get current states
+                val currentLikeStatus = postWithLikes.isLiked
+                val currentLikeCount = postWithLikes.post.postMetrics.likes
+
+                // Calculate new states
+                val newLikeStatus = !currentLikeStatus
+                val newLikeCount = if (currentLikeStatus) {
+                    currentLikeCount - 1
+                } else {
+                    currentLikeCount + 1
+                }
+
+                // Optimistically update UI state
+                _postDetailsUiData.update { currentState ->
+                    currentState.copy(
+                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                            isLiked = newLikeStatus,
+                            post = currentState.feedPostWithLikesAndComments.post.copy(
+                                postMetrics = currentState.feedPostWithLikesAndComments.post.postMetrics.copy(
+                                    likes = newLikeCount.coerceAtLeast(0)
+                                )
+                            )
+                        )
+                    )
+                }
+                // Perform actual like toggle in the backend
                 likeRepository.toggleLike(
                     userId = userRepository.getCurrentUserId(),
-                    targetId = postId,
+                    targetId = postWithLikes.post.id,
                     type = LikeType.POST
-                )
-                setLikeStatus(
-                    !(_postDetailsUiData.value.feedPostWithLikesAndComments?.isLiked ?: false)
-                )
-            }.onFailure {
+                ).onError {
+                    // Revert UI state on failure
+                    _postDetailsUiData.update { currentState ->
+                        currentState.copy(
+                            feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                isLiked = currentLikeStatus,
+                                post = currentState.feedPostWithLikesAndComments.post.copy(
+                                    postMetrics = currentState.feedPostWithLikesAndComments.post.postMetrics.copy(
+                                        likes = currentLikeCount
+                                    )
+                                )
+                            ),
+                            error = UiText.StringResource(R.string.error_updating_reaction)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
                 _postDetailsUiData.update { currentState ->
                     currentState.copy(
                         error = UiText.StringResource(R.string.error_updating_reaction)
@@ -241,19 +285,85 @@ class PostDetailsViewModel @Inject constructor(
                 }
             }
         }
-
     }
 
-
     fun toggleCommentLike(commentId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
+        viewModelScope.launch {
+            try {
+                // Find the target comment to update
+                val targetComment =
+                    _postDetailsUiData.value.feedPostWithLikesAndComments?.commentList?.find {
+                        it.comment.id == commentId
+                    } ?: return@launch
+
+                // Optimistically update UI state
+                val updatedComments =
+                    _postDetailsUiData.value.feedPostWithLikesAndComments?.commentList?.map { commentWithLikes ->
+                        if (commentWithLikes.comment.id == commentId) {
+                            val isCurrentlyLiked = commentWithLikes.isLiked
+                            val newLikeStatus = !isCurrentlyLiked
+                            val currentLikeCount = commentWithLikes.comment.likesCount
+                            val newLikeCount = if (isCurrentlyLiked) {
+                                // If currently liked, decrease like count (unlike)
+                                currentLikeCount - 1
+                            } else {
+                                // If not liked, increase like count (like)
+                                currentLikeCount + 1
+                            }
+
+                            // Update the comment with new like status and count
+                            commentWithLikes.copy(
+                                isLiked = newLikeStatus,
+                                comment = commentWithLikes.comment.copy(
+                                    likesCount = newLikeCount.coerceAtLeast(0) // Ensure like count doesn't go negative
+                                )
+                            )
+                        } else {
+                            commentWithLikes
+                        }
+                    }
+
+                // Update UI state with optimistic changes
+                _postDetailsUiData.update { currentState ->
+                    currentState.copy(
+                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                            commentList = updatedComments ?: emptyList()
+                        )
+                    )
+                }
+
+                // Perform actual like toggle in the backend
                 likeRepository.toggleLike(
                     targetId = commentId,
                     type = LikeType.COMMENT,
                     postId = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
-                )
-            }.onFailure { error ->
+                ).onError {
+                    // Revert UI state on failure
+                    _postDetailsUiData.update { currentState ->
+                        currentState.copy(
+                            feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                commentList = currentState.feedPostWithLikesAndComments.commentList.map { commentWithLikes ->
+                                    if (commentWithLikes.comment.id == commentId) {
+                                        commentWithLikes.copy(
+                                            isLiked = !commentWithLikes.isLiked,
+                                            comment = commentWithLikes.comment.copy(
+                                                likesCount = if (commentWithLikes.isLiked) {
+                                                    commentWithLikes.comment.likesCount - 1
+                                                } else {
+                                                    commentWithLikes.comment.likesCount + 1
+                                                }
+                                            )
+                                        )
+                                    } else {
+                                        commentWithLikes
+                                    }
+                                }
+                            ),
+                            error = UiText.StringResource(R.string.error_updating_reaction)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
                 _postDetailsUiData.update { currentState ->
                     currentState.copy(
                         error = UiText.StringResource(R.string.error_updating_reaction)
@@ -264,42 +374,112 @@ class PostDetailsViewModel @Inject constructor(
     }
 
 
-    fun submitComment(commentContent: String) {
-
-        val postId = _postDetailsUiData.value.feedPostWithLikesAndComments?.post?.id
-            ?: throw IllegalStateException("Cannot submit comment without a post ID")
-
-        // Update UI immediately with local new comment
-        val tempComment = CommentWithLikeStatus(
-            Comment(
-                id = UUID.randomUUID().toString(), // Fake ID
-                content = commentContent,
-                isPending = true,
-                userDisplayInfo = userRepository.getUserDisplayInfo()
-            )
-        )
-
+    fun addComment(content: String) {
         viewModelScope.launch {
             try {
-                _postDetailsUiData.update { currentState ->
-                    currentState.copy(
-                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
-                            commentList = currentState.feedPostWithLikesAndComments.commentList + tempComment
-                        )
-                    )
+                // Get current state
+                val currentState = _postDetailsUiData.value
+                val currentPost = currentState.feedPostWithLikesAndComments?.post
+                if (currentPost == null) {
+                    _postDetailsUiData.update { it.copy(error = UiText.String("Post not found")) }
+                    return@launch
                 }
 
-                // Add comment to Firebase
-                commentsRepository.addComment(postId = postId, content = commentContent)
+                // Get current user info
+                val userId = userRepository.getCurrentUserId()
+                when (val userResult = userRepository.getUser(null)) {
+                    is ResultWrapper.Error -> {
+                        _postDetailsUiData.update {
+                            it.copy(
+                                error = UiText.String(
+                                    userResult.exception.message ?: "Failed to get user info"
+                                )
+                            )
+                        }
+                        return@launch
+                    }
 
+                    is ResultWrapper.Success -> {
+                        val user = userResult.data
+                        val userDisplayInfo = UserDisplayInfo(
+                            displayName = user.displayName,
+                            profileImageUrl = user.profilePictureUrl
+                        )
+
+                        // Create a temporary comment with a unique ID (e.g., UUID)
+                        val tempCommentId = UUID.randomUUID().toString()
+                        val newComment = Comment(
+                            id = tempCommentId,
+                            postId = currentPost.id,
+                            userId = userId,
+                            content = content,
+                            userDisplayInfo = userDisplayInfo,
+                            timestamp = System.currentTimeMillis(),
+                            isPending = true // Mark as pending for optimistic UI update
+                        )
+                        val newCommentWithLikeStatus = CommentWithLikeStatus(
+                            comment = newComment,
+                            isLiked = false // New comment is not liked by default
+                        )
+
+                        // Optimistically update UI state with the new comment
+                        val currentComments =
+                            currentState.feedPostWithLikesAndComments?.commentList ?: emptyList()
+                        val updatedComments = currentComments + newCommentWithLikeStatus
+                        _postDetailsUiData.update { currentState ->
+                            currentState.copy(
+                                feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                    commentList = updatedComments,
+                                    post = currentState.feedPostWithLikesAndComments.post.copy(
+                                        postMetrics = currentState.feedPostWithLikesAndComments.post.postMetrics.copy(
+                                            comments = updatedComments.size // Update comment count
+                                        )
+                                    )
+                                )
+                            )
+                        }
+
+                        // Perform actual comment upload to backend
+                        when (val uploadResult = commentsRepository.addComment(newComment)) {
+                            is ResultWrapper.Success -> {
+                                // Backend upload successful, refresh comments to get updated data
+                                loadPostComments()
+                            }
+
+                            is ResultWrapper.Error -> {
+                                // Revert UI state on failure
+                                _postDetailsUiData.update { currentState ->
+                                    currentState.copy(
+                                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
+                                            commentList = currentComments,
+                                            post = currentState.feedPostWithLikesAndComments.post.copy(
+                                                postMetrics = currentState.feedPostWithLikesAndComments.post.postMetrics.copy(
+                                                    comments = currentComments.size // Revert comment count
+                                                )
+                                            )
+                                        ),
+                                        error = UiText.String(
+                                            uploadResult.exception.message
+                                                ?: "Failed to add comment"
+                                        )
+                                    )
+                                }
+                            }
+
+                            is ResultWrapper.Loading -> {
+                                // Already handled by loadingComments = true in loadPostComments
+                            }
+                        }
+                    }
+
+                    is ResultWrapper.Loading -> {
+                        // Handle loading state if needed
+                    }
+                }
             } catch (e: Exception) {
                 _postDetailsUiData.update { currentState ->
                     currentState.copy(
-                        error = e.message?.let { UiText.String(it) }
-                            ?: UiText.StringResource(R.string.error_adding_comment),
-                        feedPostWithLikesAndComments = currentState.feedPostWithLikesAndComments?.copy(
-                            commentList = currentState.feedPostWithLikesAndComments.commentList - tempComment
-                        )
+                        error = UiText.String(e.message ?: "Unknown error")
                     )
                 }
             }
