@@ -1,4 +1,14 @@
-import java.util.Properties
+import com.android.build.api.dsl.BuildType
+
+// Helper function to make adding buildConfigFields cleaner
+fun BuildType.buildConfigStringField(name: String, value: String) {
+    buildConfigField("String", name, "\"$value\"")
+}
+
+fun BuildType.buildConfigBooleanField(name: String, value: Boolean) {
+    buildConfigField("Boolean", name, value.toString())
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -10,10 +20,9 @@ plugins {
     id("com.google.devtools.ksp")
     alias(libs.plugins.kotlinx.serialization)
     id("dagger.hilt.android.plugin")
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
-val properties = Properties()
-properties.load(project.rootProject.file("local.properties").inputStream())
 
 
 android {
@@ -30,9 +39,6 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-
-        //buildConfigField("String", "RAPID_API_KEY", properties.getProperty("RAPID_API_KEY"))
-
 
     }
 
@@ -75,6 +81,42 @@ android {
         }
     }
 
+    buildTypes {
+        getByName("debug") {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            buildConfigBooleanField("IS_APP_IN_DEBUG_MODE", false)
+        }
+
+        getByName("release") {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            buildConfigBooleanField("IS_APP_IN_DEBUG_MODE", false)
+
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
+        // ---  custom build type here for testing purposes ---
+        create("stagingDebug") {
+            //Inherit from debug and override
+            initWith(buildTypes.getByName("debug"))
+
+            // Override or add specific flags
+            buildConfigBooleanField("IS_APP_IN_DEBUG_MODE", true)
+        }
+    }
+
+
+    secrets {
+        propertiesFileName = "secrets.properties"
+        defaultPropertiesFileName = "local.defaults.properties"
+    }
 
 }
 
@@ -180,6 +222,9 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // to enable preview function in stagingDebug build type
+    "stagingDebugImplementation"(libs.ui.tooling)
 }
 
 

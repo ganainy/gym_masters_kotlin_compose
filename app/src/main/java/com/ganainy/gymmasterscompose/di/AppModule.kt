@@ -3,6 +3,7 @@ package com.ganainy.gymmasterscompose.di
 
 import android.content.Context
 import androidx.room.Room
+import com.ganainy.gymmasterscompose.BuildConfig
 import com.ganainy.gymmasterscompose.Constants.FIREBASE_DATABASE_NAME
 import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.repository.CommentsRepository
@@ -27,7 +28,6 @@ import com.ganainy.gymmasterscompose.ui.repository.UserRepository
 import com.ganainy.gymmasterscompose.ui.repository.UsersRepository
 import com.ganainy.gymmasterscompose.ui.repository.WorkoutRepository
 import com.ganainy.gymmasterscompose.ui.retrofit.ExerciseApi
-import com.ganainy.gymmasterscompose.ui.retrofit.Secrets
 import com.ganainy.gymmasterscompose.ui.room.AppDatabase
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
 import com.google.firebase.auth.FirebaseAuth
@@ -61,7 +61,7 @@ object AppModule {
         val interceptor = Interceptor { chain ->
             val request = chain.request().newBuilder()
                 .addHeader("x-rapidapi-host", "exercisedb.p.rapidapi.com")
-                .addHeader("x-rapidapi-key", Secrets.RAPID_API_KEY)
+                .addHeader("x-rapidapi-key", BuildConfig.RAPID_API_KEY)
                 .build()
             chain.proceed(request)
         }
