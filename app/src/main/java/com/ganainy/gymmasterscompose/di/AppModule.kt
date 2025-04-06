@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import com.ganainy.gymmasterscompose.BuildConfig
 import com.ganainy.gymmasterscompose.Constants.FIREBASE_DATABASE_NAME
+import com.ganainy.gymmasterscompose.prefs.ExerciseDownloadPrefs
 import com.google.firebase.firestore.FirebaseFirestore
 import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.repository.CommentsRepository
@@ -213,16 +214,26 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideExerciseDownloadPrefs(
+        @ApplicationContext context: Context
+    ): ExerciseDownloadPrefs {
+        return ExerciseDownloadPrefs(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideExerciseRepository(
         exerciseApi: ExerciseApi,
         appDatabase: AppDatabase,
         @IoDispatcher ioDispatcher: CoroutineDispatcher,
-        context: Context
+        context: Context,
+        exerciseDownloadPrefs: ExerciseDownloadPrefs
     ): IExerciseRepository {
         return ExerciseRepository(
             appDatabase, exerciseApi,
             ioDispatcher = ioDispatcher,
-            context = context
+            context = context,
+            exerciseDownloadPrefs = exerciseDownloadPrefs
         )
     }
 

@@ -60,7 +60,7 @@ internal fun CurrentUserProfileContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     CustomButton(
-                        onClick = { onAction(ProfileScreenAction.NavigateToCreatePost) },
+                        onClick = { onAction(ProfileScreenAction.NavigateToWorkoutSetup) },
                         modifier = Modifier.weight(1f),
                         icon = Icons.Default.Add,
                         text = "Create Workout"

@@ -1,9 +1,13 @@
 package com.ganainy.gymmasterscompose
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ganainy.gymmasterscompose.prefs.ExerciseDownloadPrefs
 import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
+import com.ganainy.gymmasterscompose.ui.repository.IExerciseRepository
 import com.ganainy.gymmasterscompose.ui.repository.ILikeRepository
+import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +24,8 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val likeRepository: ILikeRepository,
+    private val exerciseDownloadPrefs: ExerciseDownloadPrefs,
+    private val exerciseRepository: IExerciseRepository,
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Loading)
@@ -38,7 +44,33 @@ class MainViewModel @Inject constructor(
             // Sync pending likes (local and remote) when app first starts
             likeRepository.syncPendingLikes()
         }
+
+        //Download all exercises on the first startup of the app and cache them locally
+        triggerInitialExerciseDownload()
     }
+
+    private fun triggerInitialExerciseDownload() {
+        if (!exerciseDownloadPrefs.isInitialDownloadComplete()) {
+            viewModelScope.launch {
+                Log.d("StartupViewModel", "Triggering initial exercise download...")
+                val result = exerciseRepository.fetchAllExercisesAndCache()
+                when (result) {
+                    is ResultWrapper.Success -> {
+                        Log.i("StartupViewModel", "Initial exercise download completed successfully.")
+                        // Flag is set within the repository on success
+                    }
+                    is ResultWrapper.Error -> {
+                        Log.e("StartupViewModel", "Initial exercise download failed.", result.exception)
+                        // Handle error - maybe schedule retry with WorkManager or show user message
+                    }
+                    is ResultWrapper.Loading -> { /* Should not happen from suspend fun */ }
+                }
+            }
+        } else {
+            Log.d("StartupViewModel", "Initial exercise download already complete.")
+        }
+    }
+
 }
 
 

@@ -23,7 +23,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-
+// todo create the feedgeneration cloud function to be automatically called when a post is created to
+// add it to the feed of the following users
 data class FeedUiData(
     val postList: List<FeedPostWithLikesAndComments> = emptyList(),
     val followingUserIds: Set<String> = emptySet(), // Keep track of who is followed

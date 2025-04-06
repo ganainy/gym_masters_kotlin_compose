@@ -43,4 +43,13 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercise WHERE isSavedLocally = 1")
     abstract fun observeSavedExercises(): Flow<List<Exercise>?>
+
+    /**
+     * Fetches a specific page of exercises.
+     * Useful for paginated loading from the local cache.
+     * ORDER BY id is important for consistent paging.
+     */
+    @Query("SELECT * FROM exercise ORDER BY id ASC LIMIT :limit OFFSET :offset") // Order by ID for consistency
+    suspend fun getExercisesPage(limit: Int, offset: Int): List<Exercise>
+
 }

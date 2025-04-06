@@ -52,7 +52,7 @@ import com.ganainy.gymmasterscompose.ui.shared_components.ExerciseListItemData
 import com.ganainy.gymmasterscompose.ui.shared_components.ExerciseListItemType
 import com.ganainy.gymmasterscompose.ui.shared_components.LoadingIndicator
 import kotlinx.coroutines.launch
-
+//todo fix downloading all exercises on first startup takes too long (at least show progress and make cancelable)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseListScreen(
@@ -132,13 +132,20 @@ private fun ExercisesContent(
             )
 
             when (uiState.dataState) {
-                is DataState.Loading -> LoadingIndicator()
-                is DataState.Error -> ErrorContent(
-                    message = (uiState.dataState as DataState.Error).message,
+                is DataState.Loading -> LoadingIndicator() // Show loading indicator
+
+                is DataState.Error -> ErrorContent( // Error loading *cached* data
+                    message = uiState.dataState.message,
+                    showRetryButton = false, //  don't show retry for cache errors
                     onRetry = onRetry,
                 )
 
-                is DataState.Success -> {
+                is DataState.InitialDownloadRequired -> InitialDownloadContent(
+                    message = uiState.dataState.message,
+                    onRetry = onRetry // Use the same retry function (VM logic handles it)
+                )
+
+                is DataState.Success -> { // Success - display list or empty message
                     if (filteredExercises.isEmpty()) {
                         EmptyContent(
                             hasActiveFilters = uiState.filters.activeFilters != ActiveFilters()
@@ -287,6 +294,7 @@ private fun <T> FilterSection(
 @Composable
 private fun ErrorContent(
     message: String,
+    showRetryButton: Boolean = true,
     onRetry: () -> Unit
 ) {
     Column(
@@ -302,8 +310,41 @@ private fun ErrorContent(
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onRetry) {
+        if (showRetryButton) {
+            Button(onClick = onRetry) {
             Text("Retry")
+        }
+        }
+    }
+}
+
+@Composable
+private fun InitialDownloadContent(
+    message: String,
+    onRetry: () -> Unit // This triggers the download via VM.retry()
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Text(
+            text = "An internet connection is required for the initial download.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onRetry) {
+            // Button text can indicate download action
+            Text("Download Exercises")
         }
     }
 }

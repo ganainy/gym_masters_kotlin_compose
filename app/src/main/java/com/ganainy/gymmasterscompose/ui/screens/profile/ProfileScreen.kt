@@ -26,7 +26,7 @@ import com.ganainy.gymmasterscompose.utils.MockData.sampleUser
 import com.ganainy.gymmasterscompose.utils.MockData.sampleWorkoutWithStatus
 import com.ganainy.gymmasterscompose.utils.Utils.showToast
 
-
+//todo fix infinite loading on opening other user profile
 @Composable
 fun ProfileScreen(
     userId: String?,

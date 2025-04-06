@@ -187,7 +187,7 @@ class CreateWorkoutViewModel @Inject constructor(
 
     // Data Loading
     private fun loadInitialData() = handleOperation(Operation.LoadInitialData) {
-        exerciseDataManager.loadExerciseData()
+        exerciseDataManager.loadCachedExerciseData()
             .onSuccess { result ->
                 _uiState.update { state ->
                     state.copy(

@@ -14,35 +14,48 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+data class CachedExerciseDataResult(
+    val exercises: List<Exercise>,
+    val bodyParts: List<BodyPart>,
+    val targets: List<TargetMuscle>,
+    val equipment: List<Equipment>
+)
+
 // Shared utility class for exercise-related operations
 class ExerciseDataManager @Inject constructor(
     private val exerciseRepository: IExerciseRepository,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) {
-    suspend fun loadExerciseData(): Result<ExerciseDataResult> = withContext(ioDispatcher) {
+
+    suspend fun loadCachedExerciseData(): Result<CachedExerciseDataResult> = coroutineScope {
         try {
-            coroutineScope {
-                val bodyParts = async { exerciseRepository.getBodyPartList() }
-                val targets = async { exerciseRepository.getTargetList() }
-                val equipment = async { exerciseRepository.getEquipmentList() }
-                val exercises = async { exerciseRepository.getExercises() }
+            // Fetch all cached data concurrently
+            val exercisesDeferred = async { exerciseRepository.getCachedExercises() }
+            val bodyPartsDeferred = async { exerciseRepository.getCachedBodyParts() }
+            val targetsDeferred = async { exerciseRepository.getCachedTargets() }
+            val equipmentDeferred = async { exerciseRepository.getCachedEquipment() }
 
-                val results = awaitAll(bodyParts, targets, equipment, exercises)
+            // Await results
+            val exercisesResult = exercisesDeferred.await()
+            val bodyPartsResult = bodyPartsDeferred.await()
+            val targetsResult = targetsDeferred.await()
+            val equipmentResult = equipmentDeferred.await()
 
-                if (results.any { it is ResultWrapper.Error }) {
-                    val error = results.filterIsInstance<ResultWrapper.Error>().first()
-                    Result.failure(error.exception)
-                } else {
-                    Result.success(
-                        ExerciseDataResult(
-                            bodyParts = (bodyParts.await() as ResultWrapper.Success).data,
-                            targets = (targets.await() as ResultWrapper.Success).data,
-                            equipment = (equipment.await() as ResultWrapper.Success).data,
-                            exercises = (exercises.await() as ResultWrapper.Success).data
-                        )
-                    )
+            // Check for errors in any fetch
+            listOf(exercisesResult, bodyPartsResult, targetsResult, equipmentResult)
+                .filterIsInstance<ResultWrapper.Error>()
+                .firstOrNull()?.let { errorResult ->
+                    return@coroutineScope Result.failure(errorResult.exception)
                 }
-            }
+
+            // All successful, extract data (assuming Success type)
+            val exercises = (exercisesResult as ResultWrapper.Success).data
+            val bodyParts = (bodyPartsResult as ResultWrapper.Success).data
+            val targets = (targetsResult as ResultWrapper.Success).data
+            val equipment = (equipmentResult as ResultWrapper.Success).data
+
+            Result.success(CachedExerciseDataResult(exercises, bodyParts, targets, equipment))
+
         } catch (e: Exception) {
             Result.failure(e)
         }
