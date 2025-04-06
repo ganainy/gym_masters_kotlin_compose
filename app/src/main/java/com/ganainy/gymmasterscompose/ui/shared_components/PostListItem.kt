@@ -24,6 +24,8 @@ import com.ganainy.gymmasterscompose.ui.AppTheme
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.models.post.PostCreator
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTimeFromFireStoreTimeStamp
+import com.google.firebase.Timestamp
 
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -41,7 +43,7 @@ fun PostListItem(
         ) {
             // Post timestamp
             Text(
-                text = formatRelativeTime(post.createdAt),
+                text = formatRelativeTimeFromFireStoreTimeStamp(post.createdAt),
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -122,7 +124,7 @@ fun PreviewPostListItem() {
                 displayName = "John Doe",
                 profilePictureUrl = "https://randomuser.me/api/portraits/women/1.jpg"
             ),
-            createdAt = System.currentTimeMillis(),
+            createdAt = Timestamp.now(),
             tags = listOf( "fitness", "workout",),
         ),
         onPostClick = {},

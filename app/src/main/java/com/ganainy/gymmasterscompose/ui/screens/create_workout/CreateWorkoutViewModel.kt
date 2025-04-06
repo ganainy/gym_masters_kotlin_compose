@@ -15,6 +15,7 @@ import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
 import com.ganainy.gymmasterscompose.utils.ExerciseDataManager
 import com.ganainy.gymmasterscompose.utils.Utils.extractHashtags
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -332,7 +333,7 @@ class CreateWorkoutViewModel @Inject constructor(
 
         fun uploadWorkout(onSuccess: () -> Unit) = handleOperation(Operation.UploadWorkout) {
             val workout = _uiState.value.workout.copy(
-                dateCreated = System.currentTimeMillis()
+                dateCreated = Timestamp.now()
             )
             val result = workoutRepository.uploadWorkoutWithImage(workout, workout.imagePath)
 

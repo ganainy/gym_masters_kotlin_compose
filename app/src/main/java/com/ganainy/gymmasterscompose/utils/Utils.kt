@@ -54,6 +54,16 @@ object Utils {
         return TimeAgo.using(timestamp, timeAgoMessages)
     }
 
+    // TimeAgo library for Firestore Timestamp
+    @Composable
+    fun formatRelativeTimeFromFireStoreTimeStamp(timestamp: com.google.firebase.Timestamp): String {
+        val currentLocale = LocalContext.current.resources.configuration.locales[0]
+        val timeAgoMessages = remember(currentLocale) {
+            TimeAgoMessages.Builder().withLocale(currentLocale).build()
+        }
+        return TimeAgo.using(timestamp.toDate().time, timeAgoMessages)
+    }
+
     //generate random id
      fun generateRandomId(prefix:String): String {
             val chars = ('a'..'z') + ('A'..'Z') + ('0'..'9')

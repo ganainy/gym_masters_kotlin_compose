@@ -1,158 +1,157 @@
 package com.ganainy.gymmasterscompose.ui.repository
 
 
-import com.ganainy.gymmasterscompose.Constants.FOLLOWING
 import com.ganainy.gymmasterscompose.ui.models.Follow
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWER_ID
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.models.User
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.USERS_COLLECTION
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 interface IUsersRepository {
     fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>>
     fun listenForFollowingUpdates(userId: String?): Flow<ResultWrapper<List<Follow>>>
-    fun getUserFollowing(): Flow<ResultWrapper<List<String>>>
+    fun getUserFollowingIdsFlow(): Flow<ResultWrapper<List<String>>>
     fun getAllUsers(): Flow<List<User>>
 }
 
 class UsersRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val database: FirebaseDatabase,
+    private val firestore: FirebaseFirestore
 ) : IUsersRepository {
     private val currentUserId = auth.currentUser?.uid
-    private val userList = mutableListOf<User>()
-    private val _userListFlow = MutableStateFlow<List<User>>(emptyList())
-
-    override fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>> = callbackFlow {
-        val usersRef = database.getReference(USERS_COLLECTION)
-
-        val listener = usersRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                CoroutineScope(Dispatchers.IO).launch {
-                    try {
-                        val tempUserList = mutableListOf<User>()
-
-                        snapshot.children.forEach { userSnapshot ->
-                            val userId = userSnapshot.key ?: return@forEach
-                            if (userId == currentUserId) return@forEach
-
-                            val user = userSnapshot.getValue(User::class.java) ?: return@forEach
-
-                            if (userList.none { it.id == user.id }) {
-                                tempUserList.add(user)
-                            }
-                        }
-                        userList.addAll(tempUserList)
-                        _userListFlow.value = userList
-                        trySend(ResultWrapper.Success(userList))
-                    } catch (e: Exception) {
-                        trySend(ResultWrapper.Error(e))
-                    }
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                trySend(ResultWrapper.Error(error.toException()))
-            }
-        })
-
-        awaitClose { usersRef.removeEventListener(listener) }
-    }
 
     /**
-     * Listens for updates to the following list of a user.
-     *
-     * This function sets up a listener on the Firebase database to monitor changes to the list of users
-     * that the specified user is following. It returns a Flow that emits a ResultWrapper containing a list
-     * of Follow objects representing the users being followed or an error if the operation fails.
-     *
-     * @param userId The ID of the user whose following list is to be monitored. If null, the current user's ID is used.
-     * @return A Flow emitting a ResultWrapper containing a list of Follow objects or an error.
+     * Listens for updates to the users collection in Firestore.
      */
-    override fun listenForFollowingUpdates(userId: String?): Flow<ResultWrapper<
-            List<Follow>>> = callbackFlow {
-        val userId = userId ?: currentUserId ?: return@callbackFlow
-        val followingRef = database.getReference(FOLLOWS_COLLECTION).orderByChild(FOLLOWER_ID).equalTo(userId)
+    override fun listenForUsersUpdates(): Flow<ResultWrapper<List<User>>> = callbackFlow {
+        if (currentUserId == null) {
+            trySend(ResultWrapper.Error(Exception("User not logged in")))
+            close()
+            return@callbackFlow
+        }
 
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val followingList = snapshot.children.mapNotNull { postSnapshot ->
-                    postSnapshot.getValue(Follow::class.java)
-                }
-                trySend(ResultWrapper.Success(followingList))
+        val usersCollection = firestore.collection(USERS_COLLECTION)
+        val listenerRegistration = usersCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(ResultWrapper.Error(error))
+                return@addSnapshotListener
             }
 
-            override fun onCancelled(error: DatabaseError) {
-                trySend(ResultWrapper.Error(error.toException()))
+            if (snapshot != null) {
+                val userList = snapshot.documents.mapNotNull { document ->
+                    try {
+                        document.toObject(User::class.java)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.filter { it.id != currentUserId } // Filter out the current user
+                trySend(ResultWrapper.Success(userList))
+            } else {
+                trySend(ResultWrapper.Success(emptyList()))
             }
         }
 
-        followingRef.addValueEventListener(listener)
-        awaitClose { followingRef.removeEventListener(listener) }
+        // Unregister listener when flow is closed
+        awaitClose { listenerRegistration.remove() }
     }
 
+    override fun listenForFollowingUpdates(userId: String?): Flow<ResultWrapper<List<Follow>>> =
+        callbackFlow {
+            val effectiveUserId = userId ?: currentUserId
 
-    override fun getUserFollowing(): Flow<ResultWrapper<List<String>>> = callbackFlow {
-        val followingRef = currentUserId?.let {
-            database.reference.child(FOLLOWING).child(it)
-        } ?: return@callbackFlow
+            if (effectiveUserId == null) {
+                trySend(ResultWrapper.Error(Exception("User ID not available")))
+                close()
+                return@callbackFlow
+            }
 
-        val listener = followingRef.addValueEventListener(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val followingList = snapshot.children.mapNotNull { it.key }
+            val followsCollection = firestore.collection(FOLLOWS_COLLECTION)
+            var listenerRegistration: ListenerRegistration? = null
+
+            try {
+                // Query where the followerId field matches the effectiveUserId
+                val query = followsCollection.whereEqualTo(FOLLOWER_ID, effectiveUserId)
+
+                listenerRegistration = query.addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        trySend(ResultWrapper.Error(error))
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+                        val followingList = snapshot.documents.mapNotNull { document ->
+                            try {
+                                document.toObject(Follow::class.java)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        trySend(ResultWrapper.Success(followingList))
+                    } else {
+                        trySend(ResultWrapper.Success(emptyList()))
+                    }
+                }
+            } catch (e: Exception) {
+                trySend(ResultWrapper.Error(e))
+                close(e)
+            }
+            awaitClose { listenerRegistration?.remove() }
+        }
+
+
+    override fun getUserFollowingIdsFlow(): Flow<ResultWrapper<List<String>>> = callbackFlow {
+        val effectiveUserId = currentUserId ?: return@callbackFlow
+
+        val followsCollection = firestore.collection(FOLLOWS_COLLECTION)
+        val query = followsCollection.whereEqualTo(FOLLOWER_ID, effectiveUserId)
+
+        val listenerRegistration = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(ResultWrapper.Error(error))
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val followingList = snapshot.documents.mapNotNull { it.getString("followedId") }
                 trySend(ResultWrapper.Success(followingList))
+            } else {
+                trySend(ResultWrapper.Success(emptyList()))
             }
+        }
 
-            override fun onCancelled(error: DatabaseError) {
-                trySend(ResultWrapper.Error(error.toException()))
-            }
-        })
-
-        awaitClose { followingRef.removeEventListener(listener) }
+        awaitClose { listenerRegistration.remove() }
     }
 
     override fun getAllUsers(): Flow<List<User>> = callbackFlow {
-        val currentUserId: String? = auth.uid
-        val userRef = database.getReference(USERS_COLLECTION)
+        val currentUserId = auth.currentUser?.uid
+        val usersCollection = firestore.collection(USERS_COLLECTION)
 
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val users = mutableListOf<User>()
-                for (userSnapshot in snapshot.children) {
-                    userSnapshot.getValue(User::class.java)?.let { user ->
-                        if (user.id == currentUserId) return@let // don't add the current user
-                        users.add(user)
-                    }
+        val listenerRegistration = usersCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val users = snapshot.documents.mapNotNull { document ->
+                    document.toObject(User::class.java)?.takeIf { it.id != currentUserId }
                 }
                 trySend(users)
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
+            } else {
+                trySend(emptyList())
             }
         }
 
-        userRef.addValueEventListener(listener)
-
-        // Cleanup when Flow collection is cancelled
-        awaitClose {
-            userRef.removeEventListener(listener)
-        }
+        awaitClose { listenerRegistration.remove() }
     }
-
 
 }
 

@@ -1,5 +1,8 @@
 package com.ganainy.gymmasterscompose.ui.models.post
 
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
+
 
 /**
  * Data class representing a like on a post.
@@ -13,11 +16,12 @@ data class PostLike(
     val id: String = "", // Will be "$userId_$postId"
     val userId: String = "",
     val postId: String = "",
-    val timestamp: Long = 0
+    val timestamp: Timestamp = Timestamp.now(),
 )
  {
     companion object {
         fun createId(userId: String, postId: String) = "${userId}_${postId}"
         const val POST_LIKES_COLLECTION = "post_likes" // Collection name for post likes
     }
+
 }

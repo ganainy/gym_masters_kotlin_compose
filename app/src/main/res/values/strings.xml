@@ -73,4 +73,6 @@
     <string name="no_bio">No bio</string>
     <string name="feed">Feed</string>
     <string name="no_workout_found">No workout found</string>
+    <string name="error_must_be_logged_in">You must be logged in to do this action</string>
+    <string name="error_parsing_user_data">Error parsing data from server</string>
 </resources>

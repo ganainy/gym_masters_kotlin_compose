@@ -14,6 +14,7 @@ import com.ganainy.gymmasterscompose.ui.repository.ResultWrapper
 import com.ganainy.gymmasterscompose.ui.repository.onError
 import com.ganainy.gymmasterscompose.ui.room.LikeType
 import com.ganainy.gymmasterscompose.utils.UiText
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -414,7 +415,7 @@ class PostDetailsViewModel @Inject constructor(
                             userId = userId,
                             content = content,
                             userDisplayInfo = userDisplayInfo,
-                            timestamp = System.currentTimeMillis(),
+                            timestamp = Timestamp.now(),
                             isPending = true // Mark as pending for optimistic UI update
                         )
                         val newCommentWithLikeStatus = CommentWithLikeStatus(

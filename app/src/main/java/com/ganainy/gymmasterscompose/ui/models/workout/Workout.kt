@@ -4,6 +4,7 @@ import android.os.Parcelable
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.google.firebase.Timestamp
 import kotlinx.parcelize.Parcelize
 
 /**
@@ -32,7 +33,7 @@ data class Workout(
     val description: String = "",
     val difficulty: String = "",
     val workoutDuration: String = "", // mins
-    val dateCreated: Long = 0, // Timestamp
+    val dateCreated: Timestamp = Timestamp.now(), // Timestamp
     val imageUrl: String = "", // Firebase Storage URL
     var imagePath: String = "", // Local image path
     val tags: List<String> = emptyList(),
@@ -51,7 +52,7 @@ data class WorkoutEntity(
     val description: String,
     val difficulty: String,
     val workoutDuration: String,
-    val dateCreated: Long,
+    val dateCreated: Timestamp,
     val imageUrl: String,
     val imagePath: String,
     val tags: List<String>,

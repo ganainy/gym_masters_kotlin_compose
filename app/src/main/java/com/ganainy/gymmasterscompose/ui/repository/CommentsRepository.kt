@@ -1,14 +1,17 @@
 package com.ganainy.gymmasterscompose.ui.repository
 
 import Comment
+import android.util.Log
 import com.ganainy.gymmasterscompose.ui.models.comment.CommentLike
 import com.ganainy.gymmasterscompose.ui.models.post.FeedPost
 import com.ganainy.gymmasterscompose.ui.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.room.AppDatabase
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-
+import com.google.firebase.firestore.FieldValue
 interface ICommentsRepository {
     suspend fun deleteComment(comment: Comment): ResultWrapper<Unit>
     suspend fun getPostComments(postId: String): ResultWrapper<List<Comment>>
@@ -16,105 +19,116 @@ interface ICommentsRepository {
 }
 
 class CommentsRepository @Inject constructor(
-    private val firebaseDatabase: FirebaseDatabase,
-    private val userRepository: IUserRepository,
-    private val appDatabase: AppDatabase,
+    private val firestore: FirebaseFirestore,
 ) : ICommentsRepository {
-    private val commentsRef = firebaseDatabase.reference.child(Comment.COMMENTS_COLLECTION)
-    private val commentLikesRef =
-        firebaseDatabase.reference.child(CommentLike.COMMENT_LIKES_COLLECTION)
-    private val postsRef = firebaseDatabase.reference.child(FeedPost.POSTS_COLLECTION)
-    private val rootRef = firebaseDatabase.reference
+
+    // Firestore Collection References
+    private val commentsCollection = firestore.collection(Comment.COMMENTS_COLLECTION)
+    private val commentLikesCollection = firestore.collection(CommentLike.COMMENT_LIKES_COLLECTION)
+    private val postsCollection = firestore.collection(FeedPost.POSTS_COLLECTION)
 
     override suspend fun getPostComments(postId: String): ResultWrapper<List<Comment>> {
         return try {
-            // Reference to the comments collection for the given post
-            val commentsSnapshot = commentsRef.orderByChild("postId").equalTo(postId).get().await()
+            // Query comments collection where postId matches
+            val querySnapshot = commentsCollection
+                .whereEqualTo(Comment.POST_ID_FIELD, postId)
+                .orderBy(Comment.TIMESTAMP_FIELD, Query.Direction.DESCENDING) // Order by timestamp, newest first
+                .get()
+                .await()
 
-            // Check if there are any comments
-            if (!commentsSnapshot.exists()) {
-                // No comments found, return empty list
-                ResultWrapper.Success(emptyList())
-            } else {
-                // Parse comments from the snapshot
-                val comments = commentsSnapshot.children.mapNotNull { snapshot ->
-                    snapshot.getValue(Comment::class.java)?.takeIf { it.postId == postId }
-                }.sortedByDescending { it.timestamp } // Sort by timestamp (newest first)
-
-                ResultWrapper.Success(comments)
+            // Map documents to Comment objects
+            val comments = querySnapshot.documents.mapNotNull { document ->
+                try {
+                    document.toObject(Comment::class.java)
+                } catch (e: Exception) {
+                    Log.e("CommentsRepository", "Error converting document ${document.id} to Comment", e)
+                    null // Skip invalid documents
+                }
             }
+            ResultWrapper.Success(comments)
+
         } catch (e: Exception) {
+            Log.e("CommentsRepository", "Error fetching comments for post $postId", e)
             ResultWrapper.Error(e)
         }
     }
 
     override suspend fun addComment(comment: Comment): ResultWrapper<Unit> {
+        // Ensure comment has a valid ID and postId
+        if (comment.id.isBlank() || comment.postId.isBlank()) {
+            Log.e("CommentsRepository", "Cannot add comment with blank ID or postId")
+            return ResultWrapper.Error(IllegalArgumentException("Comment ID and Post ID cannot be blank"))
+        }
+
+        val batch = firestore.batch()
         return try {
-            // Create updates map for atomic operation
-            val updates = HashMap<String, Any>()
+            // Document references
+            val commentDocRef = commentsCollection.document(comment.id)
+            val postDocRef = postsCollection.document(comment.postId)
 
-            // Add comment to backend
-            updates["/${Comment.COMMENTS_COLLECTION}/${comment.id}"] = comment.copy(isPending = false)
+            // Add operations to batch:
+            // a) Set the new comment document (ensure isPending is handled or removed if not needed)
+            // comment model has isPending=true, create a copy without it for Firestore
+            val commentToSave = if (comment.isPending) comment.copy(isPending = false) else comment
+            batch.set(commentDocRef, commentToSave)
 
-            // Increment post comment count
-            val postMetricsRef = "/${FeedPost.POSTS_COLLECTION}/${comment.postId}/${FeedPost.POST_METRICS}"
-            // Get current comment count first
-            val currentCount = postsRef.child(comment.postId)
-                .child(FeedPost.POST_METRICS)
-                .child(PostMetrics.POST_METRICS_COMMENTS)
-                .get()
-                .await()
-                .getValue(Long::class.java) ?: 0
+            // b) Increment the post's comment count using dot notation for nested field
+            val postMetricsCommentsPath = "${FeedPost.POST_METRICS}.${PostMetrics.POST_METRICS_COMMENTS}"
+            batch.update(postDocRef, postMetricsCommentsPath, FieldValue.increment(1))
 
-            updates["$postMetricsRef/${PostMetrics.POST_METRICS_COMMENTS}"] = currentCount + 1
-
-            // Perform atomic update
-            rootRef.updateChildren(updates).await()
-
+            // Commit the batch
+            batch.commit().await()
+            Log.d("CommentsRepository", "Comment ${comment.id} added successfully.")
             ResultWrapper.Success(Unit)
+
         } catch (e: Exception) {
+            Log.e("CommentsRepository", "Error adding comment ${comment.id}", e)
             ResultWrapper.Error(e)
         }
     }
 
     override suspend fun deleteComment(comment: Comment): ResultWrapper<Unit> {
+        // Ensure comment has a valid ID and postId
+        if (comment.id.isBlank() || comment.postId.isBlank()) {
+            Log.e("CommentsRepository", "Cannot delete comment with blank ID or postId")
+            return ResultWrapper.Error(IllegalArgumentException("Comment ID and Post ID cannot be blank"))
+        }
+
+        val batch = firestore.batch()
         return try {
-            // Get all likes for this comment
-            val likesSnapshot = commentLikesRef
-                .orderByChild("commentId")
-                .equalTo(comment.id)
+            // 1. Find associated comment likes
+            val likesQuerySnapshot = commentLikesCollection
+                .whereEqualTo(CommentLike.COMMENT_ID_FIELD, comment.id)
                 .get()
                 .await()
 
-            // Create updates map for atomic operation
-            val updates = HashMap<String, Any?>()
+            val likeDocRefsToDelete = likesQuerySnapshot.documents.map { it.reference }
 
-            // Remove comment
-            updates["/${Comment.COMMENTS_COLLECTION}/${comment.id}"] = null
+            // 2. Define main document references
+            val commentDocRef = commentsCollection.document(comment.id)
+            val postDocRef = postsCollection.document(comment.postId)
 
-            // Remove all associated likes
-            likesSnapshot.children.forEach { likeSnapshot ->
-                updates["/${CommentLike.COMMENT_LIKES_COLLECTION}/${likeSnapshot.key}"] = null
+            // 3. Add operations to batch:
+            // a) Delete the comment itself
+            batch.delete(commentDocRef)
+
+            // b) Delete all associated comment likes
+            likeDocRefsToDelete.forEach { likeRef ->
+                batch.delete(likeRef)
             }
+            Log.d("CommentsRepository", "Prepared batch to delete ${likeDocRefsToDelete.size} likes for comment ${comment.id}")
 
-            // Get current comment count
-            val currentCount = postsRef.child(comment.postId)
-                .child(FeedPost.POST_METRICS)
-                .child(PostMetrics.POST_METRICS_COMMENTS)
-                .get()
-                .await()
-                .getValue(Long::class.java) ?: 1
+            // c) Decrement the post's comment count
+            val postMetricsCommentsPath = "${FeedPost.POST_METRICS}.${PostMetrics.POST_METRICS_COMMENTS}"
+            batch.update(postDocRef, postMetricsCommentsPath, FieldValue.increment(-1))
 
-            // Update post comment count (ensure it doesn't go negative)
-            val newCount = (currentCount - 1).coerceAtLeast(0)
-            updates["/${FeedPost.POSTS_COLLECTION}/${comment.postId}/${FeedPost.POST_METRICS}/${PostMetrics.POST_METRICS_COMMENTS}"] =
-                newCount
-
-            // Perform atomic update
-            rootRef.updateChildren(updates).await()
-
+            // 4. Commit the batch
+            batch.commit().await()
+            Log.d("CommentsRepository", "Comment ${comment.id} and associated data deleted successfully.")
             ResultWrapper.Success(Unit)
+
         } catch (e: Exception) {
+            Log.e("CommentsRepository", "Error deleting comment ${comment.id}", e)
             ResultWrapper.Error(e)
         }
     }

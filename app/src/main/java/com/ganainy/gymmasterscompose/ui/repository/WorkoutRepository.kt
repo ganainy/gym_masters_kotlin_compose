@@ -18,11 +18,13 @@ import com.ganainy.gymmasterscompose.ui.models.workout.toWorkoutEntity
 import com.ganainy.gymmasterscompose.ui.room.AppDatabase
 import com.ganainy.gymmasterscompose.ui.screens.workout_list.SortType
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
+import com.google.firebase.Timestamp
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +32,10 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import androidx.core.net.toUri
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 // Workout and exercise management
 interface IWorkoutRepository {
@@ -49,109 +55,116 @@ interface IWorkoutRepository {
 }
 
 class WorkoutRepository @Inject constructor(
-    private val database: FirebaseDatabase,
+    private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
     private val appDatabase: AppDatabase,
     private val hashtagRepository: IHashtagRepository
 ) : IWorkoutRepository {
 
+    // Firestore Collection References
+    private val workoutsCollection = firestore.collection(WORKOUTS_COLLECTION)
+    private val workoutLikesCollection = firestore.collection(WORKOUT_LIKES_COLLECTION)
+    private val workoutSavesCollection = firestore.collection(WORKOUT_SAVES_COLLECTION)
 
-    /**
-     * Fetches a workout from the Firebase database.
-     *
-     * This function retrieves a workout by its ID from the Firebase database. If the workout exists,
-     * it returns the workout object; otherwise, it returns null.
-     *
-     * @param workoutId The ID of the workout to be fetched.
-     * @return The workout object if it exists, or null if it does not exist.
-     */
     override suspend fun getWorkout(workoutId: String): Workout? {
         return try {
-            val workoutRef = database.getReference(WORKOUTS_COLLECTION).child(workoutId)
-            val snapshot = workoutRef.get().await()
+            val snapshot = workoutsCollection.document(workoutId).get().await()
             if (snapshot.exists()) {
-                snapshot.getValue(Workout::class.java)
+                snapshot.toObject(Workout::class.java)
             } else {
+                Log.w("WorkoutRepository", "Workout document $workoutId does not exist.")
                 null
             }
         } catch (e: Exception) {
-            Log.e("DataRepository", "Error fetching workout: ${e.message}")
-            null
+            Log.e("WorkoutRepository", "Error fetching workout: $workoutId", e)
+            null // Return null on error
         }
     }
 
 
-
-    /**
-     * Fetches a workout from the Firebase database and listens to updates.
-     *
-     * This function retrieves a workout by its ID from the Firebase database and listens to updates.
-     * If the workout exists, it emits the workout object; otherwise, it emits null. If the workout is
-     * updated, it emits the updated workout object.
-     *
-     * @param workoutId The ID of the workout to be fetched.
-     * @return A Flow emitting the workout object if it exists, or null if it does not exist. The Flow
-     * will keep emitting the updated workout object as long as the workout is updated.
-     */
     override fun getWorkoutFlow(workoutId: String): Flow<ResultWrapper<Workout?>> = callbackFlow {
-        val workoutRef = database.getReference(WORKOUTS_COLLECTION).child(workoutId)
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    trySend(ResultWrapper.Success(snapshot.getValue(Workout::class.java)))
+        val docRef = workoutsCollection.document(workoutId)
+        var listenerRegistration: ListenerRegistration? = null
+        try {
+            listenerRegistration = docRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ResultWrapper.Error(error))
+                    Log.e("WorkoutRepository", "Error listening to workout $workoutId", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    try {
+                        trySend(ResultWrapper.Success(snapshot.toObject(Workout::class.java)))
+                    } catch (e: Exception) {
+                        Log.e(
+                            "WorkoutRepository",
+                            "Error converting workout snapshot $workoutId",
+                            e
+                        )
+                        trySend(ResultWrapper.Error(Exception("Error parsing workout data", e)))
+                    }
                 } else {
+                    // Document doesn't exist
                     trySend(ResultWrapper.Success(null))
                 }
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                trySend(ResultWrapper.Error(Exception(error.message)))
-            }
+        } catch (e: Exception) {
+            trySend(ResultWrapper.Error(e))
+            close(e)
         }
-        workoutRef.addValueEventListener(listener)
-        awaitClose { workoutRef.removeEventListener(listener) }
+        awaitClose {
+            Log.d("WorkoutRepository", "Removing listener for workout $workoutId")
+            listenerRegistration?.remove()
+        }
     }
 
-    /**
-     * Uploads a workout along with an optional cover image to the Firebase database.
-     *
-     * This function first uploads the cover image if the image path is provided, then updates the workout
-     * object with the image URL. It then creates a map of updates for the database, including the workout
-     * and its associated hashtags, and performs the database update.
-     *
-     * @param workout The workout object to be uploaded.
-     * @param imagePath The file path of the cover image to be uploaded. If empty, no image will be uploaded.
-     * @return A ResultWrapper indicating the success or failure of the operation.
-     */
     override suspend fun uploadWorkoutWithImage(
         workout: Workout,
         imagePath: String
     ): ResultWrapper<Unit> {
-        return try {
-            // Handle image upload if path is provided
-            val workoutWithImage = if (imagePath.isNotEmpty()) {
-                when (val imageResult = uploadWorkoutCoverImage(imagePath)) {
-                    is ResultWrapper.Success -> workout.copy(imageUrl = imageResult.data)
-                    is ResultWrapper.Error -> return ResultWrapper.Error(imageResult.exception)
-                    else -> return ResultWrapper.Error(Exception("Unknown error during image upload"))
-                }
-            } else {
-                workout
-            }
+        // 1. Handle image upload (no change needed here)
+        val imageUrlResult = if (imagePath.isNotEmpty()) {
+            uploadWorkoutCoverImage(imagePath)
+        } else {
+            ResultWrapper.Success("") // Empty string if no image
+        }
 
-            // Create updates map for the database
-            val updates = mutableMapOf<String, Any>(
-                "$WORKOUTS_COLLECTION/${workoutWithImage.id}" to workoutWithImage
-            )
+        val imageUrl = when(imageUrlResult) {
+            is ResultWrapper.Success -> imageUrlResult.data
+            is ResultWrapper.Error -> return ResultWrapper.Error(imageUrlResult.exception) // Return early on upload failure
+            is ResultWrapper.Loading -> return ResultWrapper.Error(Exception("Image upload still loading - unexpected"))
+        }
 
-            // Update hashtags
-            updates.putAll(hashtagRepository.updateHashtags(workoutWithImage.tags))
+        // 2. Prepare Workout data
+        val workoutWithImage = workout.copy(
+            imageUrl = imageUrl,
+            // Normalize tags if needed
+            tags = workout.tags.map { it.lowercase().trim() }.filter { it.isNotEmpty() }.distinct()
+            // Ensure metrics are initialized if part of the model being saved
+        )
 
-            // Perform the database update
-            database.reference.updateChildren(updates).await()
-            ResultWrapper.Success(Unit)
+        // 3. Prepare Firestore WriteBatch
+        val batch = firestore.batch()
+        try {
+            // Define document reference
+            val workoutDocRef = workoutsCollection.document(workoutWithImage.id)
+
+            // Add operations to batch:
+            // a) Set the workout document
+            batch.set(workoutDocRef, workoutWithImage)
+
+            // b) Add hashtag updates using the refactored repository
+            hashtagRepository.addHashtagUpdatesToBatch(batch, workoutWithImage.tags)
+
+            // 4. Commit the batch
+            batch.commit().await()
+            Log.d("WorkoutRepository", "Workout ${workoutWithImage.id} uploaded successfully.")
+            return ResultWrapper.Success(Unit)
+
         } catch (e: Exception) {
-            ResultWrapper.Error(e)
+            Log.e("WorkoutRepository", "Error committing workout upload batch for ${workoutWithImage.id}", e)
+            // TODO:  deleting uploaded image if batch fails?
+            return ResultWrapper.Error(e)
         }
     }
 
@@ -165,52 +178,66 @@ class WorkoutRepository @Inject constructor(
      * @return A ResultWrapper containing the download URL of the uploaded image if successful, or an error if the operation fails.
      */
     private suspend fun uploadWorkoutCoverImage(imagePath: String): ResultWrapper<String> {
+        // Use a more specific path if desired, e.g., including workout ID if known beforehand
         val imageRef = storage.reference.child(Constants.WORKOUT_COVER_IMAGES)
-            .child(generateRandomId(Constants.COVER_IMAGE))
+            .child(generateRandomId(Constants.COVER_IMAGE)) // Or use workout ID + timestamp
         return try {
-            imageRef.putFile(Uri.parse(imagePath)).await()
-            ResultWrapper.Success(imageRef.downloadUrl.await().toString())
+            imageRef.putFile(imagePath.toUri()).await()
+            val downloadUrl = imageRef.downloadUrl.await().toString()
+            ResultWrapper.Success(downloadUrl)
         } catch (e: Exception) {
+            Log.e("WorkoutRepository", "Failed to upload workout cover image: $imagePath", e)
             ResultWrapper.Error(e)
         }
     }
 
 
-    /**
-     * Deletes a workout and all its related data including likes, saves, and cover image
-     * @param workoutId The ID of the workout to delete
-     * @return ResultWrapper indicating success or failure
-     */
     override suspend fun deleteWorkout(workoutId: String): ResultWrapper<Unit> {
+        // 1. Get workout data first to access tags and image URL
+        val workout = getWorkout(workoutId) // Use the Firestore implementation
+        if (workout == null) {
+            Log.w("WorkoutRepository", "Cannot delete workout $workoutId: Not found.")
+            return ResultWrapper.Error(Exception("Workout not found"))
+        }
+
+        val batch = firestore.batch()
         return try {
-            // Get workout data first to access tags and image URL
-            val workoutSnapshot = database.reference.child(WORKOUTS_COLLECTION).child(workoutId).get().await()
-            val workout = workoutSnapshot.getValue(Workout::class.java) ?: return ResultWrapper.Error(
-                Exception("Workout not found")
-            )
+            // 2. Find associated likes and saves (consider doing this less frequently or via Functions)
+            // This adds read cost to every delete.
+            val likesQuery = workoutLikesCollection.whereEqualTo(WorkoutLike.WORKOUT_ID_FIELD, workoutId).get().await()
+            val savesQuery = workoutSavesCollection.whereEqualTo(WorkoutSave.WORKOUT_ID_FIELD, workoutId).get().await()
+            val likeRefsToDelete = likesQuery.documents.map { it.reference }
+            val saveRefsToDelete = savesQuery.documents.map { it.reference }
 
-            val updates = mutableMapOf<String, Any?>()
+            // 3. Define main document reference
+            val workoutDocRef = workoutsCollection.document(workoutId)
 
-            // Delete workout
-            updates["$WORKOUTS_COLLECTION/$workoutId"] = null
+            // 4. Add operations to batch:
+            // a) Delete workout document
+            batch.delete(workoutDocRef)
 
-            // Delete likes and saves
-            updates["$WORKOUT_LIKES_COLLECTION/$workoutId"] = null
-            updates["$WORKOUT_SAVES_COLLECTION/$workoutId"] = null
+            // b) Delete associated likes
+            likeRefsToDelete.forEach { batch.delete(it) }
+            // c) Delete associated saves
+            saveRefsToDelete.forEach { batch.delete(it) }
+            Log.d("WorkoutRepository", "Prepared batch to delete ${likeRefsToDelete.size} likes and ${saveRefsToDelete.size} saves for workout $workoutId")
 
-            // Update hashtags
-            updates.putAll(hashtagRepository.deleteOrDecreaseHashtags(workout.tags))
 
-            // Execute all database updates
-            database.reference.updateChildren(updates).await()
+            // d) Decrement/delete hashtags using the refactored repository
+            hashtagRepository.addHashtagDecrementToBatch(batch, workout.tags)
 
-            // Delete cover image if exists
+            // 5. Commit the batch
+            batch.commit().await()
+            Log.d("WorkoutRepository", "Workout $workoutId and associated data deleted from Firestore.")
+
+            // 6. Delete cover image from Storage (after successful batch commit)
             if (workout.imageUrl.isNotEmpty()) {
-                deleteWorkoutCoverImage(workout.imageUrl)
+                deleteWorkoutCoverImage(workout.imageUrl) // Call the existing storage delete method
             }
 
             ResultWrapper.Success(Unit)
         } catch (e: Exception) {
+            Log.e("WorkoutRepository", "Error deleting workout $workoutId", e)
             ResultWrapper.Error(e)
         }
     }
@@ -232,83 +259,75 @@ class WorkoutRepository @Inject constructor(
     }
 
 
-    /**
-     * Checks if a workout is liked by a specific user
-     * @param workoutId The ID of the workout to check
-     * @param userId The ID of the user
-     * @return ResultWrapper containing boolean indicating if workout is liked
-     */
     override suspend fun isWorkoutLikedByUser(workoutId: String, userId: String): ResultWrapper<Boolean> {
         return try {
-            val likeSnapshot = database.reference
-                .child(WORKOUT_LIKES_COLLECTION)
-                .child(WorkoutLike.createId(userId, workoutId))
-                .get()
-                .await()
-
-            ResultWrapper.Success(likeSnapshot.exists())
+            val likeDocId = WorkoutLike.createId(userId, workoutId)
+            val snapshot = workoutLikesCollection.document(likeDocId).get().await()
+            ResultWrapper.Success(snapshot.exists())
         } catch (e: Exception) {
+            Log.e("WorkoutRepository", "Error checking like status for workout $workoutId by user $userId", e)
             ResultWrapper.Error(e)
         }
     }
 
-    /**
-     * Checks if a workout is saved by a specific user
-     * @param workoutId The ID of the workout to check
-     * @param userId The ID of the user
-     * @return ResultWrapper containing boolean indicating if workout is saved
-     */
+
     override suspend fun isWorkoutSavedByUser(workoutId: String, userId: String): ResultWrapper<Boolean> {
         return try {
-            val saveSnapshot = database.reference
-                .child(WORKOUT_SAVES_COLLECTION)
-                .child(WorkoutSave.createId(userId, workoutId))
-                .get()
-                .await()
-
-            ResultWrapper.Success(saveSnapshot.exists())
+            val saveDocId = WorkoutSave.createId(userId, workoutId)
+            val snapshot = workoutSavesCollection.document(saveDocId).get().await()
+            ResultWrapper.Success(snapshot.exists())
         } catch (e: Exception) {
+            Log.e("WorkoutRepository", "Error checking save status for workout $workoutId by user $userId", e)
             ResultWrapper.Error(e)
         }
     }
 
-
-
-
-    /**
-     * Toggles the save status of a workout for a specific user
-     * @param workout The workout to toggle save status for
-     * @param userId The ID of the user
-     * @return ResultWrapper indicating success or failure
-     */
     override suspend fun toggleWorkoutSave(workout: Workout, userId: String): ResultWrapper<Unit> {
+        val saveDocId = WorkoutSave.createId(userId, workout.id)
+        val batch = firestore.batch()
         return try {
-            val isSaved = when (val result = isWorkoutSavedByUser(workout.id, userId)) {
-                is ResultWrapper.Success -> result.data
-                else -> return ResultWrapper.Error(Exception("Failed to check save status"))
+            // Check current backend state
+            val isCurrentlySavedResult = isWorkoutSavedByUser(workout.id, userId)
+            val isCurrentlySaved = when(isCurrentlySavedResult) {
+                is ResultWrapper.Success -> isCurrentlySavedResult.data
+                is ResultWrapper.Error -> throw isCurrentlySavedResult.exception // Propagate error
+                is ResultWrapper.Loading -> throw IllegalStateException("isWorkoutSavedByUser returned Loading")
             }
 
-            val updates = mutableMapOf<String, Any?>()
-            val saveKey = "${userId}_${workout.id}"
+            // Document references
+            val saveDocRef = workoutSavesCollection.document(saveDocId)
+            val workoutDocRef = workoutsCollection.document(workout.id)
+            val metricsSaveCountPath = "$WORKOUTS_METRICS.$WORKOUT_SAVE_COUNT"
 
-            if (isSaved) {
-                // Remove save
-                updates["$WORKOUT_SAVES_COLLECTION/$saveKey"] = null
-                updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_SAVE_COUNT"] = ServerValue.increment(-1)
+            if (isCurrentlySaved) {
+                // --- Unsave Logic ---
+                batch.delete(saveDocRef)
+                batch.update(workoutDocRef, metricsSaveCountPath, FieldValue.increment(-1))
+                Log.d("WorkoutRepository", "Prepared batch to UNSAVE workout $workout.id for user $userId")
+
             } else {
-                // Add save
-                val currentTimestamp = System.currentTimeMillis()
-                updates["$WORKOUT_SAVES_COLLECTION/$saveKey"] = WorkoutSave(id =saveKey, userId = userId, timestamp =currentTimestamp , workoutId = workout.id)
-                updates["$WORKOUTS_COLLECTION/${workout.id}/$WORKOUTS_METRICS/$WORKOUT_SAVE_COUNT"] =ServerValue.increment(1)
+                // --- Save Logic ---
+                val saveObject = WorkoutSave(
+                    id = saveDocId,
+                    userId = userId,
+                    timestamp = Timestamp.now(),
+                    workoutId = workout.id
+                )
+                batch.set(saveDocRef, saveObject)
+                batch.update(workoutDocRef, metricsSaveCountPath, FieldValue.increment(1))
+                Log.d("WorkoutRepository", "Prepared batch to SAVE workout $workout.id for user $userId")
             }
 
-            database.reference.updateChildren(updates).await()
+            // Commit the batch
+            batch.commit().await()
+            Log.d("WorkoutRepository", "Workout save toggled successfully for workout ${workout.id}")
             ResultWrapper.Success(Unit)
+
         } catch (e: Exception) {
+            Log.e("WorkoutRepository", "Error toggling workout save for workout ${workout.id}", e)
             ResultWrapper.Error(e)
         }
     }
-
 
 
     /**
@@ -350,63 +369,53 @@ class WorkoutRepository @Inject constructor(
         }
     }
 
-    /**
-     * Retrieves a list of workouts from the Firebase database based on the specified sort type and limit.
-     *
-     * This function returns a Flow that emits a ResultWrapper containing a list of workouts.
-     * The workouts are sorted according to the specified sort type and limited to the specified number of items.
-     *
-     * @param sortType The type of sorting to apply to the workouts (e.g., NEWEST, MOST_LIKED, MOST_SAVED).
-     * @param limit The maximum number of workouts to retrieve.
-     * @return A Flow emitting a ResultWrapper containing a list of workouts.
-     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun getWorkouts(sortType: SortType, limit: Int): Flow<ResultWrapper<List<Workout>>> = callbackFlow {
-        // Determine the query based on the sort type
-        trySend(ResultWrapper.Loading())
-        val query = when (sortType) {
-            SortType.NEWEST -> {
-                database.reference
-                    .child(WORKOUTS_COLLECTION)
-                    .orderByChild(WORKOUTS_TIMESTAMP)
-                    .limitToLast(limit)
-            }
-            SortType.MOST_LIKED -> {
-                database.reference
-                    .child(WORKOUTS_COLLECTION)
-                    .orderByChild("$WORKOUTS_METRICS/$WORKOUT_LIKES_COUNT")
-                    .limitToLast(limit)
-            }
-            SortType.MOST_SAVED -> {
-                database.reference
-                    .child(WORKOUTS_COLLECTION)
-                    .orderByChild("$WORKOUTS_METRICS/$WORKOUT_SAVE_COUNT")
-                    .limitToLast(limit)
-            }
+        trySend(ResultWrapper.Loading()) // Emit loading state
+
+        var query: Query = workoutsCollection // Base query
+
+        // Apply sorting based on sortType
+        query = when (sortType) {
+            SortType.NEWEST -> query.orderBy(WORKOUTS_TIMESTAMP, Query.Direction.DESCENDING)
+            SortType.MOST_LIKED -> query.orderBy("$WORKOUTS_METRICS.$WORKOUT_LIKES_COUNT", Query.Direction.DESCENDING)
+            SortType.MOST_SAVED -> query.orderBy("$WORKOUTS_METRICS.$WORKOUT_SAVE_COUNT", Query.Direction.DESCENDING)
         }
 
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                Log.d("WorkoutRepository", "Data changed, emitting new workouts") // Add logging
-                val workouts = snapshot.children.mapNotNull {
-                    it.getValue(Workout::class.java)
-                }.reversed()
+        // Apply limit
+        query = query.limit(limit.toLong())
 
-                trySend(ResultWrapper.Success(workouts))
+        var listenerRegistration: ListenerRegistration? = null
+        try {
+            listenerRegistration = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ResultWrapper.Error(error))
+                    Log.e("WorkoutRepository", "Error listening to workouts (sort: $sortType)", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val workouts = snapshot.documents.mapNotNull { doc ->
+                        try { doc.toObject(Workout::class.java) } catch (e: Exception) {
+                            Log.e("WorkoutRepository", "Error converting workout doc ${doc.id}", e)
+                            null
+                        }
+                    }
+                    // No need to reverse here as Firestore ordering handles it
+                    trySend(ResultWrapper.Success(workouts))
+                } else {
+                    trySend(ResultWrapper.Success(emptyList()))
+                }
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("WorkoutRepository", "Query cancelled: ${error.message}")
-                trySend(ResultWrapper.Error(Exception(error.message)))
-            }
+        } catch (e: Exception) {
+            // Error setting up the listener
+            trySend(ResultWrapper.Error(e))
+            close(e)
         }
 
-        // Add the listener to the query
-        query.addValueEventListener(listener)
-
-        // Remove the listener when the flow is closed
         awaitClose {
-            Log.d("WorkoutRepository", "Removing listener")
-            query.removeEventListener(listener) }
+            Log.d("WorkoutRepository", "Removing listener for workouts (sort: $sortType)")
+            listenerRegistration?.remove()
+        }
     }
 
 

@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.room.Room
 import com.ganainy.gymmasterscompose.BuildConfig
 import com.ganainy.gymmasterscompose.Constants.FIREBASE_DATABASE_NAME
+import com.google.firebase.firestore.FirebaseFirestore
 import com.ganainy.gymmasterscompose.ui.repository.AuthRepository
 import com.ganainy.gymmasterscompose.ui.repository.CommentsRepository
 import com.ganainy.gymmasterscompose.ui.repository.ExerciseRepository
@@ -107,10 +108,17 @@ object AppModule {
         return FirebaseAuth.getInstance()
     }
 
+    //currently unused but is left for future use with realtime chat feature
     @Provides
     @Singleton
     fun provideFirebaseDatabase(): FirebaseDatabase {
         return FirebaseDatabase.getInstance(FIREBASE_DATABASE_NAME)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance()
     }
 
 
@@ -118,7 +126,7 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase,
+        database: FirebaseFirestore,
     ): IAuthRepository {
         return AuthRepository(
             auth, database
@@ -130,7 +138,7 @@ object AppModule {
     @Singleton
     fun providePostRepository(
         userRepository: IUserRepository,
-        database: FirebaseDatabase,
+        database: FirebaseFirestore,
         hashtagRepository: IHashtagRepository,
         storage: FirebaseStorage
 
@@ -141,16 +149,16 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSocialRepository(
-        userRepository: IUserRepository,
-        database: FirebaseDatabase
+        auth: FirebaseAuth,
+        database: FirebaseFirestore,
     ): ISocialRepository {
-        return SocialRepository(userRepository, database)
+        return SocialRepository(auth, database)
     }
 
     @Provides
     @Singleton
     fun provideHashtagRepository(
-        database: FirebaseDatabase
+        database: FirebaseFirestore
     ): IHashtagRepository {
         return HashtagRepository(database)
     }
@@ -160,7 +168,7 @@ object AppModule {
     @Singleton
     fun provideUserRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase,
+        database: FirebaseFirestore,
         storage: FirebaseStorage
     ): IUserRepository {
         return UserRepository(auth, database, storage)
@@ -171,7 +179,7 @@ object AppModule {
     @Singleton
     fun provideUsersRepository(
         auth: FirebaseAuth,
-        database: FirebaseDatabase,
+        database: FirebaseFirestore,
     ): IUsersRepository {
         return UsersRepository(auth, database)
     }
@@ -180,7 +188,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideWorkoutRepository(
-        database: FirebaseDatabase,
+        database: FirebaseFirestore,
         storage: FirebaseStorage,
         hashtagRepository: IHashtagRepository,
         appDatabase: AppDatabase
@@ -198,12 +206,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFeedRepository(
-        database: FirebaseDatabase,
-        hashtagRepository: IHashtagRepository,
-        userRepository: IUserRepository
-
+        database: FirebaseFirestore,
     ): IFeedRepository {
-        return FeedRepository(database, hashtagRepository, userRepository)
+        return FeedRepository(database,)
     }
 
     @Provides
@@ -246,14 +251,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideCommentsRepository(
-        firebaseDatabase: FirebaseDatabase,
-        userRepository: IUserRepository,
-        appDatabase: AppDatabase
+        firestore: FirebaseFirestore,
     ): ICommentsRepository {
         return CommentsRepository(
-            firebaseDatabase = firebaseDatabase,
-            userRepository = userRepository,
-            appDatabase = appDatabase
+            firestore = firestore,
         )
     }
 
@@ -261,12 +262,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideLikeRepository(
-        firebaseDatabase: FirebaseDatabase,
+        firestore: FirebaseFirestore,
         userRepository: IUserRepository,
         appDatabase: AppDatabase
     ): ILikeRepository {
         return LikeRepository(
-            database = firebaseDatabase,
+            firestore = firestore,
             userRepository = userRepository,
             appDatabase = appDatabase
         )

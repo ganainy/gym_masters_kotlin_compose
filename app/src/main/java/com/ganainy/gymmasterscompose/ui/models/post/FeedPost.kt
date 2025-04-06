@@ -2,6 +2,7 @@ package com.ganainy.gymmasterscompose.ui.models.post
 
 import android.os.Parcelable
 import com.ganainy.gymmasterscompose.utils.Utils.generateRandomId
+import com.google.firebase.Timestamp
 import kotlinx.parcelize.Parcelize
 
 
@@ -24,7 +25,7 @@ data class FeedPost(
     val content: String = "",
     val imagePathList: List<String> = emptyList(),
     val imageUrlList: List<String> = emptyList(),
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Timestamp = Timestamp.now(),
     val tags: List<String> = emptyList(),
     val postMetrics: PostMetrics = PostMetrics(),
     val postCreator: PostCreator = PostCreator()
@@ -37,6 +38,7 @@ data class FeedPost(
         const val CREATOR_ID = "creatorId"
         const val POST_TAGS = "tags"
         const val POSTS_COLLECTION = "posts" // Collection name for posts
+        const val CREATED_AT = "createdAt"
         fun createId(): String = generateRandomId(POST)
     }
 }

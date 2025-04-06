@@ -3,16 +3,17 @@ package com.ganainy.gymmasterscompose.ui.models
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.google.firebase.Timestamp
 
 data class User(
     val id: String = "",
     val displayName: String = "",
     val username: String = "",
     val email: String = "",
-    val joinDate: Long = 0, // Timestamp
+  val joinDate: Timestamp = Timestamp.now(),
     val profilePictureUrl: String? = null,
     val bio: String? = null,
-    val lastActive: Long? = null, // Timestamp
+    val lastActive: Timestamp? = null,
     val stats: UserStats = UserStats(),
     val settings: UserSettings = UserSettings()
 ){
@@ -24,6 +25,7 @@ data class User(
         const val FOLLOWERS_COUNT = "followersCount"
         const val USER_IMAGES = "userImages"
         const val PROFILE_PICTURE_URL = "profilePictureUrl"
+        const val LAST_ACTIVE = "lastActive"
     }
 }
 

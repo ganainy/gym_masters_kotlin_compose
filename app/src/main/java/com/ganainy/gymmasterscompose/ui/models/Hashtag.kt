@@ -1,5 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.models
 
+import com.google.firebase.Timestamp
+
 /**
  * Data class representing a hashtag.
  *
@@ -10,7 +12,7 @@ package com.ganainy.gymmasterscompose.ui.models
 data class Hashtag(
     val tag: String = "",
     val useCount: Int = 0,
-    val lastUsed: Long = 0
+    val lastUsed: Timestamp = Timestamp.now()
 ){
     companion object{
         const val HASHTAGS_COLLECTION = "hashtags"
@@ -29,4 +31,4 @@ data class Hashtag(
  * @receiver The String to be converted to a Hashtag.
  * @return A Hashtag object with the tag set to the String value, useCount initialized to 1, and lastUsed set to the current system time.
  */
-fun String.toHashtag(): Hashtag = Hashtag(tag = this,  useCount = 1, lastUsed = System.currentTimeMillis())
+fun String.toHashtag(): Hashtag = Hashtag(tag = this,  useCount = 1, lastUsed = Timestamp.now())

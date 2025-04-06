@@ -44,6 +44,8 @@ import com.ganainy.gymmasterscompose.ui.AppTheme
 import com.ganainy.gymmasterscompose.ui.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.ui.models.User
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTimeFromFireStoreTimeStamp
+import com.google.firebase.Timestamp
 import java.util.Date
 
 //todo open user profile on click
@@ -135,7 +137,7 @@ fun DiscoverProfile(
 
                     // Join Date
                     Text(
-                        text = "Joined ${formatRelativeTime(user.joinDate)}",
+                        text = "Joined ${formatRelativeTimeFromFireStoreTimeStamp(user.joinDate)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -272,7 +274,7 @@ fun PreviewDiscoverProfile() {
                 displayName = "amr",
                 username = "user1",
                 email = "amr@gmail.com",
-                joinDate = Date().time,
+                joinDate = Timestamp.now(),
             ),
             {},
             true,

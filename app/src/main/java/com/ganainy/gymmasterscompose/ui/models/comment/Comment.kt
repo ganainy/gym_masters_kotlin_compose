@@ -1,10 +1,12 @@
+import com.google.firebase.Timestamp
+
 // Comment data class with embedded user info
 data class Comment(
     val id: String = "",
     val postId: String = "",
     val userId: String = "",
     val content: String = "",
-    val timestamp: Long = System.currentTimeMillis(),
+    val timestamp: Timestamp = Timestamp.now(),
     val likesCount: Int = 0,
     /*val parentId: String? = null,    // For future reply support
     val replyCount: Int = 0,         // For future reply support*/
@@ -16,7 +18,9 @@ data class Comment(
 {
     companion object
     {
-     const val COMMENTS_COLLECTION = "comments"
+        const val TIMESTAMP_FIELD = "timestamp"
+        const val POST_ID_FIELD = "postId"
+        const val COMMENTS_COLLECTION = "comments"
         const val COMMENTS_LIKES_COUNT = "likesCount"
     }
 }

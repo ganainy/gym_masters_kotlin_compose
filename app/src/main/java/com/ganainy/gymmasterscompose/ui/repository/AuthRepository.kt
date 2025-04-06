@@ -7,14 +7,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.Date
 import javax.inject.Inject
 
 
@@ -33,19 +32,9 @@ interface IAuthRepository {
 
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val database: FirebaseDatabase,
+    private val firestore: FirebaseFirestore,
 ) : IAuthRepository {
 
-
-    /*  override suspend fun saveUserInfo(user: User): Result<Unit> {
-          return try {
-              val userRef = database.getReference(AppConstants.USERS).child(user.profile.id)
-              userRef.setValue(user).await()
-              Result.success(Unit)
-          } catch (e: Exception) {
-              Result.failure(e)
-          }
-      }*/
 
     override fun getCurrentUserId(): String {
         return auth.currentUser?.uid
@@ -68,35 +57,34 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    // Updated createUser function
     override suspend fun createUserProfile(
         email: String, displayName: String
     ): ResultWrapper<User> {
-
         return try {
-
+            // Create the User object
             val user = User(
                 username = generateRandomUsername(),
                 email = email,
                 displayName = displayName,
-                joinDate = Date().time,
+                joinDate = com.google.firebase.Timestamp.now(),
                 id = auth.currentUser?.uid ?: throw Exception("User ID not found"),
                 profilePictureUrl = null,
                 bio = null,
                 lastActive = null,
             )
 
-            // Save the User object to the database
-            val userRef = database.getReference(USERS_COLLECTION).child(user.id)
-            userRef.setValue(user).await()
+            // Get Firestore document reference
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(user.id)
+
+            // Save the User object to Firestore
+            userDocRef.set(user).await()
 
             // Return the success result with the User object
             ResultWrapper.Success(user)
         } catch (e: Exception) {
-            // Handle any exception that occurs while saving the user to the database
+            // Handle any exception that occurs while saving the user to Firestore
             ResultWrapper.Error(e)
         }
-
     }
 
 

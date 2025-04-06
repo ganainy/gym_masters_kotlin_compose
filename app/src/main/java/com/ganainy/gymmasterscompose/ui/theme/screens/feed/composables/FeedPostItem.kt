@@ -42,6 +42,8 @@ import com.ganainy.gymmasterscompose.ui.shared_components.HashtagText
 import com.ganainy.gymmasterscompose.ui.shared_components.PostInteractionRow
 import com.ganainy.gymmasterscompose.ui.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTimeFromFireStoreTimeStamp
+import com.google.firebase.Timestamp
 
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -71,7 +73,7 @@ fun FeedPostItem(
         UserInfoRow(
             feedPostWithLikesAndComments.post.postCreator.displayName,
             feedPostWithLikesAndComments.post.postCreator.profilePictureUrl,
-            formatRelativeTime(feedPostWithLikesAndComments.post.createdAt),
+            formatRelativeTimeFromFireStoreTimeStamp(feedPostWithLikesAndComments.post.createdAt),
             onProfileClick = onProfileClick
         )
 
@@ -265,7 +267,7 @@ fun PreviewFeedPostItem() {
                     displayName = "John Doe",
                     profilePictureUrl = "https://www.example.com/profile.jpg"
                 ),
-                createdAt = System.currentTimeMillis(),
+                createdAt = Timestamp.now(),
                 imageUrlList = listOf(
                     "https://www.example.com/image1.jpg",
                     "https://www.example.com/image2.jpg",
@@ -301,7 +303,7 @@ fun PreviewFeedPostItem2() {
                     displayName = "John Doe",
                     profilePictureUrl = "https://www.example.com/profile.jpg"
                 ),
-                createdAt = System.currentTimeMillis(),
+                createdAt = Timestamp.now(),
                 imageUrlList = listOf(
                     "https://www.example.com/image8.jpg",
                     "https://www.example.com/image9.jpg",

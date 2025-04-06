@@ -15,6 +15,7 @@ import com.ganainy.gymmasterscompose.ui.models.post.PostCreator
 import com.ganainy.gymmasterscompose.ui.models.post.PostMetrics
 import com.ganainy.gymmasterscompose.ui.screens.profile.EmptyStateActionType
 import com.ganainy.gymmasterscompose.ui.shared_components.PostListItem
+import com.google.firebase.Timestamp
 
 @Composable
 internal fun ProfilePostsListComponent(
@@ -61,7 +62,7 @@ internal fun PreviewProfilePostsListComponent() {
             content = "Sample post content 1",
             imagePathList = emptyList(),
             imageUrlList = emptyList(),
-            createdAt = System.currentTimeMillis(),
+            createdAt = Timestamp.now(),
             tags = listOf("Sample", "Post"),
             postMetrics = PostMetrics("1", likes = 10, comments = 5, shares = 2),
             postCreator = PostCreator("1", "John Doe", "https://example.com/profile.jpg")
@@ -71,7 +72,7 @@ internal fun PreviewProfilePostsListComponent() {
             content = "Sample post content 2",
             imagePathList = emptyList(),
             imageUrlList = emptyList(),
-            createdAt = System.currentTimeMillis(),
+            createdAt = Timestamp.now(),
             tags = listOf("Sample", "Post"),
             postMetrics = PostMetrics("2", likes = 20, comments = 10, shares = 5),
             postCreator = PostCreator("2", "Jane Smith", "https://example.com/profile2.jpg")

@@ -4,6 +4,7 @@ package com.ganainy.gymmasterscompose.ui.models.comment
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.google.firebase.Timestamp
 
 /**
  * Data class representing a local comment like.
@@ -26,7 +27,7 @@ data class CommentLikeEntity(
     @ColumnInfo(name = "post_id")
     val postId: String = "",
     @ColumnInfo(name = "timestamp")
-    val timestamp: Long = 0
+    val timestamp: Timestamp = Timestamp.now()
 ) {
     companion object {
         fun fromCommentLike(commentLike: CommentLike) = CommentLikeEntity(

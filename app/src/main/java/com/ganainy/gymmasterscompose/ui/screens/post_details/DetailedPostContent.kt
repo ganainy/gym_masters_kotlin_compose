@@ -53,6 +53,8 @@ import com.ganainy.gymmasterscompose.ui.shared_components.CenteredText
 import com.ganainy.gymmasterscompose.ui.shared_components.HashtagText
 import com.ganainy.gymmasterscompose.ui.shared_components.PostInteractionRow
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTimeFromFireStoreTimeStamp
+import com.google.firebase.Timestamp
 import java.util.UUID
 
 
@@ -121,7 +123,7 @@ fun PostDetailsSection(
             UserInfoRow(
                 feedPostWithLikesAndComments.post.postCreator.displayName,
                 feedPostWithLikesAndComments.post.postCreator.profilePictureUrl,
-                formatRelativeTime(feedPostWithLikesAndComments.post.createdAt),
+                formatRelativeTimeFromFireStoreTimeStamp(feedPostWithLikesAndComments.post.createdAt),
                 onProfileClick = onProfileClick
             )
 
@@ -279,7 +281,7 @@ fun DetailedPostItemWithCommentsPreview() {
                 content = "This is a comment $it",
                 userId = "user-$it",
                 postId = "post-1",
-                timestamp = System.currentTimeMillis(),
+                timestamp = Timestamp.now(),
                 userDisplayInfo = UserDisplayInfo(
                     displayName = "John Doe $it",
                     profileImageUrl = "https://www.example.com/profile.jpg"
@@ -301,7 +303,7 @@ fun DetailedPostItemWithCommentsPreview() {
                     displayName = "John Doe",
                     profilePictureUrl = "https://www.example.com/profile.jpg"
                 ),
-                createdAt = System.currentTimeMillis(),
+                createdAt = Timestamp.now(),
                 imageUrlList = emptyList(),
                 postMetrics = PostMetrics(
                     likes = 100,
@@ -334,7 +336,7 @@ fun DetailedPostContentPreview() {
                     displayName = "John Doe",
                     profilePictureUrl = "https://www.example.com/profile.jpg"
                 ),
-                createdAt = System.currentTimeMillis(),
+                createdAt = Timestamp.now(),
                 imageUrlList = emptyList(),
                 postMetrics = PostMetrics(
                     likes = 100,

@@ -66,5 +66,26 @@ class Converters {
         }
     }
 
+    /**
+         * Converts a Firestore Timestamp to a Long.
+         *
+         * @param value The Firestore Timestamp to be converted.
+         * @return The Long representation of the Timestamp.
+         */
+        @TypeConverter
+        fun fromTimestamp(value: com.google.firebase.Timestamp?): Long? {
+            return value?.seconds
+        }
+
+        /**
+         * Converts a Long to a Firestore Timestamp.
+         *
+         * @param value The Long to be converted.
+         * @return The Firestore Timestamp representation of the Long.
+         */
+        @TypeConverter
+        fun toTimestamp(value: Long?): com.google.firebase.Timestamp? {
+            return value?.let { com.google.firebase.Timestamp(it, 0) }
+        }
 
 }

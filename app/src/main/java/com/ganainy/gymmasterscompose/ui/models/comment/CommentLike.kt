@@ -1,5 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.models.comment
 
+import com.google.firebase.Timestamp
+
 
 /**
  * Data class representing a comment like.
@@ -15,7 +17,7 @@ data class CommentLike(
     val userId: String = "",
     val commentId: String = "",
     val postId: String = "",
-    val timestamp: Long = 0
+    val timestamp: Timestamp = Timestamp.now()
 ) {
     fun toEntity(): CommentLikeEntity {
         return CommentLikeEntity.fromCommentLike(this)
@@ -25,6 +27,7 @@ data class CommentLike(
         fun createId(userId: String, commentId: String, postId: String) =
             "${userId}_${commentId}_${postId}"
 
+        const val COMMENT_ID_FIELD = "commentId" // Collection name for comment likes
         const val COMMENT_LIKES_COLLECTION = "comment_likes" // Collection name for comment likes
     }
 }

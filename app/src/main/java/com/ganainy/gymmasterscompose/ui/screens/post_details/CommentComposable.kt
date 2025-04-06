@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ganainy.gymmasterscompose.ui.shared_components.ProfileImageSmall
 import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTime
+import com.ganainy.gymmasterscompose.utils.Utils.formatRelativeTimeFromFireStoreTimeStamp
+import com.google.firebase.Timestamp
 
 @Composable
 fun CommentComposable(
@@ -83,7 +85,7 @@ fun CommentComposable(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = formatRelativeTime(commentWithLikeStatus.comment.timestamp),
+                        text = formatRelativeTimeFromFireStoreTimeStamp(commentWithLikeStatus.comment.timestamp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -125,7 +127,7 @@ fun CommentComposablePreview() {
                 displayName = "John Doe",
                 profileImageUrl = null
             ),
-            timestamp = System.currentTimeMillis() - 3600000,
+            timestamp = Timestamp(Timestamp.now().seconds - 3600, 0),
             likesCount = 42
         ),
         isLiked = true
@@ -147,7 +149,7 @@ fun PreviewCommentComposable() {
                 content = "short comment with no likes",
                 userId = "user-1",
                 postId = "post-1",
-                timestamp = System.currentTimeMillis(),
+                timestamp = Timestamp.now(),
                 userDisplayInfo = UserDisplayInfo(
                     displayName = "John Doe",
                     profileImageUrl = "https://www.example.com/profile.jpg"

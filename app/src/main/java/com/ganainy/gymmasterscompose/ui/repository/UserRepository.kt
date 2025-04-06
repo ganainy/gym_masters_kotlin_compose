@@ -19,8 +19,12 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +32,8 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.core.net.toUri
+import com.google.firebase.firestore.FieldValue
 
 
 // User profile and relationship management
@@ -46,7 +52,7 @@ interface IUserRepository {
 
 class UserRepository @Inject constructor(
     private val auth: FirebaseAuth,
-    private val database: FirebaseDatabase,
+    private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
 ) : IUserRepository {
 
@@ -65,34 +71,42 @@ class UserRepository @Inject constructor(
 
     /**
      * Retrieves the current user's ID.
-     *
-     * @return The unique identifier of the current user.
-     * @throws Exception if the user is not authenticated.
      */
     override fun getCurrentUserId(): String =
         _currentUser.value?.uid ?: throw Exception("User auth not found")
 
-    /**
-     * Retrieves the details of a user from the database based on the provided user ID.
-     *
-     * @param userId The ID of the user whose details are to be retrieved, if null, the currently authenticated user's details are retrieved.
-     * @return A Result containing the User object if successful, or an exception if an error occurs.
-     */
+    // --- getUser (One-time read) ---
     override suspend fun getUser(userId: String?): ResultWrapper<User> {
-        val userId = userId ?: getCurrentUserId()
-        return withContext(Dispatchers.IO) {
+        // Determine the effective user ID
+        val effectiveUserId = userId ?: try {
+            getCurrentUserId()
+        } catch (e: AuthRepository.UserNotAuthenticatedException) {
+            return ResultWrapper.Error(e) // Return error if not logged in and no ID provided
+        }
+
+        return withContext(Dispatchers.IO) { // Keep IO dispatcher for network/DB access
             try {
-                // Reference to the user in the database
-                val userRef = database.getReference(USERS_COLLECTION).child(userId)
-                // Retrieve the user data snapshot
-                val snapshot = userRef.get().await()
+                // Reference to the user document in Firestore
+                val userDocRef = firestore.collection(USERS_COLLECTION).document(effectiveUserId)
+
+                // Retrieve the user document snapshot
+                val snapshot = userDocRef.get().await()
+
                 // Get the user details from the snapshot
-                val userDetails = snapshot.getValue(User::class.java)
-                // Return success result with user details or throw an exception if not found
-                ResultWrapper.Success(userDetails ?: throw Exception("User details not found"))
+                if (snapshot.exists()) {
+                    val userDetails = snapshot.toObject(User::class.java)
+                    if (userDetails != null) {
+                        ResultWrapper.Success(userDetails)
+                    } else {
+                        Log.e("UserRepository", "Failed to convert Firestore document ${snapshot.id} to User object.")
+                        ResultWrapper.Error(Exception("Failed to parse user details for ID: $effectiveUserId"))
+                    }
+                } else {
+                    ResultWrapper.Error(Exception("User details not found for ID: $effectiveUserId"))
+                }
             } catch (e: Exception) {
-                // Return failure result with the exception
-                ResultWrapper.Error(e)
+                Log.e("UserRepository", "Error fetching user $effectiveUserId", e)
+                ResultWrapper.Error(e) // Return failure result with the exception
             }
         }
     }
@@ -109,141 +123,165 @@ class UserRepository @Inject constructor(
         }
     }
 
-    /**
-     * Retrieves a user from the database based on the provided user ID.
-     * If the user ID is null, it retrieves the currently authenticated user.
-     *
-     * @param userId The ID of the user to retrieve. If null, retrieves the currently authenticated user.
-     * @return A Flow emitting ResultWrapper containing the User object or an error.
-     */
+    // --- getUserFlow (Real-time updates) ---
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun getUserFlow(userId: String?): Flow<ResultWrapper<User>> = callbackFlow {
-        val currentUserId = getCurrentUserId()
-        // Determine the reference to the user in the database
-        val userRef = database.getReference(USERS_COLLECTION).child(userId ?: currentUserId)
+        val effectiveUserId = userId ?: try {
+            getCurrentUserId()
+        } catch (e: AuthRepository.UserNotAuthenticatedException) {
+            trySend(ResultWrapper.Error(e))
+            close(e) // Close flow on error
+            return@callbackFlow
+        }
 
-        // Listener to handle data changes and errors
-        val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                // Attempt to retrieve the user object from the snapshot
-                val user = runCatching {
-                    snapshot.getValue(User::class.java)
-                }.getOrNull()
-                if (user != null) {
-                    trySend(ResultWrapper.Success(user))
+        // Reference to the user document
+        val userDocRef = firestore.collection(USERS_COLLECTION).document(effectiveUserId)
+        var listenerRegistration: ListenerRegistration? = null
+
+        try {
+            // Listener to handle document changes and errors
+            listenerRegistration = userDocRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ResultWrapper.Error(error))
+                    Log.e("UserRepository", "Error listening to user $effectiveUserId", error)
+                    // Consider closing the flow here depending on error type: close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    val user = try { snapshot.toObject(User::class.java) } catch (e: Exception) { null }
+                    if (user != null) {
+                        trySend(ResultWrapper.Success(user))
+                    } else {
+                        Log.e("UserRepository", "Failed converting user snapshot ${snapshot.id}")
+                        trySend(ResultWrapper.Error(CustomException(R.string.error_parsing_user_data)))
+                    }
                 } else {
+                    // Document doesn't exist or snapshot is null
                     trySend(ResultWrapper.Error(CustomException(R.string.user_not_found)))
                 }
             }
-
-            override fun onCancelled(error: DatabaseError) {
-                trySend(ResultWrapper.Error(error.toException()))
-            }
+        } catch (e: Exception) {
+            // Catch exceptions during listener setup
+            trySend(ResultWrapper.Error(e))
+            close(e)
         }
 
-        // Add the listener to the user reference
-        userRef.addValueEventListener(listener)
         // Remove the listener when the flow is closed
-        awaitClose { userRef.removeEventListener(listener) }
+        awaitClose {
+            Log.d("UserRepository", "Removing listener for user $effectiveUserId")
+            listenerRegistration?.remove()
+        }
     }
 
-    override suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>> =
-        callbackFlow {
+    // --- getUserPosts (Real-time updates) ---
+    override suspend fun getUserPosts(userId: String): Flow<ResultWrapper<List<FeedPost>>> = callbackFlow {
+        val postsCollection = firestore.collection(POSTS_COLLECTION)
+        var listenerRegistration: ListenerRegistration? = null
 
+        try {
+            // Query posts where the nested creator ID matches
+            val query = postsCollection.whereEqualTo("$POST_CREATOR.id", userId)
+                // Add ordering by creation date
+                .orderBy(FeedPost.CREATED_AT, Query.Direction.DESCENDING)
 
-            val postsRef = database.getReference(POSTS_COLLECTION)
-                .orderByChild("$POST_CREATOR/$ID")
-                .equalTo(userId)
+            listenerRegistration = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ResultWrapper.Error(error))
+                    Log.e("UserRepository", "Error listening to posts for user $userId", error)
+                    return@addSnapshotListener
+                }
 
-
-            val listener = object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val posts = snapshot.children.mapNotNull { postSnapshot ->
-                        postSnapshot.getValue(FeedPost::class.java)
+                if (snapshot != null) {
+                    val posts = snapshot.documents.mapNotNull { doc ->
+                        try { doc.toObject(FeedPost::class.java) } catch (e: Exception) {
+                            Log.e("UserRepository", "Failed converting post snapshot ${doc.id}", e)
+                            null
+                        }
                     }
                     trySend(ResultWrapper.Success(posts))
-                }
-
-                override fun onCancelled(error: DatabaseError) {
-                    trySend(ResultWrapper.Error(error.toException()))
+                } else {
+                    // Snapshot is null, might indicate an issue or simply no data
+                    trySend(ResultWrapper.Success(emptyList()))
                 }
             }
-
-            postsRef.addValueEventListener(listener)
-            awaitClose { postsRef.removeEventListener(listener) }
+        } catch (e: Exception) {
+            trySend(ResultWrapper.Error(e))
+            close(e)
         }
+
+        awaitClose {
+            Log.d("UserRepository", "Removing listener for posts of user $userId")
+            listenerRegistration?.remove()
+        }
+    }
 
 
     override suspend fun updateUser(updates: Map<String, Any>): ResultWrapper<Unit> {
-        val usersCollection = database.getReference(USERS_COLLECTION)
-        return auth.currentUser?.uid?.let { uid ->
-            try {
-                usersCollection.child(uid).updateChildren(updates).await()
-                ResultWrapper.Success(Unit)
-            } catch (e: Exception) {
-                ResultWrapper.Error(e)
-            }
+        val uid = try { getCurrentUserId() } catch (e: Exception) {
+            return ResultWrapper.Error(AuthRepository.UserNotAuthenticatedException("User is not authenticated"))
         }
-            ?: ResultWrapper.Error(AuthRepository.UserNotAuthenticatedException("User is not authenticated"))
-    }
-
-    /**
-     * Updates the user's profile image by uploading a new image to Firebase Storage and updating the user's profile image URL in the database.
-     *
-     * @param imagePath The local file path of the new profile image.
-     * @return A ResultWrapper containing the download URL of the uploaded image if successful, or an error if the operation fails.
-     */
-
-    override suspend fun updateUserProfileImage(imagePath: String): ResultWrapper<String> {
-        val userImageStorageRef = storage.reference
-            .child(USER_IMAGES).child(imagePath.substringAfterLast("/"))
 
         return try {
-            // First upload the file and get the URL
-            userImageStorageRef.putFile(Uri.parse(imagePath)).await()
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+            userDocRef.update(updates).await()
+            ResultWrapper.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error updating user $uid", e)
+            ResultWrapper.Error(e)
+        }
+    }
+
+    override suspend fun updateUserProfileImage(imagePath: String): ResultWrapper<String> {
+        val uid = try { getCurrentUserId() } catch (e: Exception) {
+            return ResultWrapper.Error(AuthRepository.UserNotAuthenticatedException("User is not authenticated"))
+        }
+
+        // Path in Firebase Storage (no change needed here)
+        val userImageStorageRef = storage.reference
+            .child(USER_IMAGES).child(uid + "_" + imagePath.substringAfterLast("/")) // Include UID for uniqueness
+
+        return try {
+            // Upload file to Storage (no change needed here)
+            userImageStorageRef.putFile(imagePath.toUri()).await()
             val downloadUrl = userImageStorageRef.downloadUrl.await().toString()
 
             try {
-                // Try to update the database
-                val userImageDatabaseRef = database
-                    .getReference(USERS_COLLECTION)
-                    .child(getCurrentUserId())
-                    .child(PROFILE_PICTURE_URL)
-
-                userImageDatabaseRef.setValue(downloadUrl).await()
+                // --- Update Firestore ---
+                val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+                // Update only the profilePictureUrl field
+                userDocRef.update(PROFILE_PICTURE_URL, downloadUrl).await()
                 ResultWrapper.Success(downloadUrl)
             } catch (dbError: Exception) {
-                // If database update fails, delete the uploaded file
+                // If Firestore update fails, delete the uploaded file from Storage
                 try {
+                    Log.w("UserRepository", "Firestore update failed for profile pic, attempting to delete Storage file.")
                     userImageStorageRef.delete().await()
                 } catch (deleteError: Exception) {
-                    // Log the delete error but throw the original database error
-                    Log.e("ProfileUpdate", "Failed to delete image after db error", deleteError)
+                    Log.e("UserRepository", "Failed to delete profile pic from Storage after DB error", deleteError)
                 }
-                throw dbError // Re-throw the database error to be caught by outer catch
+                throw dbError // Re-throw the database error
             }
         } catch (e: Exception) {
+            // Catch exceptions from Storage upload OR the re-thrown DB error
+            Log.e("UserRepository", "Error updating profile image for user $uid", e)
             ResultWrapper.Error(e)
         }
     }
 
 
-    /**
-     * Retrieves the display information of the current user.
-     *
-     * @return A UserDisplayInfo object containing the display name and profile image URL of the current user.
-     *         If the current user is null, returns a UserDisplayInfo object with default values.
-     */
     override fun getUserDisplayInfo(): UserDisplayInfo {
         val currentUser = _currentUser.value
         return if (currentUser != null) {
             UserDisplayInfo(
                 displayName = currentUser.displayName ?: "Unknown",
-                profileImageUrl = currentUser.photoUrl.toString()
+                profileImageUrl = currentUser.photoUrl?.toString() ?: ""
             )
         } else {
             UserDisplayInfo()
         }
     }
+
 
 
     /*todo
@@ -254,11 +292,15 @@ class UserRepository @Inject constructor(
             delay(5 * 60 * 1000) // Update every 5 minutes
         }
     }*/
-    suspend fun updateUserLastActive() {
-        auth.currentUser?.uid?.let { uid ->
-            val userRef = database.getReference(USERS_COLLECTION).child(uid)
+     suspend fun updateUserLastActive() {
+        val uid = try { getCurrentUserId() } catch (e: Exception) { return } // Fail silently if not logged in
 
-            userRef.child("lastActive").setValue(System.currentTimeMillis()).await()
+        try {
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+            // Use Firestore server timestamp for accuracy and consistency
+            userDocRef.update(User.LAST_ACTIVE, FieldValue.serverTimestamp()).await()
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Failed to update last active time for user $uid", e)
         }
     }
 

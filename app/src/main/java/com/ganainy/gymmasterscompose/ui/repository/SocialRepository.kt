@@ -1,18 +1,25 @@
 package com.ganainy.gymmasterscompose.ui.repository
 
+import android.util.Log
 import com.ganainy.gymmasterscompose.ui.models.Follow
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWED_ID
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWER_ID
 import com.ganainy.gymmasterscompose.ui.models.Follow.Companion.FOLLOWS_COLLECTION
+import com.ganainy.gymmasterscompose.ui.models.User
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.FOLLOWERS_COUNT
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.FOLLOWING_COUNT
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.USERS_COLLECTION
 import com.ganainy.gymmasterscompose.ui.models.User.Companion.USER_STATS
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -25,6 +32,7 @@ import javax.inject.Inject
 
 // Social interactions (following/followers)
 interface ISocialRepository {
+
     fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>>
     fun isFollowing(userIdToCheck: String): Flow<ResultWrapper<Boolean>> // Check if the current user is following the target user, returns Boolean
     suspend fun updateFollowState(userId: String): ResultWrapper<Unit>
@@ -32,155 +40,207 @@ interface ISocialRepository {
 }
 
 class SocialRepository @Inject constructor(
-    private val userRepository: IUserRepository,
-    private val database: FirebaseDatabase,
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
 ) : ISocialRepository {
 
-    private val currentUserUid = userRepository.getCurrentUserId()
 
+    override fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>> = callbackFlow {
+        // Use the passed userId or the current user if null
+        val targetUserId = userId ?: getCurrentUserIdSafe()
 
-    override fun getUserFollowers(userId: String?): Flow<ResultWrapper<List<String>>> = flow {
-        emit(ResultWrapper.Loading())
+        if (targetUserId == null) {
+            trySend(ResultWrapper.Error(Exception("Target User ID not available")))
+            close()
+            return@callbackFlow
+        }
+
+        val followsCollection = firestore.collection(FOLLOWS_COLLECTION)
+        var listenerRegistration: ListenerRegistration? = null
 
         try {
-            if (userId == null) {
-                emit(ResultWrapper.Success(emptyList()))
-                return@flow
+            // Query where the followedId matches the targetUserId
+            val query = followsCollection.whereEqualTo(FOLLOWED_ID, targetUserId)
+
+            listenerRegistration = query.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(ResultWrapper.Error(error))
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    val followerIds = snapshot.documents.mapNotNull { document ->
+                        try {
+                            document.toObject(Follow::class.java)?.followerId // Extract followerId
+                        } catch (e: Exception) {
+                            Log.e("SocialRepo", "Error parsing Follow document: ${document.id}", e)
+                            null
+                        }
+                    }
+                    trySend(ResultWrapper.Success(followerIds))
+                } else {
+                    trySend(ResultWrapper.Success(emptyList())) // Or an error
+                }
             }
-
-            // Query follows collection where followedId matches the userId
-            val followersSnapshot = database.getReference(FOLLOWS_COLLECTION)
-                .orderByChild(FOLLOWED_ID)
-                .equalTo(userId)
-                .get()
-                .await()
-
-            // Extract followerIds from the snapshot
-            val followerIds = followersSnapshot.children.mapNotNull { snapshot ->
-                snapshot.getValue(Follow::class.java)?.followerId
-            }
-
-            emit(ResultWrapper.Success(followerIds))
-
         } catch (e: Exception) {
-            emit(ResultWrapper.Error(e))
+            trySend(ResultWrapper.Error(e))
+            close(e)
         }
+
+        awaitClose { listenerRegistration?.remove() }
     }
 
 
     override suspend fun getFollowedUsers(userId: String): ResultWrapper<List<String>> {
+        // Validate userId
+        if (userId.isBlank()) {
+            return ResultWrapper.Error(Exception("User ID cannot be blank"))
+        }
         return try {
-            // Validate userId
-            if (userId.isBlank()) {
-                return ResultWrapper.Error(Exception("User ID cannot be blank"))
-            }
+            val followsCollection = firestore.collection(FOLLOWS_COLLECTION)
 
-            // Reference to the follows collection, filtered by followerId (current user)
-            val followsRef = database.getReference(FOLLOWS_COLLECTION)
-                .orderByChild(FOLLOWER_ID)
-                .equalTo(userId)
+            // Query where the followerId matches the input userId
+            val query = followsCollection.whereEqualTo(FOLLOWER_ID, userId)
 
             // Perform one-time read
-            val snapshot = followsRef.get().await()
+            val snapshot = query.get().await()
 
             // Parse followed user IDs from the snapshot
-            val followedIds = snapshot.children.mapNotNull { it.getValue(Follow::class.java)?.followedId }
+            val followedIds = snapshot.documents.mapNotNull { document ->
+                try {
+                    document.toObject(Follow::class.java)?.followedId // Extract followedId
+                } catch (e: Exception) {
+                    Log.e("SocialRepo", "Error parsing Follow document: ${document.id}", e)
+                    null
+                }
+            }
 
             ResultWrapper.Success(followedIds)
         } catch (e: Exception) {
+            Log.e("SocialRepo", "Error fetching followed users for $userId", e)
             ResultWrapper.Error(e)
         }
     }
 
+    private fun getCurrentUserIdSafe(): String? {
+        return auth.currentUser?.uid
+    }
 
-    /**
-     * Checks if the current user is following the specified user.
-     *
-     * @param userIdToCheck The ID of the user to check if they are being followed by the current user.
-     * @return A Flow emitting a ResultWrapper containing a Boolean indicating whether the current user is following the specified user or an error.
-     */
     override fun isFollowing(userIdToCheck: String): Flow<ResultWrapper<Boolean>> = flow {
+        // Emit loading state initially
         emit(ResultWrapper.Loading())
 
+        val currentUserUid = getCurrentUserIdSafe()
+            ?: throw AuthRepository.UserNotAuthenticatedException("User not logged in")
+
         if (userIdToCheck == currentUserUid) {
-            emit(ResultWrapper.Success(false))
-            return@flow
+            emit(ResultWrapper.Success(false)) // Cannot follow self, emit success(false)
+            return@flow // Complete the flow successfully
         }
 
-        val isFollowing = database.getReference(
-            "${FOLLOWS_COLLECTION}/${
-                Follow.createId(
-                    followerId = currentUserUid,
-                    followedId = userIdToCheck
-                )
-            }"
+        // Perform the Firestore operation directly
+        val followId = Follow.createId(
+            followerId = currentUserUid,
+            followedId = userIdToCheck
         )
+        val documentSnapshot = firestore.collection(FOLLOWS_COLLECTION)
+            .document(followId)
             .get()
             .await()
-            .exists()
 
-        emit(ResultWrapper.Success(isFollowing))
-    }.catch { e ->
-        // Preserve the original exception
-        emit(ResultWrapper.Error(e as? Exception ?: Exception(e.message)))
+        // Emit success if Firestore operation succeeds
+        emit(ResultWrapper.Success(documentSnapshot.exists()))
+
+    }.catch { e -> // Catch exceptions from the upstream flow block
+        // Emit an error state when an exception occurs
+        Log.e("SocialRepo", "Error in isFollowing flow for $userIdToCheck", e)
+        // Ensure the emitted error is a ResultWrapper.Error
+        emit(ResultWrapper.Error(e as? Exception ?: Exception(e)))
     }
 
-    /**
-     * Updates the follow state of a user.
-     *
-     * This function checks if the current user is already following the specified user.
-     * If the user is currently being followed, it removes the follow relationship and decrements the follower and following counts.
-     * If the user is not currently being followed, it creates a new follow relationship and increments the follower and following counts.
-     *
-     * @param userId The ID of the user to follow or unfollow.
-     * @return A ResultWrapper containing Unit on success or an error on failure.
-     */
-    override suspend fun updateFollowState(userId: String): ResultWrapper<Unit> {
-        return try {
-            val followId = Follow.createId(currentUserUid, userId)
 
-            // Wait for a non-loading state from isFollowing() flow
-            when (val followingResult = isFollowing(userIdToCheck = userId)
-                .filterNot { it is ResultWrapper.Loading }
-                .first())
-            {
-                is ResultWrapper.Error -> followingResult
+
+    override suspend fun updateFollowState(userIdToFollowOrUnfollow: String): ResultWrapper<Unit> {
+        val currentUserUid = getCurrentUserIdSafe()
+            ?: return ResultWrapper.Error(AuthRepository.UserNotAuthenticatedException("User is not authenticated"))
+
+        if (currentUserUid == userIdToFollowOrUnfollow) {
+            return ResultWrapper.Error(Exception("Cannot follow/unfollow self"))
+        }
+
+        try {
+            // 1. Check the current follow state first
+            val followingResult = isFollowing(userIdToCheck = userIdToFollowOrUnfollow)
+                .filterNot { it is ResultWrapper.Loading } // Wait for non-loading state
+                .first() // Get the first non-loading result
+
+            return when (followingResult) {
+                is ResultWrapper.Error -> {
+                    // Propagate the error from isFollowing check
+                    Log.e("SocialRepo", "Error checking follow state: ${followingResult.exception}")
+                    ResultWrapper.Error(followingResult.exception)
+                }
                 is ResultWrapper.Success -> {
-                    val updates = if (followingResult.data) {
-                        // If already following, remove follow and decrement counts
-                        hashMapOf(
-                            "${FOLLOWS_COLLECTION}/${followId}" to null,
-                            "$USERS_COLLECTION/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(-1),
-                            "$USERS_COLLECTION/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(-1)
-                        )
+                    val currentlyFollowing = followingResult.data
+                    val followId = Follow.createId(currentUserUid, userIdToFollowOrUnfollow)
+
+                    // 2. Create and execute an atomic WriteBatch
+                    val batch = firestore.batch()
+
+                    // References to user documents for stats updates
+                    val targetUserDocRef = firestore.collection(USERS_COLLECTION).document(userIdToFollowOrUnfollow)
+                    val currentUserDocRef = firestore.collection(USERS_COLLECTION).document(currentUserUid)
+
+                    // References to follow document
+                    val followDocRef = firestore.collection(FOLLOWS_COLLECTION).document(followId)
+
+                    // Paths to nested stats fields
+                    val targetUserFollowersPath = "$USER_STATS.$FOLLOWERS_COUNT"
+                    val currentUserFollowingPath = "$USER_STATS.$FOLLOWING_COUNT"
+
+                    if (currentlyFollowing) {
+                        // --- Unfollow Logic ---
+                        // Delete the follow document
+                        batch.delete(followDocRef)
+                        // Decrement target user's followers count
+                        batch.update(targetUserDocRef, targetUserFollowersPath, FieldValue.increment(-1))
+                        // Decrement current user's following count
+                        batch.update(currentUserDocRef, currentUserFollowingPath, FieldValue.increment(-1))
+                        Log.d("SocialRepo", "Batch prepared for UNFOLLOW")
+
                     } else {
-                        // If not following, add follow and increment counts
-                        hashMapOf(
-                            "${FOLLOWS_COLLECTION}/${followId}" to Follow(
-                                id = followId,
-                                followerId = currentUserUid,
-                                followedId = userId,
-                                timestamp = System.currentTimeMillis()
-                            ),
-                            "$USERS_COLLECTION/$userId/$USER_STATS/$FOLLOWERS_COUNT" to ServerValue.increment(1),
-                            "$USERS_COLLECTION/$currentUserUid/$USER_STATS/$FOLLOWING_COUNT" to ServerValue.increment(1)
+                        // --- Follow Logic ---
+                        // Create the Follow object
+                        val followObject = Follow(
+                            id = followId,
+                            followerId = currentUserUid,
+                            followedId = userIdToFollowOrUnfollow,
+                            timestamp =  Timestamp.now()
                         )
+                        // Create the follow document
+                        batch.set(followDocRef, followObject)
+                        // Increment target user's followers count
+                        batch.update(targetUserDocRef, targetUserFollowersPath, FieldValue.increment(1))
+                        // Increment current user's following count
+                        batch.update(currentUserDocRef, currentUserFollowingPath, FieldValue.increment(1))
+                        Log.d("SocialRepo", "Batch prepared for FOLLOW")
                     }
 
-                    // Perform the database update
-                    database.reference.updateChildren(updates).await()
-
+                    // 3. Commit the batch
+                    batch.commit().await()
+                    Log.d("SocialRepo", "Batch committed successfully")
                     ResultWrapper.Success(Unit)
                 }
-                is ResultWrapper.Loading -> ResultWrapper.Error(Exception("Unexpected loading state"))
+                is ResultWrapper.Loading -> {
+                    // Should not happen due to filterNot/first, but handle defensively
+                    ResultWrapper.Error(Exception("Unexpected loading state"))
+                }
             }
         } catch (e: Exception) {
-            ResultWrapper.Error(e)
+            Log.e("SocialRepo", "Error updating follow state: ${e.message}", e)
+            return ResultWrapper.Error(e)
         }
     }
-
-
-
 
 }
 

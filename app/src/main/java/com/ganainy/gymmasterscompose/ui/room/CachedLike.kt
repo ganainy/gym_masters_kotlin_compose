@@ -2,6 +2,7 @@ package com.ganainy.gymmasterscompose.ui.room
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.google.firebase.Timestamp
 
 /**
  * Database entities for caching different types of likes
@@ -14,7 +15,7 @@ data class CachedLike(
     val targetId: String, // postId, workoutId, or commentId
     val postId: String?, // Only used for comment likes
     val likeType: LikeType,
-    val timestamp: Long,
+    val timestamp: Timestamp = Timestamp.now(),
     val isPending: Boolean = false,
     val isLiked: Boolean = true
 )

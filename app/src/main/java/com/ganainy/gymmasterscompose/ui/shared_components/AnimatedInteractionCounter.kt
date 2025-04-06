@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ganainy.gymmasterscompose.R
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -86,7 +87,7 @@ fun AnimatedInteractionCounter(
     }
 
     val debouncedOnClick = {
-        val currentTime = System.currentTimeMillis()
+        val currentTime = Timestamp.now().seconds * 1000 // Convert to milliseconds
         if (currentTime - lastClickTime >= debounceTime) {
             lastClickTime = currentTime
             onClick()

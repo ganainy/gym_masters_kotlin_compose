@@ -17,6 +17,7 @@ import com.ganainy.gymmasterscompose.ui.models.workout.WorkoutMetrics
 import com.ganainy.gymmasterscompose.ui.screens.post_details.CommentWithLikeStatus
 import com.ganainy.gymmasterscompose.ui.screens.post_details.FeedPostWithLikesAndComments
 import com.ganainy.gymmasterscompose.ui.screens.workout_list.WorkoutWithStatus
+import com.google.firebase.Timestamp
 
 //sample data to be used in preview functions and testing
 object MockData {
@@ -152,7 +153,7 @@ object MockData {
         description = "This is a sample workout",
         difficulty = "Intermediate",
         workoutDuration = "45",
-        dateCreated = 1643723400,
+dateCreated = Timestamp(Timestamp.now().seconds - (60L * 60 * 24 * 7), 0), // 1 week ago
         imageUrl = "https://example.com/workout_image.jpg",
         imagePath = "",
         tags = listOf("strength", "cardio"),
@@ -171,10 +172,10 @@ object MockData {
         displayName = "John Doe",
         username = "johndoe",
         email = "BZG9a@example.com",
-        joinDate = 1643723400,
+        joinDate = Timestamp.now(),
         profilePictureUrl = "https://example.com/profile_picture.jpg",
         bio = "I'm a fitness enthusiast",
-        lastActive = 1643723400,
+        lastActive = Timestamp.now(),
         stats = UserStats(
             postCount = 100,
             workoutCount = 200,
@@ -188,10 +189,10 @@ object MockData {
         displayName = "Jane Doe",
         username = "janedoe",
         email = "janedoe@example.com",
-        joinDate = 1643723400,
+        joinDate = Timestamp.now(),
         profilePictureUrl = "https://pbs.twimg.com/profile_images/1240119990411550720/hBEe3tdn_bigger.jpg",
         bio = "I'm a fitness enthusiast and a software engineer",
-        lastActive = 1643723400,
+        lastActive = Timestamp.now(),
         stats = UserStats(
             postCount = 50,
             workoutCount = 100,
@@ -205,10 +206,10 @@ object MockData {
         displayName = "John Smith",
         username = "johnsmith",
         email = "johnsmith@example.com",
-        joinDate = 1643723400,
+        joinDate = Timestamp.now(),
         profilePictureUrl = "https://pbs.twimg.com/profile_images/1240119990411550720/hBEe3tdn_bigger.jpg",
         bio = "I'm a fitness enthusiast and a personal trainer",
-        lastActive = 1643723400,
+        lastActive = Timestamp.now(),
         stats = UserStats(
             postCount = 150,
             workoutCount = 250,
@@ -228,7 +229,7 @@ object MockData {
             displayName = "Alice Smith",
             profilePictureUrl = "https://randomuser.me/api/portraits/women/1.jpg",
         ),
-        createdAt = System.currentTimeMillis(),
+        createdAt = Timestamp.now(),
         tags = listOf("workout", "motivation"),
         postMetrics = PostMetrics(likes = 20, comments = 3)
     )
@@ -241,7 +242,7 @@ object MockData {
             displayName = "Bob Johnson",
             profilePictureUrl = "https://randomuser.me/api/portraits/men/2.jpg",
         ),
-        createdAt = System.currentTimeMillis(),
+        createdAt = Timestamp.now(),
         tags = listOf("nutrition", "health"),
         postMetrics = PostMetrics(likes = 15, comments = 4),
         imageUrlList = listOf(
@@ -259,7 +260,7 @@ object MockData {
             displayName = "Charlie Brown",
             profilePictureUrl = "https://randomuser.me/api/portraits/men/3.jpg",
         ),
-        createdAt = System.currentTimeMillis(),
+        createdAt = Timestamp.now(),
         tags = listOf("running", "morning"),
         postMetrics = PostMetrics(likes = 30, comments = 8),
         imageUrlList = listOf("https://example.com/image1.jpg", "https://example.com/image2.jpg")

@@ -1,5 +1,7 @@
 package com.ganainy.gymmasterscompose.ui.models
 
+import com.google.firebase.Timestamp
+
 /**
  * Data class representing a Follow relationship between users.
  *
@@ -12,7 +14,7 @@ data class Follow(
     val id: String = "", // Will be "$followerId_$followedId"
     val followerId: String = "",
     val followedId: String = "",
-    val timestamp: Long = 0
+    val timestamp: Timestamp = Timestamp.now()
 ){
     companion object {
         fun createId(followerId: String, followedId: String) = "${followerId}_${followedId}"
