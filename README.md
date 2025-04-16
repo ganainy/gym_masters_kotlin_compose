@@ -63,3 +63,8 @@ This section highlights some of the core features of the Gym Masters app.
 - View workout feed.
 
   <img src="peview/screenshots/feed.png" width="250"/>
+
+### 9. Interact with Posts
+- Like and comment on posts.
+
+  <img src="peview/screenshots/like_and_comment.png" width="250"/>
