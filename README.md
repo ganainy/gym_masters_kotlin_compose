@@ -13,8 +13,11 @@ The application manages various data types including user profiles, posts, comme
     *   Handling optimistic UI updates and synchronization for actions like Likes (`CachedLike` table).
 5.  **External API (ExerciseDB):** Used by `ExerciseRepository` to fetch the initial, comprehensive list of exercises during first app launch.
 
-> **Note:** On instruction on how to setup the Firebase project, please refer to the [Firebase Project Setup](PROJECT_SETUP.md).
+> **Note:** On instruction on how to setup the Firebase project, please refer to the [Firebase Project Setup](PROJECT_SETUP.md).  
+
 > **Note:** To get a better understanding of how app and database is structured, please refer to [App Structure](APP_STRUCTURE.md).
+
+
 
 ## App Feature Showcase
 
@@ -23,42 +26,40 @@ This section highlights some of the core features of the Gym Masters app.
 ### 1. User Authentication
 - Sign In to access your account.
 
-  ![Sign In](peview/screenshots/sign_in.png)
+  ![Sign In](peview/screenshots/sign_in.png){width="300"}
 
 ### 2. Discover New Users
 - Explore new users in the community.
 
-  ![Discover New Users](peview/screenshots/discover.png)
+  ![Discover New Users](peview/screenshots/discover.png){width="300"}
 
 ### 3. Browse Exercises
 - Browse the catalog of exercises.
 
-  ![Browse Exercises](peview/screenshots/exercise_list.png)
+  ![Browse Exercises](peview/screenshots/exercise_list.png){width="300"}
 
 ### 4. Workout Details
 - View detailed information about workouts
 
-  ![Workout Details 1](peview/screenshots/workout_details_1.png)
-  ![Workout Details 2](peview/screenshots/workout_details_2.png)
+  ![Workout Details 1](peview/screenshots/workout_details_1.png){width="300"}
+  ![Workout Details 2](peview/screenshots/workout_details_2.png){width="300"}
 
 ### 5. Exercise Details
 - Explore detailed information about exercises.
 
-  ![Exercise Details](peview/screenshots/exercise.png)
+  ![Exercise Details](peview/screenshots/exercise.png){width="300"}
 
 ### 6. User Profiles
 - View profiles
 
-  ![User Profile](peview/screenshots/profile.png)
+  ![User Profile](peview/screenshots/profile.png){width="300"}
 
 ### 7. Explore Workouts
 - Explore different workouts
 
-  ![Explore Workouts](peview/screenshots/workouts.png)
+  ![Explore Workouts](peview/screenshots/workouts.png){width="300"}
 
 ### 8. Post Feed
 - View workout feed.
 
-  ![Post Feed](peview/screenshots/feed.png)
-
-
+  ![Post Feed](peview/screenshots/feed.png){width="300"}
