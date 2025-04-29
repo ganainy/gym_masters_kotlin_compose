@@ -97,6 +97,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+
+            buildConfigStringField( "SAMPLE_WORKOUT_IMAGE_URL", "\"https://firebasestorage.googleapis.com/v0/b/gym-masters.appspot.com/o/workouts%2F-Myv9QdZ0nK7WYV3JpQJk%2Fimage?alt=media&token=0e0f9f5b-9d3e-4e1e-94f1-6c9e0d7a5f0c\"")
+
             buildConfigBooleanField("IS_APP_IN_DEBUG_MODE", false)
 
             signingConfig = signingConfigs.getByName("debug")
@@ -106,6 +109,8 @@ android {
         create("stagingDebug") {
             //Inherit from debug and override
             initWith(buildTypes.getByName("debug"))
+
+            buildConfigStringField( "SAMPLE_WORKOUT_IMAGE_URL", "\"https://firebasestorage.googleapis.com/v0/b/gym-masters.appspot.com/o/workouts%2F-Myv9QdZ0nK7WYV3JpQJk%2Fimage?alt=media&token=0e0f9f5b-9d3e-4e1e-94f1-6c9e0d7a5f0c\"")
 
             // Override or add specific flags
             buildConfigBooleanField("IS_APP_IN_DEBUG_MODE", true)
